@@ -275,10 +275,12 @@ If you encounter any issues or have suggestions:
 
 ## Credits
 
-Created for World of Warcraft Anniversary Classic
-Version: 1.0.0
+Created for World of Warcraft Classic
 
-Uses embedded Ace3 libraries for addon framework.
+
+Uses embedded Ace3 libraries for the addon framework.
+
+Copyright (c) 2007, Ace3 Development Team
 
 ## License
 

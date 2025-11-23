@@ -28,7 +28,7 @@ Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to 
     - 🟡 Yellow: 1-2 minutes remaining
     - 🔴 Red: Less than 1 minute remaining
 - **Draggable & Lockable**: Position the HUD anywhere on screen
-- **Clickable Lock Icon**: Click the padlock icon in the top-right corner to instantly lock/unlock the HUD
+- **Clickable Lock Icon**: Click the padlock icon in the top-right corner to lock/unlock the HUD instantly
 - **Quick Toggle**: Right-click minimap icon to show/hide HUD
 
 ### 🎣 Detailed Statistics

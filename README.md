@@ -2,6 +2,8 @@
 
 A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic. Track all your catches, monitor your fishing efficiency, view detailed statistics, and display real-time fishing stats with an on-screen HUD!
 
+Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to come. -- Relyk22
+
 ## Features
 
 ### 📊 Comprehensive Tracking
@@ -26,7 +28,7 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
     - 🟡 Yellow: 1-2 minutes remaining
     - 🔴 Red: Less than 1 minute remaining
 - **Draggable & Lockable**: Position the HUD anywhere on screen
-- **Lock/Unlock Toggle**: Prevent accidental movement when locked
+- **Clickable Lock Icon**: Click the padlock icon in the top-right corner to instantly lock/unlock the HUD
 - **Quick Toggle**: Right-click minimap icon to show/hide HUD
 
 ### 🎣 Detailed Statistics
@@ -73,21 +75,6 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 - **Lightweight**: Minimal performance impact
 - **Classic WoW Compatible**: Fully optimized for Classic WoW character encoding
 
-## Installation
-
-### Method 1: Manual Installation
-1. Download the addon files
-2. Extract the `ClassicFishingCompanion` folder
-3. Place the folder in your WoW addons directory:
-   - Default path: `World of Warcraft\_classic_\Interface\AddOns\`
-4. Restart WoW or reload UI with `/reload`
-
-### Method 2: Git Clone
-```bash
-cd "World of Warcraft\_classic_\Interface\AddOns\"
-git clone <repository-url> "ClassicFishingCompanion"
-```
-
 ## Usage
 
 ### Getting Started
@@ -125,10 +112,12 @@ The HUD displays real-time fishing information:
   - Timer changes color as time runs low
   - Helps you know when to reapply lures
 
-**Moving the HUD:**
-1. Make sure HUD is unlocked (check Settings tab)
+**Moving and Locking the HUD:**
+1. Make sure HUD is unlocked (click the padlock icon in top-right corner or check Settings tab)
 2. Click and drag the HUD to your preferred position
-3. Lock it in Settings to prevent accidental movement
+3. Click the lock icon to lock it in place, or use the Settings tab
+4. A locked padlock icon 🔒 means the HUD is locked; an unlocked icon 🔓 means it can be moved
+5. Hover over the lock icon to see a tooltip with the current state
 
 ### Understanding the Interface
 
@@ -168,6 +157,7 @@ The HUD displays real-time fishing information:
 - The Stats HUD provides at-a-glance information without opening the main UI
 - Buff timer helps you maximize your fishing skill bonus by reapplying lures promptly
 - Missing buff warnings appear in the center of your screen when fishing without a lure - keep your fishing skill bonus active!
+- Click the lock icon in the top-right of the HUD for quick lock/unlock without opening Settings
 - Lock the HUD once you've positioned it to avoid accidental movement during gameplay
 - All location data is saved for each catch
 - Fishing skill increases are automatically tracked and displayed in Statistics
@@ -179,7 +169,7 @@ For each fish caught, the addon records:
 - Fish name (item name)
 - Exact timestamp
 - Zone name
-- Subzone name
+- Sub-zone name
 - Player coordinates
 - Date and time (formatted)
 
@@ -247,6 +237,12 @@ This addon is designed to be lightweight:
 
 ## Version History
 
+### Version 1.0.2
+- Improved HUD lock/unlock functionality
+  - Lock icon is now clickable for instant lock/unlock toggle
+  - Hover tooltip shows current lock state and click instruction
+  - Uses native WoW padlock icons for professional appearance
+
 ### Version 1.0.1
 - Added missing buff warning system
   - On-screen warnings every 60 seconds when fishing without a lure/buff
@@ -268,26 +264,13 @@ This addon is designed to be lightweight:
 - Minimap button with quick actions
 - Full Classic WoW compatibility
 
-## Future Features (Planned)
-
-Potential additions for future versions:
-- Export data to text/CSV
-- Import/share fish data
-- Per-zone fish per hour tracking
-- Rare fish highlighting
-- Sound notifications for rare catches
-- Fish database with information
-- Best fishing spot recommendations
-- Graph/chart visualizations
-- Fishing achievements system
-
 ## Support
 
 If you encounter any issues or have suggestions:
 1. Check the Troubleshooting section above
 2. Make sure you're running the latest version
 3. Enable debug mode to get detailed information
-4. Report bugs with detailed information (what happened, when, any error messages)
+4. Report bugs with detailed information (what happened, when, any error messages) https://github.com/DigitalPenguin1/ClassicFishingCompanion/issues
 
 ## Credits
 

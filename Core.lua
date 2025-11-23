@@ -77,7 +77,7 @@ function CFC:OnInitialize()
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
 
-    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.1 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
+    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.2 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
 end
 
 -- Handle addon loading

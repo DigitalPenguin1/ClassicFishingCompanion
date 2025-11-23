@@ -76,10 +76,36 @@ function CFC:InitializeHUD()
     hudFrame.buffTimerText:SetPoint("TOPLEFT", hudFrame.buffText, "BOTTOMLEFT", 0, -3)
     hudFrame.buffTimerText:SetJustifyH("LEFT")
 
-    -- Lock/unlock indicator
-    hudFrame.lockIcon = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    -- Lock/unlock button
+    hudFrame.lockIcon = CreateFrame("Button", nil, hudFrame)
+    hudFrame.lockIcon:SetSize(16, 16)
     hudFrame.lockIcon:SetPoint("TOPRIGHT", hudFrame, "TOPRIGHT", -5, -5)
-    hudFrame.lockIcon:SetTextColor(1, 1, 0)
+
+    -- Create texture for the button
+    hudFrame.lockIcon.texture = hudFrame.lockIcon:CreateTexture(nil, "OVERLAY")
+    hudFrame.lockIcon.texture:SetAllPoints()
+
+    -- Click handler to toggle lock
+    hudFrame.lockIcon:SetScript("OnClick", function(self)
+        HUDModule:ToggleLock()
+    end)
+
+    -- Tooltip on hover
+    hudFrame.lockIcon:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if CFC.db.profile.hud.locked then
+            GameTooltip:SetText("HUD Locked", 1, 1, 1)
+            GameTooltip:AddLine("Click to unlock", 0.8, 0.8, 0.8)
+        else
+            GameTooltip:SetText("HUD Unlocked", 1, 1, 1)
+            GameTooltip:AddLine("Click to lock", 0.8, 0.8, 0.8)
+        end
+        GameTooltip:Show()
+    end)
+
+    hudFrame.lockIcon:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
 
     -- Drag handlers
     hudFrame:SetScript("OnDragStart", function(self)
@@ -341,12 +367,12 @@ function HUDModule:UpdateLockState()
     end
 
     if CFC.db.profile.hud.locked then
-        hudFrame.lockIcon:SetText("[L]")
-        hudFrame.lockIcon:SetTextColor(1, 0, 0)  -- Red for locked
+        -- Locked icon (red padlock)
+        hudFrame.lockIcon.texture:SetTexture("Interface\\Buttons\\LockButton-Locked-Up")
         hudFrame:EnableMouse(false)  -- Disable mouse when locked
     else
-        hudFrame.lockIcon:SetText("[U]")
-        hudFrame.lockIcon:SetTextColor(0, 1, 0)  -- Green for unlocked
+        -- Unlocked icon (open padlock)
+        hudFrame.lockIcon.texture:SetTexture("Interface\\Buttons\\LockButton-Unlocked-Up")
         hudFrame:EnableMouse(true)  -- Enable mouse when unlocked
     end
 end

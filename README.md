@@ -56,7 +56,7 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 ### ⚙️ Settings & Customization
 - **Minimap Icon**: Show/hide the minimap button
 - **Announce Fish Catches**: Optional chat messages when catching fish
-- **Announce Fishing Buffs**: Optional chat messages when applying lures/buffs
+- **Warn When Fishing Without Buff**: On-screen warnings every 60 seconds when fishing without a lure (enabled by default)
 - **Show Stats HUD**: Toggle the on-screen stats display
 - **Lock Stats HUD**: Prevent HUD from being moved accidentally
 - **Debug Mode**: Enable detailed debug output for troubleshooting
@@ -65,6 +65,10 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 ### ✨ Additional Features
 - **Automatic Detection**: Automatically detects when you catch fish
 - **Buff Detection**: Recognizes common fishing lures (Shiny Bauble, Nightcrawlers, Bright Baubles, Aquadynamic Fish Attractor)
+- **Missing Buff Warnings**: Prominent on-screen warning displayed every 60 seconds when fishing without a lure/buff
+  - Displays in center of screen for 10 seconds
+  - HUD shows "None" in red when no buff is active
+  - Helps maximize fishing skill bonus by reminding you to apply lures
 - **Persistent Data**: All data is saved between sessions
 - **Lightweight**: Minimal performance impact
 - **Classic WoW Compatible**: Fully optimized for Classic WoW character encoding
@@ -154,7 +158,7 @@ The HUD displays real-time fishing information:
 #### Settings Tab
 - **Show Minimap Icon**: Toggle minimap button visibility
 - **Announce Fish Catches**: Enable/disable chat messages for catches
-- **Announce Fishing Buffs**: Enable/disable chat messages for buff tracking
+- **Warn When Fishing Without Buff**: Enable/disable on-screen warnings when fishing without a lure (enabled by default)
 - **Show Stats HUD**: Toggle the on-screen HUD
 - **Lock Stats HUD**: Prevent HUD from being dragged
 - **Enable Debug Mode**: Show detailed debug information
@@ -163,6 +167,7 @@ The HUD displays real-time fishing information:
 ### Tips
 - The Stats HUD provides at-a-glance information without opening the main UI
 - Buff timer helps you maximize your fishing skill bonus by reapplying lures promptly
+- Missing buff warnings appear in the center of your screen when fishing without a lure - keep your fishing skill bonus active!
 - Lock the HUD once you've positioned it to avoid accidental movement during gameplay
 - All location data is saved for each catch
 - Fishing skill increases are automatically tracked and displayed in Statistics
@@ -241,6 +246,17 @@ This addon is designed to be lightweight:
 - No continuous scanning or heavy operations
 
 ## Version History
+
+### Version 1.0.1
+- Added missing buff warning system
+  - On-screen warnings every 60 seconds when fishing without a lure/buff
+  - Displays prominently in center of screen for 10 seconds
+  - HUD now shows "None" in red when no buff is active
+  - Warning enabled by default, can be toggled in Settings
+- Updated settings UI with clearer descriptions
+- Fixed bug where cooked/crafted fish were incorrectly tracked as caught fish
+  - Addon now only tracks items from "You receive loot:" messages (fishing)
+  - Ignores "You create:" messages from cooking and other professions
 
 ### Version 1.0.0
 - Initial release with comprehensive fishing tracking

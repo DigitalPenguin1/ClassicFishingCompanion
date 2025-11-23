@@ -23,7 +23,7 @@ local defaults = {
             minimapPos = 220,
         },
         settings = {
-            announceBuffs = false,  -- Announce buff tracking in chat
+            announceBuffs = true,  -- Warn when fishing without buff (enabled by default)
             announceCatches = false,  -- Announce fish catches in chat
         },
         hud = {
@@ -77,7 +77,7 @@ function CFC:OnInitialize()
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
 
-    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.0 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
+    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.1 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
 end
 
 -- Handle addon loading
@@ -89,6 +89,7 @@ function CFC:OnEnable()
     self.isFishing = false
     self.lastSkillCheck = 0
     self.lastLootWasFishing = false
+    self.lastBuffWarningTime = 0  -- Track when we last warned about missing buff
 
     -- Register events
     self:RegisterEvent("CHAT_MSG_LOOT", "OnLootReceived")
@@ -210,6 +211,26 @@ function CFC:CheckFishingState()
         self:UpdateFishingSkill()
         self.lastSkillCheck = time()
     end
+
+    -- Check for missing fishing buff and warn if enabled
+    if self.isFishing and self.db.profile.settings.announceBuffs then
+        local currentTime = time()
+        -- Check every 60 seconds
+        if currentTime - self.lastBuffWarningTime >= 60 then
+            if not self:HasFishingBuff() then
+                -- Display on-screen warning using RaidWarningFrame (center of screen, 10 seconds)
+                RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Pole Buff!", ChatTypeInfo["RAID_WARNING"], 10)
+                self.lastBuffWarningTime = currentTime
+
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Warning: Fishing without buff!")
+                end
+            else
+                -- Reset timer when buff is detected so we don't spam after it expires
+                self.lastBuffWarningTime = currentTime
+            end
+        end
+    end
 end
 
 -- Detect and track fishing pole
@@ -251,6 +272,52 @@ function CFC:DetectFishingPole()
     end
 
     return nil
+end
+
+-- Check if player currently has a fishing buff/lure active
+function CFC:HasFishingBuff()
+    -- Check weapon enchantment (lures applied to fishing pole)
+    local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantId = GetWeaponEnchantInfo()
+
+    if hasMainHandEnchant then
+        -- Check if it's a fishing lure by scanning tooltip
+        local tooltip = CreateFrame("GameTooltip", "CFCBuffCheckTooltip", nil, "GameTooltipTemplate")
+        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:SetInventoryItem("player", 16)
+
+        for i = 1, tooltip:NumLines() do
+            local line = _G["CFCBuffCheckTooltipTextLeft" .. i]
+            if line then
+                local text = line:GetText()
+                if text and string.match(text, "Fishing Lure %+(%d+)") then
+                    tooltip:Hide()
+                    return true
+                end
+            end
+        end
+
+        tooltip:Hide()
+    end
+
+    -- Check for fishing-related buffs
+    local fishingBuffs = {
+        "lure", "aquadynamic", "bright baubles", "nightcrawlers",
+        "shiny bauble", "flesh eating worm", "attractor", "bait"
+    }
+
+    for i = 1, 40 do
+        local buffName = UnitBuff("player", i)
+        if buffName then
+            local buffLower = string.lower(buffName)
+            for _, buffPattern in ipairs(fishingBuffs) do
+                if string.find(buffLower, buffPattern) then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 -- Detect fishing pole buffs (lures, bobbers, etc.)
@@ -354,11 +421,6 @@ function CFC:DetectFishingBuffs()
             if time() - lastTracked > 2 then
                 self.db.profile.buffUsage[enchantName].count = self.db.profile.buffUsage[enchantName].count + 1
                 self.db.profile.buffUsage[enchantName].lastUsed = time()
-
-                -- Only announce if setting is enabled
-                if self.db.profile.settings.announceBuffs then
-                    print("|cff00ff00Classic Fishing Companion Announcements:|r Tracked fishing buff: " .. enchantName .. " (Total: " .. self.db.profile.buffUsage[enchantName].count .. ")")
-                end
             end
         end
     end
@@ -402,11 +464,6 @@ function CFC:DetectFishingBuffs()
                     if time() - lastTracked > 2 then
                         self.db.profile.buffUsage[buffName].count = self.db.profile.buffUsage[buffName].count + 1
                         self.db.profile.buffUsage[buffName].lastUsed = time()
-
-                        -- Only announce if setting is enabled
-                        if self.db.profile.settings.announceBuffs then
-                            print("|cff00ff00Classic Fishing Companion Announcements:|r Tracked fishing buff: " .. buffName .. " (Total: " .. self.db.profile.buffUsage[buffName].count .. ")")
-                        end
                     end
                     break
                 end
@@ -523,6 +580,14 @@ function CFC:OnLootReceived(event, message)
     -- Debug: Print all loot messages
     if self.debug then
         print("|cffff8800[CFC Debug]|r LOOT: " .. tostring(message))
+    end
+
+    -- Only process "You receive loot:" messages, NOT "You create:" (from cooking/crafting)
+    if not string.find(message, "You receive loot:") then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Skipping non-loot message (probably crafting/cooking)")
+        end
+        return
     end
 
     -- Pattern for loot: "You receive loot: [Item Name]."

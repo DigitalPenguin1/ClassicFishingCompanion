@@ -181,7 +181,7 @@ function HUDModule:Update()
         local timeText = HUDModule:FormatTime(timeRemaining)
         hudFrame.buffTimerText:SetText("Time Left: " .. timeColor .. timeText .. "|r")
     else
-        hudFrame.buffText:SetText("Buff: |cffaaaaaa None|r")
+        hudFrame.buffText:SetText("Buff: |cffff0000None|r")
         hudFrame.buffTimerText:SetText("")
     end
 end

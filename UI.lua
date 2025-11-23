@@ -562,14 +562,14 @@ function UI:CreateSettingsTab()
     frame.announceBuffsCheck:SetPoint("TOPLEFT", frame.announceCatchesDesc, "BOTTOMLEFT", -25, -20)
     frame.announceBuffsCheck.text = frame.announceBuffsCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.announceBuffsCheck.text:SetPoint("LEFT", frame.announceBuffsCheck, "RIGHT", 5, 0)
-    frame.announceBuffsCheck.text:SetText("Announce Fishing Buffs")
+    frame.announceBuffsCheck.text:SetText("Warn When Fishing Without Buff")
 
     frame.announceBuffsCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.announceBuffs = self:GetChecked()
         if CFC.db.profile.settings.announceBuffs then
-            print("|cff00ff00Classic Fishing Companion Announcements:|r Fishing buff announcements |cff00ff00enabled|r")
+            print("|cff00ff00Classic Fishing Companion:|r Missing buff warnings |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion Announcements:|r Fishing buff announcements |cffff0000disabled|r")
+            print("|cff00ff00Classic Fishing Companion:|r Missing buff warnings |cffff0000disabled|r")
         end
     end)
 
@@ -579,7 +579,7 @@ function UI:CreateSettingsTab()
     frame.announceBuffsDesc:SetJustifyH("LEFT")
     frame.announceBuffsDesc:SetWidth(500)
     frame.announceBuffsDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.announceBuffsDesc:SetText("Display chat messages when fishing buffs (lures, baits) are tracked.")
+    frame.announceBuffsDesc:SetText("Show on-screen warning every 60 seconds when fishing without a lure/buff applied.")
 
     -- Show Stats HUD Checkbox
     frame.showHUDCheck = CreateFrame("CheckButton", "CFCShowHUDCheck", frame.scrollChild, "UICheckButtonTemplate")

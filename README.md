@@ -8,7 +8,7 @@ Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to 
 
 ### 📊 Comprehensive Tracking
 - **Every Fish Tracked**: Records every single fish you catch
-- **Location Data**: Saves the zone and subzone where each fish was caught
+- **Location Data**: Saves the zone and sub-zone where each fish was caught
 - **Timestamp Records**: Each catch is timestamped for detailed history
 - **Fish Per Hour**: Real-time calculation of your fishing efficiency
 - **Session Statistics**: Track your current fishing session separately from lifetime stats
@@ -18,15 +18,15 @@ Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to 
 
 ### 🎯 Stats HUD (Heads-Up Display)
 - **On-Screen Stats Display**: Real-time fishing statistics overlay
-  - Session catches count
-  - Total lifetime catches
-  - Fish per hour rate
-  - Current fishing skill level
-  - Active fishing buff/lure name
-  - **Buff Timer Countdown**: Color-coded timer showing time remaining on lures
-    - 🟢 Green: More than 2 minutes remaining
-    - 🟡 Yellow: 1-2 minutes remaining
-    - 🔴 Red: Less than 1 minute remaining
+  - Session catches count
+  - Total lifetime catches
+  - Fish per hour rate
+  - Current fishing skill level
+  - Active fishing buff/lure name
+  - **Buff Timer Countdown**: Color-coded timer showing time remaining on lures
+    - 🟢 Green: More than 2 minutes remaining
+    - 🟡 Yellow: 1-2 minutes remaining
+    - 🔴 Red: Less than 1 minute remaining
 - **Draggable & Lockable**: Position the HUD anywhere on screen
 - **Clickable Lock Icon**: Click the padlock icon in the top-right corner to instantly lock/unlock the HUD
 - **Quick Toggle**: Right-click minimap icon to show/hide HUD
@@ -43,16 +43,16 @@ Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to 
 
 ### 🖥️ User Interface
 - **Clean Tabbed Interface**: Easy-to-navigate UI with multiple tabs
-  - **Overview**: Current session and lifetime stats at a glance
-  - **Fish List**: All fish types you've caught, sorted by count
-  - **History**: Recent catches with full details
-  - **Statistics**: Detailed stats including skill progress, buff usage, pole usage, top fish, and zones
-  - **Settings**: Customize addon behavior and display options
+  - **Overview**: Current session and lifetime stats at a glance
+  - **Fish List**: All fish types you've caught, sorted by count
+  - **History**: Recent catches with full details
+  - **Statistics**: Detailed stats including skill progress, buff usage, pole usage, top fish, and zones
+  - **Settings**: Customize addon behavior and display options
 - **Minimap Button**: Quick access button on your minimap
-  - Left-click: Open main UI
-  - Right-click: Toggle Stats HUD
-  - Drag: Move button around minimap
-  - Hover: See quick session stats tooltip
+  - Left-click: Open main UI
+  - Right-click: Toggle Stats HUD
+  - Drag: Move the button around the minimap
+  - Hover: See quick session stats tooltip
 - **Real-time Updates**: UI and HUD update automatically as you catch fish
 
 ### ⚙️ Settings & Customization
@@ -62,15 +62,16 @@ Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to 
 - **Show Stats HUD**: Toggle the on-screen stats display
 - **Lock Stats HUD**: Prevent HUD from being moved accidentally
 - **Debug Mode**: Enable detailed debug output for troubleshooting
-- **Clear All Statistics**: Reset all tracked data with confirmation dialog
+- **Clear All Statistics**: Reset all tracked data with a confirmation dialog
+
 
 ### ✨ Additional Features
 - **Automatic Detection**: Automatically detects when you catch fish
 - **Buff Detection**: Recognizes common fishing lures (Shiny Bauble, Nightcrawlers, Bright Baubles, Aquadynamic Fish Attractor)
 - **Missing Buff Warnings**: Prominent on-screen warning displayed every 60 seconds when fishing without a lure/buff
-  - Displays in center of screen for 10 seconds
-  - HUD shows "None" in red when no buff is active
-  - Helps maximize fishing skill bonus by reminding you to apply lures
+  - Displays in the center of the screen for 10 seconds
+  - HUD shows "None" in red when no buff is active
+  - Helps maximize fishing skill bonus by reminding you to apply lures
 - **Persistent Data**: All data is saved between sessions
 - **Lightweight**: Minimal performance impact
 - **Classic WoW Compatible**: Fully optimized for Classic WoW character encoding
@@ -91,7 +92,7 @@ Update 11/22/25 - Waiting on PTR access for TBC so I can start testing. More to 
 ### Minimap Button Controls
 - **Left-Click**: Open/close the main UI window
 - **Right-Click**: Toggle Stats HUD visibility
-- **Drag**: Move button around the minimap edge
+- **Drag**: Move the button around the minimap edge
 - **Hover**: View tooltip with quick session stats
 
 ### Commands
@@ -109,11 +110,11 @@ The HUD displays real-time fishing information:
 - **Skill**: Your fishing skill level (current/max)
 - **Buff**: Active fishing lure or buff
 - **Time Left**: Countdown timer for buff expiration
-  - Timer changes color as time runs low
-  - Helps you know when to reapply lures
+  - Timer changes color as time runs low
+  - Helps you know when to reapply lures
 
 **Moving and Locking the HUD:**
-1. Make sure HUD is unlocked (click the padlock icon in top-right corner or check Settings tab)
+1. Make sure HUD is unlocked (click the padlock icon in the top-right corner or check the Settings tab)
 2. Click and drag the HUD to your preferred position
 3. Click the lock icon to lock it in place, or use the Settings tab
 4. A locked padlock icon 🔒 means the HUD is locked; an unlocked icon 🔓 means it can be moved
@@ -139,7 +140,7 @@ The HUD displays real-time fishing information:
 
 #### Statistics Tab
 - **Fishing Skill**: Current skill level and recent skill increases
-- **Fishing Poles Used**: Which poles you've used and how many casts
+- **Fishing Poles Used**: Which poles have you used and how many casts
 - **Fishing Buffs Used**: Which lures/buffs you've applied and usage count
 - **Top 10 Most Caught Fish**: Your most common catches
 - **Fishing Zones**: Most productive fishing locations
@@ -199,12 +200,12 @@ Additional tracking:
 
 ### Minimap button missing?
 - Type `/cfc` to open the UI
-- Check Settings tab to show the minimap button
+- Check the Settings tab to show the minimap button
 - Try `/reload` to reset UI
 
 ### Stats HUD not showing?
 - Right-click the minimap button to toggle HUD
-- Check the "Show Stats HUD" option in Settings tab
+- Check the "Show Stats HUD" option in the Settings tab
 - Make sure HUD isn't positioned off-screen (reset position in Settings)
 
 ### Buff timer not showing?
@@ -213,7 +214,7 @@ Additional tracking:
 - Timer appears only when a fishing buff is active
 
 ### UI not showing?
-- Make sure addon is enabled
+- Make sure the addon is enabled
 - Check for Lua errors with `/console scriptErrors 1`
 - Try `/reload` to reload the UI
 
@@ -231,7 +232,7 @@ Additional tracking:
 This addon is designed to be lightweight:
 - Only tracks events when you're actually fishing
 - Efficient data storage
-- Minimal UI updates when window is closed
+- Minimal UI updates when the window is closed
 - HUD updates once per second (minimal impact)
 - No continuous scanning or heavy operations
 
@@ -239,20 +240,21 @@ This addon is designed to be lightweight:
 
 ### Version 1.0.2
 - Improved HUD lock/unlock functionality
-  - Lock icon is now clickable for instant lock/unlock toggle
-  - Hover tooltip shows current lock state and click instruction
-  - Uses native WoW padlock icons for professional appearance
+  - Lock icon is now clickable for instant lock/unlock toggle
+  - Hover tooltip shows the current lock state and click instruction
+  - Uses native WoW padlock icons for a professional appearance
+
 
 ### Version 1.0.1
 - Added missing buff warning system
-  - On-screen warnings every 60 seconds when fishing without a lure/buff
-  - Displays prominently in center of screen for 10 seconds
-  - HUD now shows "None" in red when no buff is active
-  - Warning enabled by default, can be toggled in Settings
+  - On-screen warnings every 60 seconds when fishing without a lure/buff
+  - Displays prominently in the center of the screen for 10 seconds
+  - HUD now shows "None" in red when no buff is active
+  - Warning is enabled by default. It can be toggled in Settings
 - Updated settings UI with clearer descriptions
 - Fixed bug where cooked/crafted fish were incorrectly tracked as caught fish
-  - Addon now only tracks items from "You receive loot:" messages (fishing)
-  - Ignores "You create:" messages from cooking and other professions
+  - Addon now only tracks items from "You receive loot:" messages (fishing)
+  - Ignores "You create:" messages from cooking and other professions
 
 ### Version 1.0.0
 - Initial release with comprehensive fishing tracking
@@ -279,13 +281,13 @@ Created for World of Warcraft Classic
 
 Uses embedded Ace3 libraries for the addon framework.
 
-Copyright (c) 2007, Ace3 Development Team
+
+Copyright (c) 2007, Ace3 Development Team. All Rights Reserved.
+
 
 ## License
 
 Free to use and modify for personal use.
-
----
 
 **Happy Fishing!** 🎣
 

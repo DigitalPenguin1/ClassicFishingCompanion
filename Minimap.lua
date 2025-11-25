@@ -246,10 +246,20 @@ StaticPopupDialogs["CFC_RESET_CONFIRM"] = {
     button2 = "Cancel",
     OnAccept = function()
         if CFC.db and CFC.db.profile then
+            -- Clear all fishing data
             CFC.db.profile.catches = {}
             CFC.db.profile.fishData = {}
+            CFC.db.profile.sessions = {}
+            CFC.db.profile.buffUsage = {}  -- Clear lure usage statistics
+            CFC.db.profile.poleUsage = {}  -- Clear fishing pole statistics
+            CFC.db.profile.skillLevels = {}  -- Clear skill level history
+
+            -- Reset statistics (but keep current fishing skill levels)
             CFC.db.profile.statistics.totalCatches = 0
             CFC.db.profile.statistics.sessionCatches = 0
+            CFC.db.profile.statistics.totalFishingTime = 0
+            CFC.db.profile.statistics.sessionStartTime = time()
+
             print("|cff00ff00Classic Fishing Companion:|r All data has been reset.")
 
             if CFC.UpdateUI then

@@ -2,7 +2,7 @@
 ## Title: Classic Fishing Companion
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk
-## Version: 1.0.2
+## Version: 1.0.3
 ## SavedVariables: ClassicFishingCompanionDB
 
 # Libraries (Embedded Ace3)

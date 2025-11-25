@@ -51,6 +51,8 @@ function CFC:InitializeUI()
     UI:CreateFishListTab()
     UI:CreateHistoryTab()
     UI:CreateStatsTab()
+    UI:CreateGearSetsTab()
+    UI:CreateLuresTab()
     UI:CreateSettingsTab()
 
     -- Show default tab
@@ -66,12 +68,15 @@ function UI:CreateTabs()
         { name = "fishlist", label = "Fish List" },
         { name = "history", label = "History" },
         { name = "stats", label = "Statistics" },
+        { name = "gearsets", label = "Gear Sets" },
+        { name = "lures", label = "Lure" },
         { name = "settings", label = "Settings" },
     }
 
-    local buttonWidth = 110
+    local buttonWidth = 80
     local spacing = 3
-    local startX = 15
+    local totalWidth = (#tabs * buttonWidth) + ((#tabs - 1) * spacing)
+    local startX = (600 - totalWidth) / 2  -- Center buttons (600 is frame width)
 
     for i, tab in ipairs(tabs) do
         local button = CreateFrame("Button", "CFCTab" .. i, mainFrame, "UIPanelButtonTemplate")
@@ -108,6 +113,8 @@ function UI:ShowTab(tabName)
     if mainFrame.fishListFrame then mainFrame.fishListFrame:Hide() end
     if mainFrame.historyFrame then mainFrame.historyFrame:Hide() end
     if mainFrame.statsFrame then mainFrame.statsFrame:Hide() end
+    if mainFrame.gearsets then mainFrame.gearsets:Hide() end
+    if mainFrame.luresFrame then mainFrame.luresFrame:Hide() end
     if mainFrame.settingsFrame then mainFrame.settingsFrame:Hide() end
 
     -- Show selected content
@@ -123,6 +130,12 @@ function UI:ShowTab(tabName)
     elseif tabName == "stats" then
         mainFrame.statsFrame:Show()
         UI:UpdateStats()
+    elseif tabName == "gearsets" then
+        mainFrame.gearsets:Show()
+        UI:UpdateGearSetsTab()
+    elseif tabName == "lures" then
+        mainFrame.luresFrame:Show()
+        UI:UpdateLuresTab()
     elseif tabName == "settings" then
         mainFrame.settingsFrame:Show()
         UI:UpdateSettings()
@@ -419,7 +432,7 @@ function UI:UpdateStats()
         if #poleList > 0 then
             text = text .. "\n"
             for _, pole in ipairs(poleList) do
-                text = text .. pole.name .. ": |cff00ff00" .. pole.count .. " casts|r\n"
+                text = text .. pole.name .. ": |cff00ff00" .. pole.count .. " catches|r\n"
             end
         else
             text = text .. "No fishing poles tracked yet\n"
@@ -481,6 +494,297 @@ function UI:UpdateStats()
 
     -- Update scroll height
     frame.scrollChild:SetHeight(math.max(350, 800))
+end
+
+-- Create Gear Sets Tab
+function UI:CreateGearSetsTab()
+    local frame = CreateFrame("Frame", nil, mainFrame.content)
+    frame:SetAllPoints()
+    frame:Hide()
+
+    -- Title
+    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
+    frame.title:SetText("Gear Sets Manager")
+
+    -- Description
+    frame.desc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
+    frame.desc:SetWidth(560)
+    frame.desc:SetJustifyH("LEFT")
+    frame.desc:SetText("Save and manage your fishing and combat gear sets. Equip the gear you want to save, then click the Save button.")
+
+    -- Combat Gear Section
+    local combatY = -80
+    frame.combatTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.combatTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, combatY)
+    frame.combatTitle:SetText("|cffff8000Combat Gear Set|r")
+
+    -- Combat gear display
+    frame.combatGearText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.combatGearText:SetPoint("TOPLEFT", frame.combatTitle, "BOTTOMLEFT", 0, -10)
+    frame.combatGearText:SetWidth(260)
+    frame.combatGearText:SetHeight(150)
+    frame.combatGearText:SetJustifyH("LEFT")
+    frame.combatGearText:SetJustifyV("TOP")
+
+    -- Combat button
+    frame.saveCombatBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.saveCombatBtn:SetSize(150, 25)
+    frame.saveCombatBtn:SetPoint("TOPLEFT", frame.combatGearText, "BOTTOMLEFT", 0, -10)
+    frame.saveCombatBtn:SetText("Save Combat Gear")
+    frame.saveCombatBtn:SetScript("OnClick", function()
+        CFC:SaveGearSet("combat")
+        UI:UpdateGearSetsTab()
+        print("|cff00ff00Classic Fishing Companion:|r Combat gear set saved!")
+    end)
+
+    -- Fishing Gear Section
+    frame.fishingTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.fishingTitle:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, combatY)
+    frame.fishingTitle:SetText("|cff00ccffFishing Gear Set|r")
+
+    -- Fishing gear display
+    frame.fishingGearText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.fishingGearText:SetPoint("TOPRIGHT", frame.fishingTitle, "BOTTOMRIGHT", 0, -10)
+    frame.fishingGearText:SetWidth(260)
+    frame.fishingGearText:SetHeight(150)
+    frame.fishingGearText:SetJustifyH("RIGHT")
+    frame.fishingGearText:SetJustifyV("TOP")
+
+    -- Fishing button
+    frame.saveFishingBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.saveFishingBtn:SetSize(150, 25)
+    frame.saveFishingBtn:SetPoint("TOPRIGHT", frame.fishingGearText, "BOTTOMRIGHT", 0, -10)
+    frame.saveFishingBtn:SetText("Save Fishing Gear")
+    frame.saveFishingBtn:SetScript("OnClick", function()
+        CFC:SaveGearSet("fishing")
+        UI:UpdateGearSetsTab()
+        print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
+    end)
+
+    -- Swap Gear Button (big button at bottom)
+    frame.swapGearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.swapGearBtn:SetSize(200, 35)
+    frame.swapGearBtn:SetPoint("BOTTOM", frame, "BOTTOM", 0, 20)
+    frame.swapGearBtn:SetText("|TInterface\\Icons\\INV_Sword_04:16|t Swap to Fishing Gear")
+
+    local swapFont = frame.swapGearBtn:GetFontString()
+    swapFont:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+
+    frame.swapGearBtn:SetScript("OnClick", function()
+        CFC:SwapGear()
+        UI:UpdateGearSetsTab()
+    end)
+
+    -- Current Mode Display
+    frame.currentModeText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.currentModeText:SetPoint("BOTTOM", frame.swapGearBtn, "TOP", 0, 10)
+
+    -- Clear All Gear Sets Button
+    frame.clearSetsBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.clearSetsBtn:SetSize(140, 25)
+    frame.clearSetsBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
+    frame.clearSetsBtn:SetText("Clear All Gear Sets")
+
+    local clearFont = frame.clearSetsBtn:GetFontString()
+    clearFont:SetFont("Fonts\\FRIZQT__.TTF", 10)
+
+    frame.clearSetsBtn:SetScript("OnClick", function()
+        StaticPopup_Show("CFC_CLEAR_GEAR_SETS")
+    end)
+
+    -- Store reference
+    mainFrame.gearsets = frame
+
+    -- Initial update
+    UI:UpdateGearSetsTab()
+end
+
+-- Update Gear Sets Tab
+function UI:UpdateGearSetsTab()
+    local frame = mainFrame.gearsets
+    if not frame or not frame:IsVisible() then
+        return
+    end
+
+    -- Get gear sets
+    local combatGear = CFC.db.profile.gearSets.combat or {}
+    local fishingGear = CFC.db.profile.gearSets.fishing or {}
+    local currentMode = CFC:GetCurrentGearMode()
+
+    -- Update combat gear display
+    local combatText = ""
+    if next(combatGear) then
+        combatText = "|cff00ff00|TInterface\\RaidFrame\\ReadyCheck-Ready:16|t Gear Set Saved|r\n\n"
+        local slotNames = {
+            [1] = "Head", [2] = "Neck", [3] = "Shoulder",
+            [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",
+            [9] = "Wrist", [10] = "Hands", [15] = "Back",
+            [16] = "Main Hand", [17] = "Off Hand",
+        }
+        local count = 0
+        for slotID, itemLink in pairs(combatGear) do
+            if slotNames[slotID] and count < 8 then
+                local itemName = string.match(itemLink, "%[(.-)%]")
+                combatText = combatText .. slotNames[slotID] .. ": " .. (itemName or "Unknown") .. "\n"
+                count = count + 1
+            end
+        end
+        if count >= 8 then
+            combatText = combatText .. "... and more"
+        end
+    else
+        combatText = "|cffff0000No combat gear saved|r\n\nEquip your combat gear,\nthen click Save Combat Gear."
+    end
+    frame.combatGearText:SetText(combatText)
+
+    -- Update fishing gear display
+    local fishingText = ""
+    if next(fishingGear) then
+        fishingText = "|cff00ff00|TInterface\\RaidFrame\\ReadyCheck-Ready:16|t Gear Set Saved|r\n\n"
+        local slotNames = {
+            [1] = "Head", [2] = "Neck", [3] = "Shoulder",
+            [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",
+            [9] = "Wrist", [10] = "Hands", [15] = "Back",
+            [16] = "Main Hand", [17] = "Off Hand",
+        }
+        local count = 0
+        for slotID, itemLink in pairs(fishingGear) do
+            if slotNames[slotID] and count < 8 then
+                local itemName = string.match(itemLink, "%[(.-)%]")
+                fishingText = fishingText .. slotNames[slotID] .. ": " .. (itemName or "Unknown") .. "\n"
+                count = count + 1
+            end
+        end
+        if count >= 8 then
+            fishingText = fishingText .. "... and more"
+        end
+    else
+        fishingText = "|cffff0000No fishing gear saved|r\n\nEquip your fishing gear,\nthen click Save Fishing Gear."
+    end
+    frame.fishingGearText:SetText(fishingText)
+
+    -- Update current mode
+    local modeIcon = (currentMode == "fishing") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
+    frame.currentModeText:SetText("Current Mode: " .. modeIcon .. " " .. currentMode:upper())
+
+    -- Update swap button
+    local targetMode = (currentMode == "combat") and "fishing" or "combat"
+    local btnIcon = (currentMode == "combat") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
+    frame.swapGearBtn:SetText(btnIcon .. " Swap to " .. targetMode:sub(1,1):upper() .. targetMode:sub(2) .. " Gear")
+
+    -- Disable swap if gear sets not configured
+    if CFC:HasGearSets() then
+        frame.swapGearBtn:Enable()
+    else
+        frame.swapGearBtn:Disable()
+    end
+end
+
+-- Create Lures Tab
+function UI:CreateLuresTab()
+    local frame = CreateFrame("Frame", nil, mainFrame.content)
+    frame:SetAllPoints()
+    frame:Hide()
+
+    -- Title
+    frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
+    frame.title:SetText("Lure")
+
+    -- Description
+    frame.desc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
+    frame.desc:SetWidth(560)
+    frame.desc:SetJustifyH("LEFT")
+    frame.desc:SetText("Select your preferred fishing lure to apply quickly with the HUD button.")
+
+    -- Selected lure display
+    frame.selectedLureLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.selectedLureLabel:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -20)
+    frame.selectedLureLabel:SetText("Selected Lure:")
+
+    frame.selectedLure = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+    frame.selectedLure:SetPoint("TOPLEFT", frame.selectedLureLabel, "BOTTOMLEFT", 0, -10)
+    frame.selectedLure:SetText("|cffaaaaaa(None selected)|r")
+
+    -- Clear selection button (positioned next to label)
+    frame.clearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.clearBtn:SetSize(100, 22)
+    frame.clearBtn:SetPoint("LEFT", frame.selectedLureLabel, "RIGHT", 10, 0)
+    frame.clearBtn:SetText("Clear")
+    frame.clearBtn:SetScript("OnClick", function()
+        CFC.db.profile.selectedLure = nil
+        UI:UpdateLuresTab()
+
+        -- Update the Apply Lure button macro on the HUD
+        if CFC.hudFrame and CFC.hudFrame.UpdateApplyLureMacro then
+            CFC.hudFrame.UpdateApplyLureMacro()
+        end
+    end)
+
+    -- Lure selection buttons
+    local lureData = {
+        { name = "Shiny Bauble", id = 6529, bonus = 25, icon = "INV_Misc_Orb_03" },
+        { name = "Nightcrawlers", id = 6530, bonus = 50, icon = "INV_Misc_MonsterTail_03" },
+        { name = "Aquadynamic Fish Lens", id = 6811, bonus = 50, icon = "INV_Misc_Spyglass_01", faction = "Alliance" },
+        { name = "Bright Baubles", id = 6532, bonus = 75, icon = "INV_Misc_Gem_Variety_02" },
+        { name = "Flesh Eating Worm", id = 7307, bonus = 75, icon = "INV_Misc_MonsterTail_03" },
+        { name = "Aquadynamic Fish Attractor", id = 6533, bonus = 100, icon = "INV_Misc_Food_26" },
+    }
+
+    local yOffset = -120
+    for i, lure in ipairs(lureData) do
+        local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        btn:SetSize(250, 30)
+        btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+
+        -- Add faction icon if specified
+        local buttonText = "|TInterface\\Icons\\" .. lure.icon .. ":20|t " .. lure.name .. " (+" .. lure.bonus .. ")"
+        if lure.faction == "Alliance" then
+            buttonText = buttonText .. " |TInterface\\PVPFrame\\PVP-Currency-Alliance:16|t"
+        end
+        btn:SetText(buttonText)
+
+        btn:SetScript("OnClick", function()
+            CFC.db.profile.selectedLure = lure.id
+            UI:UpdateLuresTab()
+
+            -- Update the Apply Lure button macro on the HUD
+            if CFC.hudFrame and CFC.hudFrame.UpdateApplyLureMacro then
+                CFC.hudFrame.UpdateApplyLureMacro()
+            end
+        end)
+
+        yOffset = yOffset - 40
+    end
+
+    -- Store reference
+    mainFrame.luresFrame = frame
+end
+
+-- Update Lures Tab
+function UI:UpdateLuresTab()
+    local frame = mainFrame.luresFrame
+    if not frame or not frame:IsVisible() then
+        return
+    end
+
+    local selectedLureID = CFC.db.profile.selectedLure
+    if selectedLureID then
+        local lureNames = {
+            [6529] = "|TInterface\\Icons\\INV_Misc_Orb_03:20|t Shiny Bauble (+25)",
+            [6530] = "|TInterface\\Icons\\INV_Misc_MonsterTail_03:20|t Nightcrawlers (+50)",
+            [6532] = "|TInterface\\Icons\\INV_Misc_Gem_Variety_02:20|t Bright Baubles (+75)",
+            [7307] = "|TInterface\\Icons\\INV_Misc_MonsterTail_03:20|t Flesh Eating Worm (+75)",
+            [6533] = "|TInterface\\Icons\\INV_Misc_Food_26:20|t Aquadynamic Fish Attractor (+100)",
+            [6811] = "|TInterface\\Icons\\INV_Misc_Spyglass_01:20|t Aquadynamic Fish Lens (+50) |TInterface\\PVPFrame\\PVP-Currency-Alliance:16|t",
+        }
+        frame.selectedLure:SetText(lureNames[selectedLureID] or "|cffaaaaaa(Unknown)|r")
+    else
+        frame.selectedLure:SetText("|cffaaaaaa(None selected)|r")
+    end
 end
 
 -- Create Settings Tab
@@ -747,11 +1051,15 @@ StaticPopupDialogs["CFC_CLEAR_STATS_CONFIRM"] = {
     button2 = "Cancel",
     OnAccept = function()
         if CFC.db and CFC.db.profile then
-            -- Clear all data
+            -- Clear all fishing data
             CFC.db.profile.catches = {}
             CFC.db.profile.fishData = {}
-            CFC.db.profile.buffUsage = {}
-            CFC.db.profile.skillLevels = {}
+            CFC.db.profile.sessions = {}
+            CFC.db.profile.buffUsage = {}  -- Clear lure usage statistics
+            CFC.db.profile.poleUsage = {}  -- Clear fishing pole statistics
+            CFC.db.profile.skillLevels = {}  -- Clear skill level history
+
+            -- Reset statistics (but keep current fishing skill levels)
             CFC.db.profile.statistics.totalCatches = 0
             CFC.db.profile.statistics.sessionCatches = 0
             CFC.db.profile.statistics.totalFishingTime = 0
@@ -762,6 +1070,36 @@ StaticPopupDialogs["CFC_CLEAR_STATS_CONFIRM"] = {
             -- Update UI if it's open
             if CFC.UpdateUI then
                 CFC:UpdateUI()
+            end
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["CFC_CLEAR_GEAR_SETS"] = {
+    text = "Are you sure you want to clear ALL gear sets?\n\nThis will delete:\n• Combat gear set\n• Fishing gear set\n\nYou will need to reconfigure your gear sets after this.\n\nThis action CANNOT be undone!",
+    button1 = "Yes, Clear Gear Sets",
+    button2 = "Cancel",
+    OnAccept = function()
+        if CFC.db and CFC.db.profile and CFC.db.profile.gearSets then
+            -- Clear both gear sets
+            CFC.db.profile.gearSets.combat = {}
+            CFC.db.profile.gearSets.fishing = {}
+            CFC.db.profile.gearSets.currentMode = "combat"
+
+            print("|cff00ff00Classic Fishing Companion:|r All gear sets have been cleared.")
+
+            -- Update UI if it's open
+            if CFC.UI and CFC.UI.UpdateGearSetsTab then
+                CFC.UI:UpdateGearSetsTab()
+            end
+
+            -- Update HUD
+            if CFC.HUD and CFC.HUD.Update then
+                CFC.HUD:Update()
             end
         end
     end,

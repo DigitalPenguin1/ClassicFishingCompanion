@@ -49,6 +49,11 @@ local defaults = {
         buffUsage = {},  -- Tracks fishing buff usage (lures, bobbers, etc)
         skillLevels = {},  -- Tracks fishing skill level ups
         poleUsage = {},  -- Tracks fishing pole usage
+        gearSets = {
+            fishing = {},  -- Fishing gear set (saved item links)
+            combat = {},   -- Combat gear set (saved item links)
+            currentMode = "combat",  -- Current gear mode: "fishing" or "combat"
+        },
     }
 }
 
@@ -77,7 +82,7 @@ function CFC:OnInitialize()
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
 
-    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.2 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
+    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.3 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
 end
 
 -- Handle addon loading
@@ -90,6 +95,17 @@ function CFC:OnEnable()
     self.lastSkillCheck = 0
     self.lastLootWasFishing = false
     self.lastBuffWarningTime = 0  -- Track when we last warned about missing buff
+    self.currentTrackedBuff = nil  -- Track currently active buff to detect changes
+    self.currentBuffExpiration = 0  -- Track buff expiration time to detect reapplications
+    self.currentTrackedPole = nil  -- Track current pole to detect changes
+    self.lastPoleTrackTime = 0  -- Track last time we counted a pole cast
+    self.lastBuffTrackTime = 0  -- Track last time we counted a buff application
+
+    -- Create scanning tooltip for lure detection
+    if not CFC_ScanTooltip then
+        CFC_ScanTooltip = CreateFrame("GameTooltip", "CFC_ScanTooltip", nil, "GameTooltipTemplate")
+        CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    end
 
     -- Register events
     self:RegisterEvent("CHAT_MSG_LOOT", "OnLootReceived")
@@ -97,14 +113,21 @@ function CFC:OnEnable()
     self:RegisterEvent("PLAYER_LOGOUT", "OnLogout")
     self:RegisterEvent("CHAT_MSG_SKILL", "OnSkillUpdate")
 
-    -- Use LOOT_OPENED which fires when you loot the bobber
+    -- Register fishing detection events
     self:RegisterEvent("LOOT_OPENED", "OnLootOpened")
     self:RegisterEvent("LOOT_CLOSED", "OnLootClosed")
 
-    -- Create frame for fishing bobber tracking
-    self.fishingFrame = CreateFrame("Frame")
-    self.fishingFrame:SetScript("OnUpdate", function(self, elapsed)
-        CFC:CheckFishingState()
+    -- Create frame for periodic checking (Classic WoW compatible)
+    -- Check every 2 seconds for fishing state and lure changes
+    self.updateFrame = CreateFrame("Frame")
+    self.updateFrame.timeSinceLastUpdate = 0
+    self.updateFrame:SetScript("OnUpdate", function(self, elapsed)
+        self.timeSinceLastUpdate = self.timeSinceLastUpdate + elapsed
+        if self.timeSinceLastUpdate >= 2 then
+            CFC:CheckFishingState()
+            CFC:CheckLureChanges()
+            self.timeSinceLastUpdate = 0
+        end
     end)
 
     -- Initialize UI
@@ -163,90 +186,174 @@ function CFC:OnSkillUpdate()
     self:UpdateFishingSkill()
 end
 
--- Check if player has fishing pole equipped and is casting
+-- Check fishing state (called every second via OnUpdate - Classic WoW compatible)
 function CFC:CheckFishingState()
-    -- Check if player is channeling (fishing)
-    local hasFishingBuff = false
-    local channeling = UnitChannelInfo("player")
-
-    if channeling and channeling == "Fishing" then
-        hasFishingBuff = true
-    end
-
-    -- Also check buffs using texture-based detection (more reliable in Classic)
-    if not hasFishingBuff then
-        for i = 1, 40 do
-            local _, _, texture = UnitBuff("player", i)
-            -- Fishing buff texture ID
-            if texture and (texture == 136245 or string.find(tostring(texture), "Trade_Fishing")) then
-                hasFishingBuff = true
-                break
+    -- Check if player has fishing pole equipped
+    local mainHandLink = GetInventoryItemLink("player", 16)
+    if not mainHandLink then
+        -- No fishing pole, clear fishing state
+        if self.isFishing then
+            self.isFishing = false
+            self.currentTrackedPole = nil
+            if self.debug then
+                print("|cffff0000[CFC Debug]|r Fishing ended (no pole)")
             end
         end
+        return
     end
 
-    -- If we have the buff and weren't fishing before, mark start time
-    if hasFishingBuff and not self.isFishing then
-        self.isFishing = true
-        self.fishingStartTime = time()
-
-        -- Detect and track fishing pole buffs (lures, bobbers, etc.)
-        self:DetectFishingBuffs()
-
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r Started fishing (buff detected)")
+    -- Check if it's a valid item (assume any item in slot 16 is a fishing pole)
+    local itemName = GetItemInfo(mainHandLink)
+    if not itemName then
+        if self.isFishing then
+            self.isFishing = false
+            self.currentTrackedPole = nil
         end
-    elseif not hasFishingBuff and self.isFishing then
+        return
+    end
+
+    -- We have a fishing pole equipped
+    -- Check if fishing cast timed out (30 seconds since last cast)
+    if self.isFishing and time() - self.lastSpellTime > 30 then
+        -- Cast timed out, reset for next cast
         self.isFishing = false
-        -- Update the lastSpellTime when fishing ends (this is when we caught something or it timed out)
-        self.lastSpellTime = time()
-
+        self.currentTrackedPole = nil
         if self.debug then
-            print("|cffff8800[CFC Debug]|r Stopped fishing (buff ended)")
+            print("|cffff0000[CFC Debug]|r Fishing cast timed out - ready for next cast")
         end
     end
 
-    -- Periodically check fishing skill (every 30 seconds)
+    -- Update fishing skill periodically
     if time() - self.lastSkillCheck > 30 then
         self:UpdateFishingSkill()
         self.lastSkillCheck = time()
     end
 
-    -- Check for missing fishing buff and warn if enabled
-    if self.isFishing and self.db.profile.settings.announceBuffs then
+    -- Check for missing buff warning when we have pole equipped
+    if self.db.profile.settings.announceBuffs then
         local currentTime = time()
-        -- Check every 60 seconds
         if currentTime - self.lastBuffWarningTime >= 60 then
             if not self:HasFishingBuff() then
-                -- Display on-screen warning using RaidWarningFrame (center of screen, 10 seconds)
-                RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Pole Buff!", ChatTypeInfo["RAID_WARNING"], 10)
-                self.lastBuffWarningTime = currentTime
-
-                if self.debug then
-                    print("|cffff8800[CFC Debug]|r Warning: Fishing without buff!")
+                -- Only warn if we recently fished
+                if time() - self.lastSpellTime < 30 then
+                    RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Pole Buff!", ChatTypeInfo["RAID_WARNING"], 10)
+                    self.lastBuffWarningTime = currentTime
+                    if self.debug then
+                        print("|cffff8800[CFC Debug]|r Warning: Fishing without buff!")
+                    end
                 end
             else
-                -- Reset timer when buff is detected so we don't spam after it expires
                 self.lastBuffWarningTime = currentTime
             end
         end
     end
 end
 
--- Detect and track fishing pole
-function CFC:DetectFishingPole()
+-- Check for lure changes (called every 2 seconds)
+function CFC:CheckLureChanges()
+    -- Check if player has fishing pole equipped
+    local mainHandLink = GetInventoryItemLink("player", 16)
+    if not mainHandLink then
+        self.currentTrackedBuff = nil
+        self.currentBuffExpiration = 0
+        return
+    end
+
+    -- Check weapon enchantment
+    local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantID = GetWeaponEnchantInfo()
+
+    if hasMainHandEnchant then
+        -- Convert expiration from milliseconds to seconds
+        local expirationSeconds = math.floor(mainHandExpiration / 1000)
+
+        -- Detect the actual lure name from tooltip (don't trust selected lure in UI)
+        local lureName = nil
+        CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        CFC_ScanTooltip:ClearLines()
+        CFC_ScanTooltip:SetInventoryItem("player", 16)
+
+        for i = 1, CFC_ScanTooltip:NumLines() do
+            local line = _G["CFC_ScanTooltipTextLeft" .. i]
+            if line then
+                local text = line:GetText()
+                if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing")) then
+                    -- Remove duration text like "(10 min)" or "(13 sec)" to get consistent name
+                    lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                    break
+                end
+            end
+        end
+
+        if lureName then
+            -- Detect lure application by checking:
+            -- 1. Different lure than currently tracked, OR
+            -- 2. Expiration time increased significantly (fresh lure application)
+            --    Most lures last 10 minutes (600s), so require jump of at least 500s
+            local isNewApplication = false
+
+            if self.currentTrackedBuff ~= lureName then
+                -- Different lure
+                isNewApplication = true
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Different lure: " .. tostring(self.currentTrackedBuff) .. " -> " .. lureName)
+                end
+            elseif expirationSeconds > self.currentBuffExpiration + 500 then
+                -- Same lure but expiration time jumped significantly (fresh application)
+                -- 500+ second increase indicates a new lure was applied
+                isNewApplication = true
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Same lure reapplied: " .. lureName .. " (" .. self.currentBuffExpiration .. "s -> " .. expirationSeconds .. "s)")
+                end
+            end
+
+            if isNewApplication then
+                -- Initialize tracking for this lure if needed
+                if not self.db.profile.buffUsage[lureName] then
+                    self.db.profile.buffUsage[lureName] = {
+                        name = lureName,
+                        count = 0,
+                        firstUsed = time(),
+                        lastUsed = time(),
+                    }
+                end
+
+                -- Increment count
+                self.db.profile.buffUsage[lureName].count = self.db.profile.buffUsage[lureName].count + 1
+                self.db.profile.buffUsage[lureName].lastUsed = time()
+                self.currentTrackedBuff = lureName
+                self.currentBuffExpiration = expirationSeconds
+
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r NEW lure applied: " .. lureName .. " (Total: " .. self.db.profile.buffUsage[lureName].count .. ")")
+                end
+            else
+                -- Just update the expiration time for tracking (time naturally decreases)
+                self.currentBuffExpiration = expirationSeconds
+            end
+        end
+    else
+        -- No enchantment, reset tracked buff
+        if self.currentTrackedBuff ~= nil then
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Lure expired or removed")
+            end
+            self.currentTrackedBuff = nil
+            self.currentBuffExpiration = 0
+        end
+    end
+end
+
+
+-- Track fishing pole cast (called when Fishing spell is cast)
+function CFC:TrackFishingPoleCast()
     -- Get the main hand item (fishing pole)
     local itemLink = GetInventoryItemLink("player", 16)
 
     if itemLink then
         local itemName = GetItemInfo(itemLink)
 
-        if itemName and self.debug then
-            print("|cffff8800[CFC Debug]|r Fishing pole detected: " .. itemName)
-        end
-
         if itemName then
-            -- Track this pole usage
+            -- Initialize pole data if needed
             if not self.db.profile.poleUsage[itemName] then
                 self.db.profile.poleUsage[itemName] = {
                     name = itemName,
@@ -256,14 +363,20 @@ function CFC:DetectFishingPole()
                 }
             end
 
-            -- Only increment if we haven't tracked this pole in the last 2 seconds (avoid double counting)
-            local lastTracked = self.db.profile.poleUsage[itemName].lastUsed or 0
-            if time() - lastTracked > 2 then
+            -- Only increment if this is a different pole from the currently tracked one
+            -- currentTrackedPole is reset to nil when fishing ends, so each new cast is counted
+            if self.currentTrackedPole ~= itemName then
                 self.db.profile.poleUsage[itemName].count = self.db.profile.poleUsage[itemName].count + 1
                 self.db.profile.poleUsage[itemName].lastUsed = time()
+                self.currentTrackedPole = itemName
+                self.lastPoleTrackTime = time()
 
                 if self.debug then
-                    print("|cffff8800[CFC Debug]|r Tracked fishing pole: " .. itemName .. " (Total: " .. self.db.profile.poleUsage[itemName].count .. ")")
+                    print("|cffff8800[CFC Debug]|r Tracked fishing pole cast: " .. itemName .. " (Total: " .. self.db.profile.poleUsage[itemName].count .. ")")
+                end
+            else
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Skipping duplicate pole cast (already tracked this cast)")
                 end
             end
 
@@ -321,183 +434,61 @@ function CFC:HasFishingBuff()
 end
 
 -- Detect fishing pole buffs (lures, bobbers, etc.)
-function CFC:DetectFishingBuffs()
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r === Checking for fishing buffs ===")
-    end
-
-    -- Detect and track fishing pole
-    self:DetectFishingPole()
-
-    local buffCount = 0
-
-    -- Check temporary weapon enchantments (lures applied to fishing pole)
-    local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantId, hasOffHandEnchant, offHandExpiration, offHandCharges, offHandEnchantId = GetWeaponEnchantInfo()
-
-    if hasMainHandEnchant then
-        -- Map fishing skill bonus to common lure names
-        -- This is the most reliable way since the weapon tooltip doesn't show the item name
-        local lureMap = {
-            [100] = {
-                [600] = "Aquadynamic Fish Attractor",  -- 10 min
-                [480] = "Aquadynamic Fish Attractor",  -- 8 min (after some use)
-            },
-            [75] = {
-                [600] = "Bright Baubles",  -- 10 min
-                [480] = "Bright Baubles",  -- 8 min (after some use)
-            },
-            [50] = {
-                [600] = "Nightcrawlers",  -- 10 min
-                [480] = "Nightcrawlers",
-            },
-            [25] = {
-                [600] = "Shiny Bauble",  -- 10 min
-                [480] = "Shiny Bauble",
-                [300] = "Shiny Bauble",  -- 5 min
-            },
-        }
-
-        -- Try to get the fishing bonus from tooltip
-        local fishingBonus = nil
-        local duration = mainHandExpiration / 1000  -- Convert to seconds
-
-        local tooltip = CreateFrame("GameTooltip", "CFCBuffScanTooltip", nil, "GameTooltipTemplate")
-        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        tooltip:SetInventoryItem("player", 16)
-
-        for i = 1, tooltip:NumLines() do
-            local line = _G["CFCBuffScanTooltipTextLeft" .. i]
-            if line then
-                local text = line:GetText()
-                if text then
-                    -- Look for "Fishing Lure +XX" pattern
-                    local bonus = string.match(text, "Fishing Lure %+(%d+)")
-                    if bonus then
-                        fishingBonus = tonumber(bonus)
-                        break
-                    end
-                end
-            end
-        end
-
-        tooltip:Hide()
-
-        -- Determine lure name based on bonus and duration
-        local enchantName = nil
-        if fishingBonus and lureMap[fishingBonus] then
-            -- Round duration to nearest common value
-            local roundedDuration = 600  -- Default to 10 min
-            if duration < 540 then
-                roundedDuration = 480  -- 8 min
-            elseif duration < 420 then
-                roundedDuration = 300  -- 5 min
-            end
-
-            enchantName = lureMap[fishingBonus][roundedDuration] or lureMap[fishingBonus][600]
-        end
-
-        -- Fallback to generic name if we can't identify the specific lure
-        if not enchantName and fishingBonus then
-            enchantName = "Unknown Lure (+" .. fishingBonus .. ")"
-        end
-
-        if enchantName then
-            if self.debug then
-                print("|cffff8800[CFC Debug]|r Found weapon enchant: " .. enchantName .. " (bonus: " .. tostring(fishingBonus) .. ", duration: " .. string.format("%.0f", duration) .. "s)")
-            end
-
-            -- Track this buff usage
-            if not self.db.profile.buffUsage[enchantName] then
-                self.db.profile.buffUsage[enchantName] = {
-                    name = enchantName,
-                    count = 0,
-                    firstUsed = time(),
-                    lastUsed = time(),
-                }
-            end
-
-            -- Only increment if we haven't tracked this buff in the last 2 seconds (avoid double counting)
-            local lastTracked = self.db.profile.buffUsage[enchantName].lastUsed or 0
-            if time() - lastTracked > 2 then
-                self.db.profile.buffUsage[enchantName].count = self.db.profile.buffUsage[enchantName].count + 1
-                self.db.profile.buffUsage[enchantName].lastUsed = time()
-            end
-        end
-    end
-
-    -- Also check player buffs (some items give actual buffs)
-    local fishingBuffs = {
-        ["lure"] = true,
-        ["aquadynamic"] = true,
-        ["bright baubles"] = true,
-        ["nightcrawlers"] = true,
-        ["shiny bauble"] = true,
-        ["flesh eating worm"] = true,
-        ["attractor"] = true,
-        ["bait"] = true,
-    }
-
-    for i = 1, 40 do
-        local buffName, _, icon, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-        if buffName then
-            buffCount = buffCount + 1
-            local buffLower = string.lower(buffName)
-
-            if self.debug then
-                print("|cffff8800[CFC Debug]|r Player Buff " .. i .. ": " .. buffName)
-            end
-
-            -- Check if it's a fishing-related buff
-            for buffPattern, _ in pairs(fishingBuffs) do
-                if string.find(buffLower, buffPattern) then
-                    -- Track this buff usage
-                    if not self.db.profile.buffUsage[buffName] then
-                        self.db.profile.buffUsage[buffName] = {
-                            name = buffName,
-                            count = 0,
-                            firstUsed = time(),
-                            lastUsed = time(),
-                        }
-                    end
-
-                    local lastTracked = self.db.profile.buffUsage[buffName].lastUsed or 0
-                    if time() - lastTracked > 2 then
-                        self.db.profile.buffUsage[buffName].count = self.db.profile.buffUsage[buffName].count + 1
-                        self.db.profile.buffUsage[buffName].lastUsed = time()
-                    end
-                    break
-                end
-            end
-        end
-    end
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Total player buffs found: " .. buffCount)
-        print("|cffff8800[CFC Debug]|r Main hand enchant: " .. tostring(hasMainHandEnchant))
-    end
-end
 
 -- Handle loot window opening
 function CFC:OnLootOpened()
-    local timeSinceFishing = time() - self.lastSpellTime
-    if self.isFishing or timeSinceFishing < 10 then
-        self.lastLootWasFishing = true
+    -- Check if we have a fishing pole equipped
+    local mainHandLink = GetInventoryItemLink("player", 16)
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r OnLootOpened called")
+        print("|cffff8800[CFC Debug]|r  mainHandLink: " .. tostring(mainHandLink))
+    end
+
+    if mainHandLink then
+        local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(mainHandLink)
 
         if self.debug then
-            print("|cffff8800[CFC Debug]|r Loot opened while fishing (time since cast: " .. timeSinceFishing .. "s)")
+            print("|cffff8800[CFC Debug]|r  itemName: " .. tostring(itemName))
+            print("|cffff8800[CFC Debug]|r  itemType: " .. tostring(itemType))
+            print("|cffff8800[CFC Debug]|r  itemSubType: " .. tostring(itemSubType))
         end
-    else
-        self.lastLootWasFishing = false
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r Loot opened but NOT fishing (time since cast: " .. timeSinceFishing .. "s)")
+
+        -- Check if it's a fishing pole by item type
+        -- In Classic, fishing poles are typically "Miscellaneous" type with "Junk" subtype
+        -- Or we can just check if item is equipped in slot 16 and assume it's fishing
+        if itemName and itemType then
+            -- We have fishing pole equipped and loot opened = successful fishing cast
+            self.lastLootWasFishing = true
+            self.isFishing = true
+            self.lastSpellTime = time()
+
+            -- Track the fishing pole cast
+            self:TrackFishingPoleCast()
+
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Loot opened from fishing - tracking cast")
+            end
+            return
         end
+    end
+
+    -- Not fishing
+    self.lastLootWasFishing = false
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Loot opened but NOT fishing")
     end
 end
 
 -- Handle loot window closing
 function CFC:OnLootClosed()
-    -- Don't reset immediately - CHAT_MSG_LOOT may fire after loot window closes
-    -- Just leave the flag set, it will be reset on next LOOT_OPENED or when fishing stops
+    -- Reset tracked pole so next cast will count
+    self.currentTrackedPole = nil
+    self.isFishing = false
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Loot closed - ready for next cast")
+    end
 end
 
 -- Handle logout
@@ -717,6 +708,577 @@ function CFC:GetTotalFishingTime()
     return totalSeconds / 3600
 end
 
+-- ========================================
+-- GEAR SWAP SYSTEM
+-- ========================================
+
+-- Equipment slot IDs
+local GEAR_SLOTS = {
+    HEADSLOT = 1,
+    NECKSLOT = 2,
+    SHOULDERSLOT = 3,
+    SHIRTSLOT = 4,
+    CHESTSLOT = 5,
+    WAISTSLOT = 6,
+    LEGSSLOT = 7,
+    FEETSLOT = 8,
+    WRISTSLOT = 9,
+    HANDSSLOT = 10,
+    FINGER0SLOT = 11,
+    FINGER1SLOT = 12,
+    TRINKET0SLOT = 13,
+    TRINKET1SLOT = 14,
+    BACKSLOT = 15,
+    MAINHANDSLOT = 16,
+    SECONDARYHANDSLOT = 17,
+    TABARDSLOT = 19,
+}
+
+-- Helper function to count table entries
+function CFC:CountTableEntries(tbl)
+    local count = 0
+    for _ in pairs(tbl) do
+        count = count + 1
+    end
+    return count
+end
+
+-- Save current equipment to a gear set
+function CFC:SaveGearSet(setName)
+    if not self.db or not self.db.profile then
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r SaveGearSet failed: No database")
+        end
+        return false
+    end
+
+    if not self.db.profile.gearSets then
+        self.db.profile.gearSets = {
+            fishing = {},
+            combat = {},
+            currentMode = "combat",
+        }
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Initialized gearSets database")
+        end
+    end
+
+    local gearSet = {}
+    local itemCount = 0
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r === Saving " .. setName .. " gear set ===")
+    end
+
+    -- Save each equipment slot
+    for slotName, slotID in pairs(GEAR_SLOTS) do
+        local itemLink = GetInventoryItemLink("player", slotID)
+        if itemLink then
+            gearSet[slotID] = itemLink
+            itemCount = itemCount + 1
+            if self.debug then
+                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                print("|cffff8800[CFC Debug]|r   Slot " .. slotID .. " (" .. slotName .. "): " .. itemName)
+            end
+        end
+    end
+
+    self.db.profile.gearSets[setName] = gearSet
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Saved " .. itemCount .. " items to " .. setName .. " gear set")
+    end
+
+    -- Check if both gear sets are identical
+    local otherSet = (setName == "fishing") and "combat" or "fishing"
+    if self.db.profile.gearSets[otherSet] and next(self.db.profile.gearSets[otherSet]) then
+        local matchingItems = 0
+        local totalItems = 0
+
+        for slotID, itemLink in pairs(gearSet) do
+            totalItems = totalItems + 1
+            local otherItemLink = self.db.profile.gearSets[otherSet][slotID]
+            if otherItemLink then
+                local itemID = tonumber(string.match(itemLink, "item:(%d+)"))
+                local otherItemID = tonumber(string.match(otherItemLink, "item:(%d+)"))
+                if itemID == otherItemID then
+                    matchingItems = matchingItems + 1
+                end
+            end
+        end
+
+        -- If all items match exactly, warn the user
+        if totalItems > 0 and matchingItems == totalItems then
+            print("|cffffcc00Classic Fishing Companion:|r |cffff8800WARNING:|r Your fishing and combat gear are identical!")
+            print("|cffffcc00Tip:|r Equip different gear for each set to make swapping useful.")
+        end
+    end
+
+    return true
+end
+
+-- Load and equip a gear set
+function CFC:LoadGearSet(setName)
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r === Loading " .. setName .. " gear set ===")
+    end
+
+    if not self.db or not self.db.profile or not self.db.profile.gearSets then
+        print("|cffff0000Classic Fishing Companion:|r No gear sets saved yet!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Database not initialized")
+        end
+        return false
+    end
+
+    local gearSet = self.db.profile.gearSets[setName]
+    if not gearSet or not next(gearSet) then
+        print("|cffff0000Classic Fishing Companion:|r No " .. setName .. " gear set saved. Equip your gear and use /cfc save" .. setName .. " first!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Gear set '" .. setName .. "' is empty or doesn't exist")
+        end
+        return false
+    end
+
+    -- Check if in combat
+    if InCombatLockdown() then
+        print("|cffff0000Classic Fishing Companion:|r Cannot swap gear while in combat!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Combat lockdown active")
+        end
+        return false
+    end
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Found " .. self:CountTableEntries(gearSet) .. " items in " .. setName .. " gear set")
+    end
+
+    local swappedCount = 0
+    local notFoundCount = 0
+    local alreadyEquippedCount = 0
+
+    -- Equip each item from the set
+    for slotID, itemLink in pairs(gearSet) do
+        -- Check if this item is already equipped in the correct slot
+        local currentItemLink = GetInventoryItemLink("player", slotID)
+        local targetItemID = tonumber(string.match(itemLink, "item:(%d+)"))
+        local currentItemID = currentItemLink and tonumber(string.match(currentItemLink, "item:(%d+)"))
+
+        if currentItemID == targetItemID then
+            -- Item is already equipped in the correct slot, skip it
+            alreadyEquippedCount = alreadyEquippedCount + 1
+            if self.debug then
+                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                print("|cff00ff00[CFC Debug]|r   Already equipped: " .. itemName .. " (slot " .. slotID .. ")")
+            end
+        else
+            -- Need to equip this item
+            local itemID = targetItemID
+            if itemID then
+                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                local bag, slot = self:FindItemInBags(itemID)
+
+                if bag and slot then
+                    if self.debug then
+                        print("|cff00ff00[CFC Debug]|r   Equipping " .. itemName .. " (slot " .. slotID .. ") from bag " .. bag .. ", slot " .. slot)
+                    end
+                    ClearCursor()  -- Make sure cursor is clear before pickup
+
+                    -- Use C_Container API if available (Classic Anniversary), otherwise use old API
+                    if C_Container and C_Container.PickupContainerItem then
+                        C_Container.PickupContainerItem(bag, slot)
+                        if self.debug then
+                            print("|cffff8800[CFC Debug]|r   Using C_Container.PickupContainerItem")
+                        end
+                    else
+                        PickupContainerItem(bag, slot)
+                        if self.debug then
+                            print("|cffff8800[CFC Debug]|r   Using legacy PickupContainerItem")
+                        end
+                    end
+
+                    PickupInventoryItem(slotID)
+                    ClearCursor()  -- Clear cursor after swap
+                    swappedCount = swappedCount + 1
+                else
+                    notFoundCount = notFoundCount + 1
+                    if self.debug then
+                        print("|cffff0000[CFC Debug]|r   Item not in bags: " .. itemName .. " (ID: " .. itemID .. ")")
+                    end
+                end
+            else
+                if self.debug then
+                    print("|cffff0000[CFC Debug]|r   Could not extract item ID from: " .. itemLink)
+                end
+            end
+        end
+    end
+
+    self.db.profile.gearSets.currentMode = setName
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Gear swap complete: " .. swappedCount .. " equipped, " .. alreadyEquippedCount .. " already equipped, " .. notFoundCount .. " not found")
+    end
+
+    return true
+end
+
+-- Find item in bags by item ID
+function CFC:FindItemInBags(itemID)
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Searching bags for item ID: " .. itemID)
+    end
+
+    -- Determine which bag API to use with explicit checks
+    local GetNumSlots, GetItemID
+
+    -- Try C_Container API first (Classic Anniversary / Retail)
+    if C_Container and type(C_Container.GetContainerNumSlots) == "function" then
+        GetNumSlots = function(bag) return C_Container.GetContainerNumSlots(bag) end
+        GetItemID = function(bag, slot)
+            local itemInfo = C_Container.GetContainerItemInfo(bag, slot)
+            return itemInfo and itemInfo.itemID
+        end
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Using C_Container API (Classic Anniversary)")
+        end
+    -- Fallback to old global API (Classic Era)
+    elseif _G.GetContainerNumSlots and type(_G.GetContainerNumSlots) == "function" then
+        GetNumSlots = _G.GetContainerNumSlots
+        GetItemID = _G.GetContainerItemID
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Using legacy bag API (Classic Era)")
+        end
+    else
+        print("|cffff0000Classic Fishing Companion:|r ERROR: No bag API available!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r C_Container exists: " .. tostring(C_Container ~= nil))
+            if C_Container then
+                print("|cffff0000[CFC Debug]|r C_Container.GetContainerNumSlots: " .. tostring(C_Container.GetContainerNumSlots ~= nil))
+                print("|cffff0000[CFC Debug]|r C_Container.GetContainerItemInfo: " .. tostring(C_Container.GetContainerItemInfo ~= nil))
+            end
+            print("|cffff0000[CFC Debug]|r _G.GetContainerNumSlots: " .. tostring(_G.GetContainerNumSlots ~= nil))
+        end
+        return nil, nil
+    end
+
+    for b = 0, 4 do
+        local numSlots = GetNumSlots(b) or 0
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r   Checking bag " .. b .. " (" .. numSlots .. " slots)")
+        end
+
+        if numSlots > 0 then
+            for s = 1, numSlots do
+                local containerItemID = GetItemID(b, s)
+                if self.debug and containerItemID then
+                    print("|cffff8800[CFC Debug]|r     Bag " .. b .. " Slot " .. s .. ": Item " .. containerItemID)
+                end
+                if containerItemID and containerItemID == itemID then
+                    if self.debug then
+                        print("|cff00ff00[CFC Debug]|r   ✓ Found item " .. itemID .. " in bag " .. b .. ", slot " .. s)
+                    end
+                    return b, s
+                end
+            end
+        end
+    end
+
+    if self.debug then
+        print("|cffff0000[CFC Debug]|r   ✗ Item " .. itemID .. " not found in any bag")
+    end
+
+    return nil, nil
+end
+
+-- Swap between fishing and combat gear
+function CFC:SwapGear()
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r ===== GEAR SWAP INITIATED =====")
+    end
+
+    if not self.db or not self.db.profile or not self.db.profile.gearSets then
+        print("|cffff0000Classic Fishing Companion:|r No gear sets configured!")
+        print("|cffffcc00Tip:|r Equip your combat gear, then type |cffff8800/cfc savecombat|r")
+        print("|cffffcc00Then:|r Equip your fishing gear, then type |cffff8800/cfc savefishing|r")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Gear sets not configured - database missing")
+        end
+        return
+    end
+
+    local currentMode = self.db.profile.gearSets.currentMode or "combat"
+    local newMode = (currentMode == "combat") and "fishing" or "combat"
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Current mode: " .. currentMode)
+        print("|cffff8800[CFC Debug]|r Target mode: " .. newMode)
+    end
+
+    -- Check if both gear sets exist
+    local hasCombat = self.db.profile.gearSets.combat and next(self.db.profile.gearSets.combat)
+    local hasFishing = self.db.profile.gearSets.fishing and next(self.db.profile.gearSets.fishing)
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Has combat gear: " .. tostring(hasCombat))
+        print("|cffff8800[CFC Debug]|r Has fishing gear: " .. tostring(hasFishing))
+    end
+
+    -- Save current gear before swapping
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Saving current gear to '" .. currentMode .. "' set...")
+    end
+    self:SaveGearSet(currentMode)
+
+    -- Load the other gear set
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Loading '" .. newMode .. "' gear set...")
+    end
+
+    if self:LoadGearSet(newMode) then
+        print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. newMode .. " gear!")
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r ===== GEAR SWAP COMPLETE =====")
+        end
+    else
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r ===== GEAR SWAP FAILED =====")
+        end
+    end
+end
+
+-- Apply selected lure to fishing pole
+function CFC:ApplySelectedLure()
+    print("|cffff8800[CFC Debug]|r ===== APPLY LURE INITIATED =====")
+
+    -- Check if in combat
+    if InCombatLockdown() then
+        print("|cffff0000[CFC Debug]|r Cannot apply lure - IN COMBAT!")
+        print("|cffff0000Classic Fishing Companion:|r Cannot apply lure while in combat!")
+        return
+    end
+    print("|cff00ff00[CFC Debug]|r Combat check passed - not in combat")
+
+    -- Check database
+    if not self.db or not self.db.profile then
+        print("|cffff0000[CFC Debug]|r Database not initialized!")
+        return
+    end
+    print("|cff00ff00[CFC Debug]|r Database check passed")
+
+    -- Check if lure is selected
+    local selectedLureID = self.db.profile.selectedLure
+    print("|cffff8800[CFC Debug]|r Selected lure ID from DB: " .. tostring(selectedLureID))
+
+    if not selectedLureID then
+        print("|cffff0000[CFC Debug]|r No lure selected in database!")
+        print("|cffff0000Classic Fishing Companion:|r No lure selected!")
+        print("|cffffcc00Tip:|r Open the Lure Manager tab to select a lure")
+        return
+    end
+    print("|cff00ff00[CFC Debug]|r Lure selection check passed - ID: " .. selectedLureID)
+
+    -- Lure names mapping
+    local lureNames = {
+        [6529] = "Shiny Bauble",
+        [6530] = "Nightcrawlers",
+        [6811] = "Bright Baubles",
+        [7307] = "Flesh Eating Worm",
+        [6533] = "Aquadynamic Fish Attractor",
+    }
+
+    local lureName = lureNames[selectedLureID] or "Unknown Lure"
+    print("|cffff8800[CFC Debug]|r Lure name: " .. lureName)
+
+    -- Check if player has the lure in bags
+    print("|cffff8800[CFC Debug]|r Scanning bags for lure...")
+    local hasLure = false
+    local lureBag, lureSlot = nil, nil
+
+    -- Determine which bag API to use
+    local GetNumSlots, GetItemInfo
+
+    -- Try C_Container API first (Classic Anniversary / Retail)
+    if C_Container and type(C_Container.GetContainerNumSlots) == "function" then
+        GetNumSlots = function(bag) return C_Container.GetContainerNumSlots(bag) end
+        GetItemInfo = function(bag, slot)
+            return C_Container.GetContainerItemInfo(bag, slot)
+        end
+        print("|cffff8800[CFC Debug]|r Using C_Container API (Classic Anniversary)")
+    -- Fallback to old global API (Classic Era)
+    elseif _G.GetContainerNumSlots and type(_G.GetContainerNumSlots) == "function" then
+        GetNumSlots = _G.GetContainerNumSlots
+        GetItemInfo = function(bag, slot)
+            local texture, count, locked, quality, readable, lootable, itemLink = _G.GetContainerItemInfo(bag, slot)
+            return { iconFileID = texture, stackCount = count, isLocked = locked, quality = quality, isReadable = readable, hasLoot = lootable, hyperlink = itemLink }
+        end
+        print("|cffff8800[CFC Debug]|r Using legacy bag API (Classic Era)")
+    else
+        print("|cffff0000[CFC Debug]|r ERROR: No bag API available!")
+        print("|cffff0000Classic Fishing Companion:|r Cannot access bags - API not available")
+        return
+    end
+
+    -- Use pcall to catch any errors during bag scanning
+    local scanSuccess, scanError = pcall(function()
+        for bag = 0, 4 do
+            local numSlots = GetNumSlots(bag)
+            print("|cffff8800[CFC Debug]|r Bag " .. bag .. " has " .. tostring(numSlots) .. " slots")
+
+            if numSlots and numSlots > 0 then
+                for slot = 1, numSlots do
+                    local itemInfo = GetItemInfo(bag, slot)
+
+                    if itemInfo then
+                        local itemLink = itemInfo.hyperlink or itemInfo.itemLink
+
+                        if itemLink then
+                            -- Parse item ID from itemLink string (format: "item:####")
+                            local itemString = string.match(itemLink, "item:(%d+)")
+                            local itemID = itemString and tonumber(itemString)
+
+                            if itemID then
+                                print("|cffff8800[CFC Debug]|r   Slot " .. slot .. ": ItemID = " .. itemID)
+                                if itemID == selectedLureID then
+                                    hasLure = true
+                                    lureBag = bag
+                                    lureSlot = slot
+                                    print("|cff00ff00[CFC Debug]|r   FOUND LURE! Bag " .. bag .. " Slot " .. slot)
+                                    return  -- Exit the loop
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Check if scanning encountered an error
+    if not scanSuccess then
+        print("|cffff0000[CFC Debug]|r ERROR during bag scan: " .. tostring(scanError))
+        print("|cffff0000Classic Fishing Companion:|r Error scanning bags - please try again")
+        return
+    end
+
+    if not hasLure then
+        print("|cffff0000[CFC Debug]|r Lure not found in bags!")
+        print("|cffff0000Classic Fishing Companion:|r You don't have " .. lureName .. " in your bags!")
+        return
+    end
+
+    print("|cff00ff00[CFC Debug]|r Lure found - Bag: " .. lureBag .. ", Slot: " .. lureSlot)
+
+    -- Check if fishing pole is equipped in main hand
+    print("|cffff8800[CFC Debug]|r Checking main hand for fishing pole...")
+    local mainHandLink = GetInventoryItemLink("player", 16)
+    if not mainHandLink then
+        print("|cffff0000[CFC Debug]|r No item equipped in main hand!")
+        print("|cffff0000Classic Fishing Companion:|r No fishing pole equipped!")
+        return
+    end
+
+    print("|cff00ff00[CFC Debug]|r Main hand item: " .. mainHandLink)
+
+    -- Determine which UseContainerItem API to use
+    local UseItemFromBag
+    if C_Container and type(C_Container.UseContainerItem) == "function" then
+        UseItemFromBag = function(bag, slot)
+            C_Container.UseContainerItem(bag, slot)
+        end
+        print("|cffff8800[CFC Debug]|r Using C_Container.UseContainerItem")
+    elseif _G.UseContainerItem and type(_G.UseContainerItem) == "function" then
+        UseItemFromBag = _G.UseContainerItem
+        print("|cffff8800[CFC Debug]|r Using legacy UseContainerItem")
+    else
+        print("|cffff0000[CFC Debug]|r ERROR: No UseContainerItem API available!")
+        print("|cffff0000Classic Fishing Companion:|r Cannot use items from bags")
+        return
+    end
+
+    -- Apply the lure: Use the lure item (picks it up on cursor), then click the fishing pole
+    -- In Classic WoW, we need a small delay between these two actions
+    print("|cffff8800[CFC Debug]|r Step 1: Using lure from bag " .. lureBag .. " slot " .. lureSlot)
+    UseItemFromBag(lureBag, lureSlot)
+    print("|cffff8800[CFC Debug]|r Called UseItemFromBag - lure should now be on cursor")
+
+    -- Wait a short moment for the cursor to update, then apply to fishing pole
+    print("|cffff8800[CFC Debug]|r Waiting 0.1 seconds before applying to fishing pole...")
+    C_Timer.After(0.1, function()
+        print("|cffff8800[CFC Debug]|r Step 2: Checking cursor state...")
+        local cursorType, itemID = GetCursorInfo()
+        print("|cffff8800[CFC Debug]|r Cursor type: " .. tostring(cursorType) .. ", ItemID: " .. tostring(itemID))
+
+        if cursorType == "item" and itemID == selectedLureID then
+            print("|cff00ff00[CFC Debug]|r Cursor has lure! Applying to fishing pole...")
+            PickupInventoryItem(16)  -- 16 = main hand weapon slot
+            print("|cffff8800[CFC Debug]|r Called PickupInventoryItem(16)")
+
+            -- Check if successful
+            C_Timer.After(0.1, function()
+                local stillHasCursor = GetCursorInfo()
+                if stillHasCursor then
+                    print("|cffff0000[CFC Debug]|r WARNING: Cursor still has item - application may have failed")
+                    ClearCursor()  -- Clear cursor to prevent issues
+                else
+                    print("|cff00ff00[CFC Debug]|r Success! Cursor cleared - lure applied")
+                end
+            end)
+
+            print("|cff00ff00Classic Fishing Companion:|r Applied " .. lureName .. " to fishing pole!")
+        else
+            print("|cffff0000[CFC Debug]|r ERROR: Cursor doesn't have lure! Type: " .. tostring(cursorType))
+            if cursorType then
+                ClearCursor()  -- Clear whatever is on cursor
+            end
+            print("|cffff0000Classic Fishing Companion:|r Failed to apply lure - please try again")
+        end
+    end)
+
+    print("|cff00ff00[CFC Debug]|r ===== APPLY LURE INITIATED (waiting for completion) =====")
+end
+
+-- Check if gear sets are configured
+function CFC:HasGearSets()
+    if not self.db or not self.db.profile or not self.db.profile.gearSets then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r HasGearSets: No database")
+        end
+        return false
+    end
+
+    local fishing = self.db.profile.gearSets.fishing
+    local combat = self.db.profile.gearSets.combat
+
+    local hasFishing = fishing and next(fishing)
+    local hasCombat = combat and next(combat)
+    local hasGearSets = hasFishing and hasCombat
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r HasGearSets: fishing=" .. tostring(hasFishing) .. ", combat=" .. tostring(hasCombat) .. ", result=" .. tostring(hasGearSets))
+    end
+
+    return hasGearSets
+end
+
+-- Get current gear mode
+function CFC:GetCurrentGearMode()
+    if not self.db or not self.db.profile or not self.db.profile.gearSets then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r GetCurrentGearMode: No database, defaulting to 'combat'")
+        end
+        return "combat"
+    end
+
+    local mode = self.db.profile.gearSets.currentMode or "combat"
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r GetCurrentGearMode: " .. mode)
+    end
+
+    return mode
+end
+
 -- Slash command handler
 SLASH_CFC1 = "/cfc"
 SLASH_CFC2 = "/fishingcompanion"
@@ -740,6 +1302,23 @@ SlashCmdList["CFC"] = function(msg)
         else
             print("|cff00ff00Classic Fishing Companion:|r Debug mode |cffff0000disabled|r")
         end
+    elseif msg == "savefishing" then
+        if CFC.debug then
+            print("|cffff8800[CFC Debug]|r Slash command: savefishing")
+        end
+        CFC:SaveGearSet("fishing")
+        print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
+    elseif msg == "savecombat" then
+        if CFC.debug then
+            print("|cffff8800[CFC Debug]|r Slash command: savecombat")
+        end
+        CFC:SaveGearSet("combat")
+        print("|cff00ff00Classic Fishing Companion:|r Combat gear set saved!")
+    elseif msg == "swap" or msg == "gear" then
+        if CFC.debug then
+            print("|cffff8800[CFC Debug]|r Slash command: swap/gear")
+        end
+        CFC:SwapGear()
     elseif msg == "minimap" then
         print("|cff00ff00[CFC Debug]|r CFC.Minimap exists: " .. tostring(CFC.Minimap ~= nil))
         print("|cff00ff00[CFC Debug]|r CFC.minimapButton exists: " .. tostring(CFC.minimapButton ~= nil))

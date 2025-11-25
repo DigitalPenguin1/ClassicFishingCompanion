@@ -16,7 +16,7 @@ function CFC:InitializeHUD()
 
     -- Create main HUD frame
     hudFrame = CreateFrame("Frame", "CFCHUDFrame", UIParent)
-    hudFrame:SetSize(200, 140)
+    hudFrame:SetSize(200, 155)  -- Compact height for gear swap button
     hudFrame:SetFrameStrata("MEDIUM")
     hudFrame:SetFrameLevel(10)
     hudFrame:SetMovable(true)
@@ -107,6 +107,162 @@ function CFC:InitializeHUD()
         GameTooltip:Hide()
     end)
 
+    -- Apply lure button (using SecureActionButton for macro execution)
+    hudFrame.applyLureButton = CreateFrame("Button", "CFCApplyLureButton", hudFrame, "SecureActionButtonTemplate, UIPanelButtonTemplate")
+    hudFrame.applyLureButton:SetSize(88, 22)
+    hudFrame.applyLureButton:SetPoint("BOTTOMLEFT", hudFrame, "BOTTOMLEFT", 10, 5)
+    hudFrame.applyLureButton:SetText("Apply Lure")
+
+    -- Set button font
+    local applyLureFont = hudFrame.applyLureButton:GetFontString()
+    applyLureFont:SetFont("Fonts\\FRIZQT__.TTF", 10)
+
+    -- Set up secure button to execute a macro
+    hudFrame.applyLureButton:SetAttribute("type", "macro")
+
+    -- Function to update the macro based on selected lure
+    hudFrame.UpdateApplyLureMacro = function()
+        if InCombatLockdown() then
+            -- Cannot update secure buttons during combat
+            return
+        end
+
+        local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
+        if not selectedLureID then
+            hudFrame.applyLureButton:SetAttribute("macrotext", "/print You haven't selected a lure yet!")
+            return
+        end
+
+        -- Lure names for the macro
+        local lureNames = {
+            [6529] = "Shiny Bauble",
+            [6530] = "Nightcrawlers",
+            [6532] = "Bright Baubles",
+            [7307] = "Flesh Eating Worm",
+            [6533] = "Aquadynamic Fish Attractor",
+            [6811] = "Aquadynamic Fish Lens",
+        }
+
+        local lureName = lureNames[selectedLureID]
+        if lureName then
+            -- Create macro text that uses the lure by name
+            local macroText = "/use " .. lureName .. "\n/use 16"
+            hudFrame.applyLureButton:SetAttribute("macrotext", macroText)
+        end
+    end
+
+    -- Initial macro setup
+    hudFrame.UpdateApplyLureMacro()
+
+    -- PreClick handler to check gear mode and lure availability
+    hudFrame.applyLureButton:SetScript("PreClick", function(self, button, down)
+        local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
+
+        -- Check if a lure is selected
+        if not selectedLureID then
+            print("|cffff0000Classic Fishing Companion:|r No lure selected!")
+            print("|cff00ff00Tip:|r Open the Lure tab to select a lure first.")
+            return
+        end
+
+        -- Check if the lure is in the player's bags
+        local lureCount = GetItemCount(selectedLureID)
+        if lureCount == 0 then
+            local lureNames = {
+                [6529] = "Shiny Bauble",
+                [6530] = "Nightcrawlers",
+                [6532] = "Bright Baubles",
+                [7307] = "Flesh Eating Worm",
+                [6533] = "Aquadynamic Fish Attractor",
+                [6811] = "Aquadynamic Fish Lens",
+            }
+            local lureName = lureNames[selectedLureID] or "Unknown Lure"
+            print("|cffff0000Classic Fishing Companion:|r You don't have any " .. lureName .. " in your bags!")
+            return
+        end
+
+        -- Check if user has gear sets configured and is in combat mode
+        if CFC:HasGearSets() then
+            local currentMode = CFC:GetCurrentGearMode()
+            if currentMode == "combat" then
+                print("|cffff0000Classic Fishing Companion:|r You're in combat gear! Swap to fishing gear first.")
+                print("|cff00ff00Tip:|r Click the 'Swap to' button or use /cfc swap")
+            end
+        end
+    end)
+
+    -- Tooltip for apply lure button
+    hudFrame.applyLureButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+
+        local selectedLureID = CFC.db.profile.selectedLure
+        if selectedLureID then
+            local lureNames = {
+                [6529] = "Shiny Bauble (+25)",
+                [6530] = "Nightcrawlers (+50)",
+                [6532] = "Bright Baubles (+75)",
+                [7307] = "Flesh Eating Worm (+75)",
+                [6533] = "Aquadynamic Fish Attractor (+100)",
+                [6811] = "Aquadynamic Fish Lens (+50)",
+            }
+            local lureName = lureNames[selectedLureID] or "Unknown Lure"
+            GameTooltip:SetText("Apply Lure", 1, 1, 1)
+            GameTooltip:AddLine("Selected: " .. lureName, 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("Click to apply lure to fishing pole", 0.6, 1, 0.6)
+        else
+            GameTooltip:SetText("No Lure Selected", 1, 0.5, 0.5)
+            GameTooltip:AddLine("Open Lure Manager tab to select a lure", 0.8, 0.8, 0.8)
+        end
+
+        GameTooltip:Show()
+    end)
+
+    hudFrame.applyLureButton:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
+    -- Gear swap button
+    hudFrame.gearSwapButton = CreateFrame("Button", nil, hudFrame, "UIPanelButtonTemplate")
+    hudFrame.gearSwapButton:SetSize(88, 22)
+    hudFrame.gearSwapButton:SetPoint("BOTTOMRIGHT", hudFrame, "BOTTOMRIGHT", -10, 5)
+    hudFrame.gearSwapButton:SetText("Swap Gear")
+
+    -- Set button font
+    local buttonFont = hudFrame.gearSwapButton:GetFontString()
+    buttonFont:SetFont("Fonts\\FRIZQT__.TTF", 10)
+
+    -- Click handler for gear swap
+    hudFrame.gearSwapButton:SetScript("OnClick", function(self)
+        CFC:SwapGear()
+        HUDModule:Update()  -- Update to reflect new gear mode
+    end)
+
+    -- Tooltip for gear swap button
+    hudFrame.gearSwapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+
+        if CFC:HasGearSets() then
+            local currentMode = CFC:GetCurrentGearMode()
+            local targetMode = (currentMode == "combat") and "fishing" or "combat"
+
+            GameTooltip:SetText("Swap Gear", 1, 1, 1)
+            GameTooltip:AddLine("Current: " .. currentMode, 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("Click to switch to " .. targetMode .. " gear", 0.6, 1, 0.6)
+        else
+            GameTooltip:SetText("Gear Swap Not Configured", 1, 0.5, 0.5)
+            GameTooltip:AddLine("1. Equip combat gear", 1, 1, 1)
+            GameTooltip:AddLine("2. Type: /cfc savecombat", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("3. Equip fishing gear", 1, 1, 1)
+            GameTooltip:AddLine("4. Type: /cfc savefishing", 0.8, 0.8, 0.8)
+        end
+
+        GameTooltip:Show()
+    end)
+
+    hudFrame.gearSwapButton:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
     -- Drag handlers
     hudFrame:SetScript("OnDragStart", function(self)
         if not CFC.db.profile.hud.locked then
@@ -191,7 +347,7 @@ function HUDModule:Update()
     -- Current fishing buff (show most recent)
     local currentBuff = HUDModule:GetCurrentFishingBuff()
     if currentBuff then
-        hudFrame.buffText:SetText("Buff: |cffffff00" .. currentBuff.name .. "|r")
+        hudFrame.buffText:SetText("Lure: |cffffff00" .. currentBuff.name .. "|r")
 
         -- Display buff timer with color coding
         local timeRemaining = currentBuff.expirationSeconds
@@ -207,8 +363,20 @@ function HUDModule:Update()
         local timeText = HUDModule:FormatTime(timeRemaining)
         hudFrame.buffTimerText:SetText("Time Left: " .. timeColor .. timeText .. "|r")
     else
-        hudFrame.buffText:SetText("Buff: |cffff0000None|r")
+        hudFrame.buffText:SetText("Lure: |cffff0000None|r")
         hudFrame.buffTimerText:SetText("")
+    end
+
+    -- Update gear swap button
+    if hudFrame.gearSwapButton then
+        local currentMode = CFC:GetCurrentGearMode()
+        if CFC:HasGearSets() then
+            -- Show icon of what we're swapping TO (opposite of current mode)
+            local targetIcon = (currentMode == "combat") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
+            hudFrame.gearSwapButton:SetText("Swap to " .. targetIcon)
+        else
+            hudFrame.gearSwapButton:SetText("|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:16|t Setup")
+        end
     end
 end
 

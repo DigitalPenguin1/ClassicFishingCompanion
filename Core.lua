@@ -232,10 +232,11 @@ function CFC:CheckFishingState()
     -- Check for missing buff warning when we have pole equipped
     if self.db.profile.settings.announceBuffs then
         local currentTime = time()
-        if currentTime - self.lastBuffWarningTime >= 60 then
+        if currentTime - self.lastBuffWarningTime >= 30 then
             if not self:HasFishingBuff() then
-                -- Only warn if we recently fished
-                if time() - self.lastSpellTime < 30 then
+                -- Only warn if in fishing gear mode (we already know pole is equipped since we're in CheckFishingState)
+                local currentMode = self:GetCurrentGearMode()
+                if currentMode == "fishing" then
                     RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Pole Buff!", ChatTypeInfo["RAID_WARNING"], 10)
                     self.lastBuffWarningTime = currentTime
                     if self.debug then
@@ -243,6 +244,7 @@ function CFC:CheckFishingState()
                     end
                 end
             else
+                -- Reset timer when buff is active to restart the 30 second countdown
                 self.lastBuffWarningTime = currentTime
             end
         end
@@ -454,11 +456,17 @@ function CFC:OnLootOpened()
             print("|cffff8800[CFC Debug]|r  itemSubType: " .. tostring(itemSubType))
         end
 
-        -- Check if it's a fishing pole by item type
-        -- In Classic, fishing poles are typically "Miscellaneous" type with "Junk" subtype
-        -- Or we can just check if item is equipped in slot 16 and assume it's fishing
-        if itemName and itemType then
-            -- We have fishing pole equipped and loot opened = successful fishing cast
+        -- Check if it's a fishing pole AND not looting a dead mob
+        -- In Classic WoW, when looting a fishing bobber, you typically don't have a dead target
+        -- When looting a mob, UnitIsDead("target") is true
+        local hasDeadTarget = UnitExists("target") and UnitIsDead("target")
+
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r  hasDeadTarget: " .. tostring(hasDeadTarget))
+        end
+
+        if itemName and itemType and not hasDeadTarget then
+            -- We have fishing pole equipped and no dead target = successful fishing cast
             self.lastLootWasFishing = true
             self.isFishing = true
             self.lastSpellTime = time()
@@ -470,6 +478,8 @@ function CFC:OnLootOpened()
                 print("|cffff8800[CFC Debug]|r Loot opened from fishing - tracking cast")
             end
             return
+        elseif self.debug and itemName and itemType and hasDeadTarget then
+            print("|cffff8800[CFC Debug]|r Loot opened with pole equipped but has dead target (combat loot)")
         end
     end
 

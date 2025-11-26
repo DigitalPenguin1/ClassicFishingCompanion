@@ -883,7 +883,7 @@ function UI:CreateSettingsTab()
     frame.announceBuffsDesc:SetJustifyH("LEFT")
     frame.announceBuffsDesc:SetWidth(500)
     frame.announceBuffsDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.announceBuffsDesc:SetText("Show on-screen warning every 60 seconds when fishing without a lure/buff applied.")
+    frame.announceBuffsDesc:SetText("Show on-screen warning every 30 seconds when fishing without a lure/buff applied.")
 
     -- Show Stats HUD Checkbox
     frame.showHUDCheck = CreateFrame("CheckButton", "CFCShowHUDCheck", frame.scrollChild, "UICheckButtonTemplate")

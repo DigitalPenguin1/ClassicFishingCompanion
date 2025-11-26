@@ -34,6 +34,20 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - Fixed lure statistics tracking incorrect data
   - Now reads actual lure from fishing pole tooltip instead of trusting UI selection
   - Prevents false statistics when clicking Apply Lure for items not in inventory
+- Fixed lure statistics showing duplicate entries with different time formats
+  - Improved regex pattern to strip both minute and second formats from lure names
+  - Ensures consistent lure names in statistics regardless of time remaining
+- Fixed raid warnings triggering when not in fishing gear mode
+  - Warnings now only appear when in fishing gear mode, not combat gear
+  - Added gear mode check to prevent false warnings after swapping to combat gear
+- Fixed combat loot being tracked as fish catches
+  - Addon now only tracks loot from actual fishing casts, not combat kills
+  - Uses UnitIsDead check to distinguish fishing loot from mob loot
+  - Prevents mob loot from being tracked when you have a fishing pole equipped
+- Fixed missing buff warnings not triggering consistently when actively fishing
+  - Removed overly restrictive time-since-last-cast check
+  - Warning now triggers reliably every 30 seconds (reduced from 60) when fishing without a lure
+  - Warning only requires fishing pole equipped and fishing gear mode active
 - Fixed "Clear All Statistics" button not clearing fishing pole usage and sessions data
 - Fixed lure selection not updating the Apply Lure button macro
 - Improved macro handling for lure application

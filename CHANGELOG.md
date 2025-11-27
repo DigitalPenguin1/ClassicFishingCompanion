@@ -2,6 +2,22 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.4] - 2024-11-27
+
+### Improved
+- Enhanced combat protection for gear swapping
+  - Added immediate combat check to `SwapGear()` function for faster fail-fast behavior
+  - Gear swap now aborts instantly when in combat instead of proceeding with unnecessary operations
+  - Dual-layer combat protection ensures complete safety (check in both SwapGear and LoadGearSet functions)
+  - Users now receive immediate feedback when attempting to swap gear during combat
+
+### Optimized
+- Code cleanup and maintenance
+  - Removed 4 unused database functions (GetFishStats, GetCatchesInTimeRange, ExportData, PruneOldCatches)
+  - Reduced Database.lua from 209 to 131 lines (78 lines of dormant code removed)
+  - Improved code maintainability and reduced addon file size
+  - All remaining functions are actively used and essential
+
 ## [1.0.3] - 2024-11-23
 
 ### Added

@@ -13,8 +13,7 @@ ignore:
   - .pkgmeta
 
  # Lets Cures know this is the latest version
-latest-version: yes
-tag: V1.0.4-release
+ tag: Release
 
 # Changelog file to include in the package
 manual-changelog: CHANGELOG.md

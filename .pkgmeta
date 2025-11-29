@@ -13,11 +13,8 @@ ignore:
   - .pkgmeta
 
  # Lets Cures know this is the latest version
-<<<<<<< Updated upstream
- tag: Release
-=======
-tag: V1.0.5-release
->>>>>>> Stashed changes
+latest-version: yes
+tag: V1.0.4-release
 
 # Changelog file to include in the package
 manual-changelog: CHANGELOG.md

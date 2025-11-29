@@ -82,7 +82,7 @@ function CFC:OnInitialize()
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
 
-    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.3 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
+    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.4 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
 end
 
 -- Handle addon loading
@@ -1007,6 +1007,15 @@ function CFC:SwapGear()
         print("|cffff8800[CFC Debug]|r ===== GEAR SWAP INITIATED =====")
     end
 
+    -- Check if in combat
+    if InCombatLockdown() then
+        print("|cffff0000Classic Fishing Companion:|r Cannot swap gear while in combat!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Combat lockdown active - aborting gear swap")
+        end
+        return
+    end
+
     if not self.db or not self.db.profile or not self.db.profile.gearSets then
         print("|cffff0000Classic Fishing Companion:|r No gear sets configured!")
         print("|cffffcc00Tip:|r Equip your combat gear, then type |cffff8800/cfc savecombat|r")
@@ -1376,3 +1385,4 @@ function CFC:GetUniqueFishCount()
     end
     return count
 end
+

@@ -1,4 +1,4 @@
-## Interface: 11503
+## Interface: 20505
 ## Title: Classic Fishing Companion
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk

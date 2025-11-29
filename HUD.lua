@@ -107,120 +107,6 @@ function CFC:InitializeHUD()
         GameTooltip:Hide()
     end)
 
-    -- Apply lure button (using SecureActionButton for macro execution)
-    hudFrame.applyLureButton = CreateFrame("Button", "CFCApplyLureButton", hudFrame, "SecureActionButtonTemplate, UIPanelButtonTemplate")
-    hudFrame.applyLureButton:SetSize(88, 22)
-    hudFrame.applyLureButton:SetPoint("BOTTOMLEFT", hudFrame, "BOTTOMLEFT", 10, 5)
-    hudFrame.applyLureButton:SetText("Apply Lure")
-
-    -- Set button font
-    local applyLureFont = hudFrame.applyLureButton:GetFontString()
-    applyLureFont:SetFont("Fonts\\FRIZQT__.TTF", 10)
-
-    -- Set up secure button to execute a macro
-    hudFrame.applyLureButton:SetAttribute("type", "macro")
-
-    -- Function to update the macro based on selected lure
-    hudFrame.UpdateApplyLureMacro = function()
-        if InCombatLockdown() then
-            -- Cannot update secure buttons during combat
-            return
-        end
-
-        local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
-        if not selectedLureID then
-            hudFrame.applyLureButton:SetAttribute("macrotext", "/print You haven't selected a lure yet!")
-            return
-        end
-
-        -- Lure names for the macro
-        local lureNames = {
-            [6529] = "Shiny Bauble",
-            [6530] = "Nightcrawlers",
-            [6532] = "Bright Baubles",
-            [7307] = "Flesh Eating Worm",
-            [6533] = "Aquadynamic Fish Attractor",
-            [6811] = "Aquadynamic Fish Lens",
-        }
-
-        local lureName = lureNames[selectedLureID]
-        if lureName then
-            -- Create macro text that uses the lure by name
-            local macroText = "/use " .. lureName .. "\n/use 16"
-            hudFrame.applyLureButton:SetAttribute("macrotext", macroText)
-        end
-    end
-
-    -- Initial macro setup
-    hudFrame.UpdateApplyLureMacro()
-
-    -- PreClick handler to check gear mode and lure availability
-    hudFrame.applyLureButton:SetScript("PreClick", function(self, button, down)
-        local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
-
-        -- Check if a lure is selected
-        if not selectedLureID then
-            print("|cffff0000Classic Fishing Companion:|r No lure selected!")
-            print("|cff00ff00Tip:|r Open the Lure tab to select a lure first.")
-            return
-        end
-
-        -- Check if the lure is in the player's bags
-        local lureCount = GetItemCount(selectedLureID)
-        if lureCount == 0 then
-            local lureNames = {
-                [6529] = "Shiny Bauble",
-                [6530] = "Nightcrawlers",
-                [6532] = "Bright Baubles",
-                [7307] = "Flesh Eating Worm",
-                [6533] = "Aquadynamic Fish Attractor",
-                [6811] = "Aquadynamic Fish Lens",
-            }
-            local lureName = lureNames[selectedLureID] or "Unknown Lure"
-            print("|cffff0000Classic Fishing Companion:|r You don't have any " .. lureName .. " in your bags!")
-            return
-        end
-
-        -- Check if user has gear sets configured and is in combat mode
-        if CFC:HasGearSets() then
-            local currentMode = CFC:GetCurrentGearMode()
-            if currentMode == "combat" then
-                print("|cffff0000Classic Fishing Companion:|r You're in combat gear! Swap to fishing gear first.")
-                print("|cff00ff00Tip:|r Click the 'Swap to' button or use /cfc swap")
-            end
-        end
-    end)
-
-    -- Tooltip for apply lure button
-    hudFrame.applyLureButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-
-        local selectedLureID = CFC.db.profile.selectedLure
-        if selectedLureID then
-            local lureNames = {
-                [6529] = "Shiny Bauble (+25)",
-                [6530] = "Nightcrawlers (+50)",
-                [6532] = "Bright Baubles (+75)",
-                [7307] = "Flesh Eating Worm (+75)",
-                [6533] = "Aquadynamic Fish Attractor (+100)",
-                [6811] = "Aquadynamic Fish Lens (+50)",
-            }
-            local lureName = lureNames[selectedLureID] or "Unknown Lure"
-            GameTooltip:SetText("Apply Lure", 1, 1, 1)
-            GameTooltip:AddLine("Selected: " .. lureName, 0.8, 0.8, 0.8)
-            GameTooltip:AddLine("Click to apply lure to fishing pole", 0.6, 1, 0.6)
-        else
-            GameTooltip:SetText("No Lure Selected", 1, 0.5, 0.5)
-            GameTooltip:AddLine("Open Lure Manager tab to select a lure", 0.8, 0.8, 0.8)
-        end
-
-        GameTooltip:Show()
-    end)
-
-    hudFrame.applyLureButton:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-
     -- Gear swap button
     hudFrame.gearSwapButton = CreateFrame("Button", nil, hudFrame, "UIPanelButtonTemplate")
     hudFrame.gearSwapButton:SetSize(88, 22)
@@ -337,17 +223,33 @@ function HUDModule:Update()
     local fph = CFC:GetFishPerHour()
     hudFrame.fphText:SetText("Fish/Hour: |cff00ff00" .. string.format("%.1f", fph) .. "|r")
 
-    -- Fishing skill
+    -- Get current fishing buff first (needed for skill display)
+    local currentBuff = HUDModule:GetCurrentFishingBuff()
+    local lureBonus = 0
+    if currentBuff then
+        -- Extract bonus value from lure name (e.g., "Shiny Bauble +25" -> 25)
+        local bonus = string.match(currentBuff.name, "%+(%d+)")
+        if bonus then
+            lureBonus = tonumber(bonus) or 0
+        end
+    end
+
+    -- Fishing skill (with lure bonus if active)
     if CFC.db.profile.statistics.currentSkill and CFC.db.profile.statistics.currentSkill > 0 then
-        hudFrame.skillText:SetText("Skill: |cff00ff00" .. CFC.db.profile.statistics.currentSkill .. "/" .. CFC.db.profile.statistics.maxSkill .. "|r")
+        if lureBonus > 0 then
+            hudFrame.skillText:SetText("Skill: |cff00ff00" .. CFC.db.profile.statistics.currentSkill .. "|cffffff00+" .. lureBonus .. "|r|cff00ff00/" .. CFC.db.profile.statistics.maxSkill .. "|r")
+        else
+            hudFrame.skillText:SetText("Skill: |cff00ff00" .. CFC.db.profile.statistics.currentSkill .. "/" .. CFC.db.profile.statistics.maxSkill .. "|r")
+        end
     else
         hudFrame.skillText:SetText("Skill: |cffaaaaaa--/--|r")
     end
 
     -- Current fishing buff (show most recent)
-    local currentBuff = HUDModule:GetCurrentFishingBuff()
     if currentBuff then
-        hudFrame.buffText:SetText("Lure: |cffffff00" .. currentBuff.name .. "|r")
+        -- Remove the bonus suffix from the lure name for display (e.g., "Shiny Bauble +25" -> "Shiny Bauble")
+        local lureNameOnly = string.gsub(currentBuff.name, "%s*%+%d+$", "")
+        hudFrame.buffText:SetText("Lure: |cffffff00" .. lureNameOnly .. "|r")
 
         -- Display buff timer with color coding
         local timeRemaining = currentBuff.expirationSeconds
@@ -399,40 +301,57 @@ function HUDModule:GetCurrentFishingBuff()
     local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantId = GetWeaponEnchantInfo()
 
     if hasMainHandEnchant then
-        -- Try to detect lure from tooltip
-        local fishingBonus = nil
-        local tooltip = CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
+        -- Detect the lure name from tooltip (same method as Statistics tracking)
+        local lureName = nil
+
+        -- Create or reuse tooltip
+        if not _G.CFCHUDBuffScanTooltip then
+            CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
+        end
+
+        local tooltip = _G.CFCHUDBuffScanTooltip
         tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:ClearLines()
         tooltip:SetInventoryItem("player", 16)
 
+        -- Scan tooltip for lure text
         for i = 1, tooltip:NumLines() do
             local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
             if line then
                 local text = line:GetText()
-                if text then
-                    local bonus = string.match(text, "Fishing Lure %+(%d+)")
-                    if bonus then
-                        fishingBonus = tonumber(bonus)
-                        break
-                    end
+                if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing")) then
+                    -- Remove duration text like "(10 min)" or "(13 sec)" to get consistent name
+                    lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                    break
                 end
             end
         end
 
         tooltip:Hide()
 
-        if fishingBonus then
-            -- Map common bonuses to lure names
-            local lureNames = {
-                [100] = "Aquadynamic Fish Attractor",
-                [75] = "Bright Baubles",
-                [50] = "Nightcrawlers",
-                [25] = "Shiny Bauble",
-            }
+        if lureName then
+            -- Clean up the lure name by extracting the bonus and mapping to actual lure names
+            local bonus = string.match(lureName, "%+(%d+)")
+            if bonus then
+                local lureNames = {
+                    ["25"] = "Shiny Bauble",
+                    ["50"] = "Nightcrawlers",
+                    ["75"] = "Bright Baubles",
+                    ["100"] = "Aquadynamic Fish Attractor",
+                }
 
-            local buffName = lureNames[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
+                -- Check if it's the Alliance-only lens
+                if bonus == "50" and string.find(lureName, "Lens") then
+                    lureName = "Aquadynamic Fish Lens +" .. bonus
+                elseif bonus == "75" and string.find(lureName, "Worm") then
+                    lureName = "Flesh Eating Worm +" .. bonus
+                else
+                    lureName = (lureNames[bonus] or lureName) .. " +" .. bonus
+                end
+            end
+
             local expirationSeconds = math.floor(mainHandExpiration / 1000)  -- Convert milliseconds to seconds
-            return { name = buffName, expirationSeconds = expirationSeconds }
+            return { name = lureName, expirationSeconds = expirationSeconds }
         end
     end
 

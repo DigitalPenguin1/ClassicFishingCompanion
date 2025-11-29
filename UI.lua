@@ -698,7 +698,7 @@ function UI:CreateLuresTab()
     frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
-    frame.desc:SetText("Select your preferred fishing lure and update your macro with one click.")
+    frame.desc:SetText("Select your preferred fishing lure to apply quickly with the HUD button.")
 
     -- Selected lure display
     frame.selectedLureLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -709,57 +709,6 @@ function UI:CreateLuresTab()
     frame.selectedLure:SetPoint("TOPLEFT", frame.selectedLureLabel, "BOTTOMLEFT", 0, -10)
     frame.selectedLure:SetText("|cffaaaaaa(None selected)|r")
 
-    -- Macro instructions
-    frame.instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.instructions:SetPoint("TOPLEFT", frame, "TOPLEFT", 300, -120)
-    frame.instructions:SetWidth(260)
-    frame.instructions:SetJustifyH("LEFT")
-    frame.instructions:SetTextColor(1, 0.82, 0)
-    frame.instructions:SetText("How to create your lure macro:")
-
-    -- Step 1
-    frame.step1 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step1:SetPoint("TOPLEFT", frame.instructions, "BOTTOMLEFT", 10, -8)
-    frame.step1:SetWidth(250)
-    frame.step1:SetJustifyH("LEFT")
-    frame.step1:SetText("1. Select a lure from the list")
-
-    -- Step 2
-    frame.step2 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step2:SetPoint("TOPLEFT", frame.step1, "BOTTOMLEFT", 0, -5)
-    frame.step2:SetWidth(250)
-    frame.step2:SetJustifyH("LEFT")
-    frame.step2:SetText("2. Click the button below to update your macro:")
-
-    -- Update Macro button
-    frame.updateMacroBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.updateMacroBtn:SetSize(200, 30)
-    frame.updateMacroBtn:SetPoint("TOPLEFT", frame.step2, "BOTTOMLEFT", 10, -10)
-    frame.updateMacroBtn:SetText("Update CFC_ApplyLure Macro")
-    frame.updateMacroBtn:SetScript("OnClick", function()
-        CFC:UpdateLureMacro()
-    end)
-
-    -- Tooltip for update macro button
-    frame.updateMacroBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Update Macro", 1, 1, 1)
-        GameTooltip:AddLine("Automatically updates your CFC_ApplyLure macro", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("with the selected lure", 0.8, 0.8, 0.8)
-        GameTooltip:Show()
-    end)
-
-    frame.updateMacroBtn:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-
-    -- Step 3
-    frame.step3 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step3:SetPoint("TOPLEFT", frame.updateMacroBtn, "BOTTOMLEFT", -10, -10)
-    frame.step3:SetWidth(250)
-    frame.step3:SetJustifyH("LEFT")
-    frame.step3:SetText("3. Drag CFC_ApplyLure macro to your action bar")
-
     -- Clear selection button (positioned next to label)
     frame.clearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.clearBtn:SetSize(100, 22)
@@ -768,18 +717,12 @@ function UI:CreateLuresTab()
     frame.clearBtn:SetScript("OnClick", function()
         CFC.db.profile.selectedLure = nil
         UI:UpdateLuresTab()
-        print("|cff00ff00Classic Fishing Companion:|r Lure selection cleared.")
+
+        -- Update the Apply Lure button macro on the HUD
+        if CFC.hudFrame and CFC.hudFrame.UpdateApplyLureMacro then
+            CFC.hudFrame.UpdateApplyLureMacro()
+        end
     end)
-
-    -- Create scroll frame for lure buttons
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    frame.scrollFrame:SetPoint("TOPLEFT", frame.selectedLure, "BOTTOMLEFT", 0, -20)
-    frame.scrollFrame:SetSize(270, 200)
-
-    -- Create content frame for scroll (holds the buttons)
-    frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
-    frame.scrollChild:SetSize(250, 300)
-    frame.scrollFrame:SetScrollChild(frame.scrollChild)
 
     -- Lure selection buttons
     local lureData = {
@@ -789,14 +732,13 @@ function UI:CreateLuresTab()
         { name = "Bright Baubles", id = 6532, bonus = 75, icon = "INV_Misc_Gem_Variety_02" },
         { name = "Flesh Eating Worm", id = 7307, bonus = 75, icon = "INV_Misc_MonsterTail_03" },
         { name = "Aquadynamic Fish Attractor", id = 6533, bonus = 100, icon = "INV_Misc_Food_26" },
-        { name = "Sharpened Fish Hook", id = 3486, bonus = 100, icon = "INV_Misc_Hook_01" },
     }
 
-    local yOffset = -10
+    local yOffset = -120
     for i, lure in ipairs(lureData) do
-        local btn = CreateFrame("Button", nil, frame.scrollChild, "UIPanelButtonTemplate")
+        local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
         btn:SetSize(250, 30)
-        btn:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 0, yOffset)
+        btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
 
         -- Add faction icon if specified
         local buttonText = "|TInterface\\Icons\\" .. lure.icon .. ":20|t " .. lure.name .. " (+" .. lure.bonus .. ")"
@@ -808,16 +750,15 @@ function UI:CreateLuresTab()
         btn:SetScript("OnClick", function()
             CFC.db.profile.selectedLure = lure.id
             UI:UpdateLuresTab()
-            print("|cff00ff00Classic Fishing Companion:|r Selected " .. lure.name .. "!")
-            print("|cffffcc00→|r Click 'Update CFC_ApplyLure Macro' button to update your macro")
+
+            -- Update the Apply Lure button macro on the HUD
+            if CFC.hudFrame and CFC.hudFrame.UpdateApplyLureMacro then
+                CFC.hudFrame.UpdateApplyLureMacro()
+            end
         end)
 
-        yOffset = yOffset - 35
+        yOffset = yOffset - 40
     end
-
-    -- Update scroll child height based on number of buttons
-    local contentHeight = (#lureData * 35) + 20
-    frame.scrollChild:SetHeight(contentHeight)
 
     -- Store reference
     mainFrame.luresFrame = frame

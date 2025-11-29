@@ -2,7 +2,7 @@
 
 A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic. Track catches, monitor efficiency, view detailed statistics, and display real-time stats with an on-screen HUD.
 
-**Update 11/22/25** - Waiting on PTR access for TBC so I can start testing. More to come. -- Relyk22
+**Update 11/29/25** - Testing and fixing errors in TBC for launch. -- Relyk22
 
 ## Features
 

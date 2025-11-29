@@ -396,15 +396,22 @@ function CFC:HasFishingBuff()
 
     if hasMainHandEnchant then
         -- Check if it's a fishing lure by scanning tooltip
-        local tooltip = CreateFrame("GameTooltip", "CFCBuffCheckTooltip", nil, "GameTooltipTemplate")
+        -- Create or reuse tooltip
+        if not _G.CFCBuffCheckTooltip then
+            CreateFrame("GameTooltip", "CFCBuffCheckTooltip", nil, "GameTooltipTemplate")
+        end
+
+        local tooltip = _G.CFCBuffCheckTooltip
         tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+        tooltip:ClearLines()
         tooltip:SetInventoryItem("player", 16)
 
         for i = 1, tooltip:NumLines() do
             local line = _G["CFCBuffCheckTooltipTextLeft" .. i]
             if line then
                 local text = line:GetText()
-                if text and string.match(text, "Fishing Lure %+(%d+)") then
+                -- Check for lure text (more flexible patterns)
+                if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing")) then
                     tooltip:Hide()
                     return true
                 end
@@ -892,24 +899,13 @@ function CFC:LoadGearSet(setName)
                     if self.debug then
                         print("|cff00ff00[CFC Debug]|r   Equipping " .. itemName .. " (slot " .. slotID .. ") from bag " .. bag .. ", slot " .. slot)
                     end
-                    ClearCursor()  -- Make sure cursor is clear before pickup
 
-                    -- Use C_Container API if available (Classic Anniversary), otherwise use old API
-                    if C_Container and C_Container.PickupContainerItem then
-                        C_Container.PickupContainerItem(bag, slot)
-                        if self.debug then
-                            print("|cffff8800[CFC Debug]|r   Using C_Container.PickupContainerItem")
-                        end
-                    else
-                        PickupContainerItem(bag, slot)
-                        if self.debug then
-                            print("|cffff8800[CFC Debug]|r   Using legacy PickupContainerItem")
-                        end
-                    end
-
-                    PickupInventoryItem(slotID)
-                    ClearCursor()  -- Clear cursor after swap
+                    -- Use EquipItemByName for TBC/Wrath/Era compatibility (not protected)
+                    EquipItemByName(itemID, slotID)
                     swappedCount = swappedCount + 1
+                    if self.debug then
+                        print("|cff00ff00[CFC Debug]|r   Equipped using EquipItemByName(itemID: " .. itemID .. ", slot: " .. slotID .. ")")
+                    end
                 else
                     notFoundCount = notFoundCount + 1
                     if self.debug then
@@ -1066,7 +1062,129 @@ function CFC:SwapGear()
     end
 end
 
--- Apply selected lure to fishing pole
+-- Update or create the lure macro
+function CFC:UpdateLureMacro()
+    -- Check if lure is selected
+    local selectedLureID = self.db and self.db.profile and self.db.profile.selectedLure
+    if not selectedLureID then
+        print("|cffff0000Classic Fishing Companion:|r No lure selected! Go to Lure tab to select one.")
+        return false
+    end
+
+    -- Get lure name
+    local lureNames = {
+        [6529] = "Shiny Bauble",
+        [6530] = "Nightcrawlers",
+        [6532] = "Bright Baubles",
+        [7307] = "Flesh Eating Worm",
+        [6533] = "Aquadynamic Fish Attractor",
+        [6811] = "Aquadynamic Fish Lens",
+        [3486] = "Sharpened Fish Hook",
+    }
+    local lureName = lureNames[selectedLureID]
+    if not lureName then
+        print("|cffff0000Classic Fishing Companion:|r Unknown lure selected!")
+        return false
+    end
+
+    -- Build macro text
+    local macroText = "#showtooltip\n/use " .. lureName .. "\n/use 16"
+    local macroName = "CFC_ApplyLure"
+
+    -- Check if macro exists
+    local macroIndex = GetMacroIndexByName(macroName)
+
+    if macroIndex and macroIndex > 0 then
+        -- Macro exists, try to update it
+        local success, err = pcall(function()
+            EditMacro(macroIndex, macroName, "INV_Misc_Orb_03", macroText)
+        end)
+
+        if success then
+            print("|cff00ff00Classic Fishing Companion:|r Macro updated with " .. lureName .. "!")
+            return true
+        else
+            print("|cffff0000Classic Fishing Companion:|r Failed to update macro (protected by Blizzard)")
+            print("|cffffcc00→|r Please update the macro manually with the text from the box above")
+            return false
+        end
+    else
+        -- Macro doesn't exist, try to create it
+        local success, err = pcall(function()
+            CreateMacro(macroName, "INV_Misc_Orb_03", macroText, nil)
+        end)
+
+        if success then
+            print("|cff00ff00Classic Fishing Companion:|r Macro created with " .. lureName .. "!")
+            return true
+        else
+            print("|cffff0000Classic Fishing Companion:|r Failed to create macro (protected by Blizzard)")
+            print("|cffffcc00→|r Please create the macro manually with the text from the box above")
+            return false
+        end
+    end
+end
+
+-- Simple lure application function for HUD button
+function CFC:ApplyLureSimple()
+    -- Check if in combat
+    if InCombatLockdown() then
+        print("|cffff0000Classic Fishing Companion:|r Cannot apply lure while in combat!")
+        return
+    end
+
+    -- Check if lure is selected
+    local selectedLureID = self.db and self.db.profile and self.db.profile.selectedLure
+    if not selectedLureID then
+        print("|cffff0000Classic Fishing Companion:|r No lure selected! Open /cfc and go to Lure tab to select one.")
+        return
+    end
+
+    -- Check if fishing pole is equipped
+    local mainHandLink = GetInventoryItemLink("player", 16)
+    if not mainHandLink then
+        print("|cffff0000Classic Fishing Companion:|r No fishing pole equipped!")
+        return
+    end
+
+    -- Find lure in bags
+    local bag, slot = self:FindItemInBags(selectedLureID)
+    if not bag or not slot then
+        local lureNames = {
+            [6529] = "Shiny Bauble",
+            [6530] = "Nightcrawlers",
+            [6532] = "Bright Baubles",
+            [7307] = "Flesh Eating Worm",
+            [6533] = "Aquadynamic Fish Attractor",
+            [6811] = "Aquadynamic Fish Lens",
+            [3486] = "Sharpened Fish Hook",
+        }
+        local lureName = lureNames[selectedLureID] or "Unknown"
+        print("|cffff0000Classic Fishing Companion:|r You don't have " .. lureName .. " in your bags!")
+        return
+    end
+
+    -- Determine which API to use for using items
+    local UseItemFromBag
+    if C_Container and type(C_Container.UseContainerItem) == "function" then
+        UseItemFromBag = function(b, s) C_Container.UseContainerItem(b, s) end
+    elseif _G.UseContainerItem then
+        UseItemFromBag = _G.UseContainerItem
+    else
+        print("|cffff0000Classic Fishing Companion:|r Cannot use items - API not available!")
+        return
+    end
+
+    -- Use the lure from the bag (starts the "apply" cursor)
+    UseItemFromBag(bag, slot)
+
+    -- Apply it to the fishing pole (main hand slot = 16)
+    UseInventoryItem(16)
+
+    print("|cff00ff00Classic Fishing Companion:|r Lure applied!")
+end
+
+-- Apply selected lure to fishing pole (old complex version - kept for compatibility)
 function CFC:ApplySelectedLure()
     print("|cffff8800[CFC Debug]|r ===== APPLY LURE INITIATED =====")
 
@@ -1101,9 +1219,10 @@ function CFC:ApplySelectedLure()
     local lureNames = {
         [6529] = "Shiny Bauble",
         [6530] = "Nightcrawlers",
-        [6811] = "Bright Baubles",
+        [6532] = "Bright Baubles",
         [7307] = "Flesh Eating Worm",
         [6533] = "Aquadynamic Fish Attractor",
+        [6811] = "Aquadynamic Fish Lens",
     }
 
     local lureName = lureNames[selectedLureID] or "Unknown Lure"

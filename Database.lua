@@ -93,6 +93,47 @@ function CFC.Database:GetZoneList()
     return zones
 end
 
+-- Get statistics for a specific fish
+function CFC.Database:GetFishStats(fishName)
+    local fishData = CFC.db.profile.fishData[fishName]
+
+    if not fishData then
+        return nil
+    end
+
+    -- Calculate location breakdown
+    local locationList = {}
+    for _, locationData in pairs(fishData.locations) do
+        table.insert(locationList, locationData)
+    end
+
+    -- Sort by count
+    table.sort(locationList, function(a, b)
+        return a.count > b.count
+    end)
+
+    return {
+        name = fishName,
+        totalCount = fishData.count,
+        firstCatch = fishData.firstCatch,
+        lastCatch = fishData.lastCatch,
+        locations = locationList,
+    }
+end
+
+-- Get catches within a time range
+function CFC.Database:GetCatchesInTimeRange(startTime, endTime)
+    local catches = {}
+
+    for _, catch in ipairs(CFC.db.profile.catches) do
+        if catch.timestamp >= startTime and catch.timestamp <= endTime then
+            table.insert(catches, catch)
+        end
+    end
+
+    return catches
+end
+
 -- Get session statistics
 function CFC.Database:GetSessionStats()
     local sessionTime = time() - CFC.db.profile.statistics.sessionStartTime
@@ -127,4 +168,41 @@ function CFC.Database:GetLifetimeStats()
         uniqueFish = CFC:GetUniqueFishCount(),
         uniqueZones = #self:GetZoneList(),
     }
+end
+
+-- Export data to string (for sharing or backup)
+function CFC.Database:ExportData()
+    local export = {
+        version = "1.0.0",
+        exportDate = date("%Y-%m-%d %H:%M:%S"),
+        statistics = CFC.db.profile.statistics,
+        fishData = CFC.db.profile.fishData,
+        totalCatches = #CFC.db.profile.catches,
+    }
+
+    -- Convert to string (simple serialization)
+    local str = "Classic Fishing Companion Export\n"
+    str = str .. "Version: " .. export.version .. "\n"
+    str = str .. "Date: " .. export.exportDate .. "\n"
+    str = str .. "Total Catches: " .. export.totalCatches .. "\n"
+    str = str .. "Unique Fish: " .. CFC:GetUniqueFishCount() .. "\n"
+
+    return str
+end
+
+-- Clear old catches (keep only last N)
+function CFC.Database:PruneOldCatches(keepCount)
+    keepCount = keepCount or 1000
+
+    if #CFC.db.profile.catches > keepCount then
+        local newCatches = {}
+        local startIndex = #CFC.db.profile.catches - keepCount + 1
+
+        for i = startIndex, #CFC.db.profile.catches do
+            table.insert(newCatches, CFC.db.profile.catches[i])
+        end
+
+        CFC.db.profile.catches = newCatches
+        print("|cff00ff00Classic Fishing Companion:|r Pruned old catches, kept " .. keepCount .. " most recent.")
+    end
 end

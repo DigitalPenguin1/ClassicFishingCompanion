@@ -9,7 +9,6 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 - **Comprehensive Tracking**: Records every fish caught with location, timestamp, and efficiency metrics
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click
-- **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button
 - **Detailed Statistics**: Fish list, catch history, top catches, zone productivity, skill progression, and buff/pole usage
 - **Missing Buff Warnings**: On-screen alerts every 30 seconds when fishing without a lure
 - **Minimap Button**: Quick access to UI (left-click), HUD toggle (right-click), and session stats (hover)
@@ -101,7 +100,7 @@ Lightweight design with minimal impact:
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-**Latest (v1.0.4)**: Enhanced combat protection for gear swapping and code optimization improvements.
+**Latest (v1.0.3)**: Gear Sets system, Lure Manager, bug fixes for combat loot tracking and missing buff warnings.
 
 ## Support
 

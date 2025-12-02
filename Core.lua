@@ -25,6 +25,7 @@ local defaults = {
         settings = {
             announceBuffs = true,  -- Warn when fishing without buff (enabled by default)
             announceCatches = false,  -- Announce fish catches in chat
+            announceSkillUps = true,  -- Announce fishing skill increases (enabled by default)
         },
         hud = {
             show = true,  -- Show stats HUD by default
@@ -54,6 +55,12 @@ local defaults = {
             combat = {},   -- Combat gear set (saved item links)
             currentMode = "combat",  -- Current gear mode: "fishing" or "combat"
         },
+        backup = {
+            enabled = true,  -- Enable automatic backups (enabled by default)
+            lastBackupTime = 0,  -- Timestamp of last backup (total play time in seconds)
+            lastExportReminder = 0,  -- Timestamp of last export reminder (total play time in seconds)
+            data = nil,  -- Backup snapshot of fishing data
+        },
     }
 }
 
@@ -64,17 +71,33 @@ function CFC:OnInitialize()
         ClassicFishingCompanionDB = {}
     end
 
+    -- Set database reference
     self.db = ClassicFishingCompanionDB
 
     -- Set defaults if not exist
     if not self.db.profile then
-        self.db.profile = defaults.profile
+        self.db.profile = {}
     end
 
     -- Ensure all default structures exist
     for key, value in pairs(defaults.profile) do
         if self.db.profile[key] == nil then
-            self.db.profile[key] = value
+            -- Deep copy for nested tables
+            if type(value) == "table" then
+                self.db.profile[key] = {}
+                for k, v in pairs(value) do
+                    if type(v) == "table" then
+                        self.db.profile[key][k] = {}
+                        for kk, vv in pairs(v) do
+                            self.db.profile[key][k][kk] = vv
+                        end
+                    else
+                        self.db.profile[key][k] = v
+                    end
+                end
+            else
+                self.db.profile[key] = value
+            end
         end
     end
 
@@ -82,7 +105,8 @@ function CFC:OnInitialize()
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
 
-    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.4 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
+    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.5 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
+    print("|cffffcc00Tip:|r Always export your fishing data from Settings for backup!")
 end
 
 -- Handle addon loading
@@ -121,12 +145,21 @@ function CFC:OnEnable()
     -- Check every 2 seconds for fishing state and lure changes
     self.updateFrame = CreateFrame("Frame")
     self.updateFrame.timeSinceLastUpdate = 0
+    self.updateFrame.timeSinceLastBackupCheck = 0
     self.updateFrame:SetScript("OnUpdate", function(self, elapsed)
         self.timeSinceLastUpdate = self.timeSinceLastUpdate + elapsed
+        self.timeSinceLastBackupCheck = self.timeSinceLastBackupCheck + elapsed
+
         if self.timeSinceLastUpdate >= 2 then
             CFC:CheckFishingState()
             CFC:CheckLureChanges()
             self.timeSinceLastUpdate = 0
+        end
+
+        -- Check backup/reminder needs every 60 seconds
+        if self.timeSinceLastBackupCheck >= 60 then
+            CFC:CheckBackupNeeded()
+            self.timeSinceLastBackupCheck = 0
         end
     end)
 
@@ -174,7 +207,9 @@ function CFC:UpdateFishingSkill()
                     newLevel = skillLevel,
                     date = date("%Y-%m-%d %H:%M:%S", time()),
                 })
-                print("|cff00ff00Classic Fishing Companion:|r Fishing skill increased to " .. skillLevel .. "!")
+                if self.db.profile.settings.announceSkillUps then
+                    print("|cff00ff00Classic Fishing Companion:|r Fishing skill increased to " .. skillLevel .. "!")
+                end
             end
             break
         end
@@ -213,8 +248,10 @@ function CFC:CheckFishingState()
     end
 
     -- We have a fishing pole equipped
+    local currentTime = time()
+
     -- Check if fishing cast timed out (30 seconds since last cast)
-    if self.isFishing and time() - self.lastSpellTime > 30 then
+    if self.isFishing and currentTime - self.lastSpellTime > 30 then
         -- Cast timed out, reset for next cast
         self.isFishing = false
         self.currentTrackedPole = nil
@@ -224,14 +261,13 @@ function CFC:CheckFishingState()
     end
 
     -- Update fishing skill periodically
-    if time() - self.lastSkillCheck > 30 then
+    if currentTime - self.lastSkillCheck > 30 then
         self:UpdateFishingSkill()
-        self.lastSkillCheck = time()
+        self.lastSkillCheck = currentTime
     end
 
     -- Check for missing buff warning when we have pole equipped
     if self.db.profile.settings.announceBuffs then
-        local currentTime = time()
         if currentTime - self.lastBuffWarningTime >= 30 then
             if not self:HasFishingBuff() then
                 -- Only warn if in fishing gear mode (we already know pole is equipped since we're in CheckFishingState)
@@ -345,6 +381,53 @@ function CFC:CheckLureChanges()
     end
 end
 
+-- Check if backup or export reminder is needed (called every 60 seconds)
+function CFC:CheckBackupNeeded()
+    if not self.db or not self.db.profile or not self.db.profile.backup then
+        return
+    end
+
+    -- Skip if backup is disabled
+    if not self.db.profile.backup.enabled then
+        return
+    end
+
+    -- Get current time
+    local currentTime = time()
+
+    -- Check if this is the first time (no backup exists)
+    -- Treat nil lastBackupTime as 0 to ensure initial backup is created
+    if not self.db.profile.backup.data or (self.db.profile.backup.lastBackupTime or 0) == 0 then
+        -- Create initial backup immediately
+        local success = self:CreateBackup()
+        if success then
+            print("|cff00ff00Classic Fishing Companion:|r Initial backup created")
+        end
+        return
+    end
+
+    -- Check if 24 hours (86400 seconds) have passed since last backup
+    local timeSinceLastBackup = currentTime - (self.db.profile.backup.lastBackupTime or 0)
+    if timeSinceLastBackup >= 86400 then  -- 24 hours = 86400 seconds
+        -- Create automatic backup
+        local success = self:CreateBackup()
+        if success then
+            print("|cff00ff00Classic Fishing Companion:|r Automatic backup created (24 hours elapsed)")
+        end
+    end
+
+    -- Calculate total play time for export reminder
+    local totalPlayTime = (self.db.profile.statistics.totalFishingTime or 0) + (time() - self.db.profile.statistics.sessionStartTime)
+
+    -- Check if 7 days (604800 seconds) have passed since last export reminder
+    local timeSinceLastReminder = totalPlayTime - (self.db.profile.backup.lastExportReminder or 0)
+    if timeSinceLastReminder >= 604800 then  -- 7 days = 604800 seconds
+        -- Show export reminder
+        print("|cffffcc00Classic Fishing Companion:|r Reminder: Consider exporting your fishing data for backup!")
+        print("|cffffcc00Tip:|r Open Settings and click 'Export Data' to save your data externally.")
+        self.db.profile.backup.lastExportReminder = totalPlayTime
+    end
+end
 
 -- Track fishing pole cast (called when Fishing spell is cast)
 function CFC:TrackFishingPoleCast()
@@ -456,6 +539,18 @@ function CFC:OnLootOpened()
             print("|cffff8800[CFC Debug]|r  itemSubType: " .. tostring(itemSubType))
         end
 
+        -- Check if it's actually a fishing pole
+        -- In Classic WoW, fishing poles have itemSubType "Fishing Poles"
+        local isFishingPole = false
+        if itemSubType then
+            local subTypeLower = string.lower(itemSubType)
+            isFishingPole = string.find(subTypeLower, "fishing") ~= nil
+        end
+
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r  isFishingPole: " .. tostring(isFishingPole))
+        end
+
         -- Check if it's a fishing pole AND not looting a dead mob
         -- In Classic WoW, when looting a fishing bobber, you typically don't have a dead target
         -- When looting a mob, UnitIsDead("target") is true
@@ -465,7 +560,7 @@ function CFC:OnLootOpened()
             print("|cffff8800[CFC Debug]|r  hasDeadTarget: " .. tostring(hasDeadTarget))
         end
 
-        if itemName and itemType and not hasDeadTarget then
+        if itemName and isFishingPole and not hasDeadTarget then
             -- We have fishing pole equipped and no dead target = successful fishing cast
             self.lastLootWasFishing = true
             self.isFishing = true
@@ -478,7 +573,9 @@ function CFC:OnLootOpened()
                 print("|cffff8800[CFC Debug]|r Loot opened from fishing - tracking cast")
             end
             return
-        elseif self.debug and itemName and itemType and hasDeadTarget then
+        elseif self.debug and itemName and not isFishingPole then
+            print("|cffff8800[CFC Debug]|r Loot opened with non-fishing-pole equipped: " .. itemName)
+        elseif self.debug and itemName and isFishingPole and hasDeadTarget then
             print("|cffff8800[CFC Debug]|r Loot opened with pole equipped but has dead target (combat loot)")
         end
     end
@@ -506,43 +603,6 @@ function CFC:OnLogout()
     -- Save session data
     local sessionTime = time() - self.db.profile.statistics.sessionStartTime
     self.db.profile.statistics.totalFishingTime = self.db.profile.statistics.totalFishingTime + sessionTime
-end
-
--- Check if an item is a fish (Trade Goods -> Fish subtype)
-function CFC:IsItemFish(itemLink)
-    if not itemLink then return false end
-
-    -- Get item info
-    local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(itemLink)
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Item type: " .. tostring(itemType) .. ", subtype: " .. tostring(itemSubType))
-    end
-
-    -- Check if it's a Trade Good with Fish subtype
-    -- In Classic WoW, fish are categorized as "Trade Goods" with subtype "Trade Goods" or might have other indicators
-    -- We'll use a simple name-based check as fallback
-    if itemName then
-        local nameLower = string.lower(itemName)
-        -- Common fish keywords in Classic WoW
-        if string.find(nameLower, "fish") or
-           string.find(nameLower, "salmon") or
-           string.find(nameLower, "bass") or
-           string.find(nameLower, "grouper") or
-           string.find(nameLower, "snapper") or
-           string.find(nameLower, "rockscale") or
-           string.find(nameLower, "trout") or
-           string.find(nameLower, "catfish") or
-           string.find(nameLower, "eel") or
-           string.find(nameLower, "lobster") or
-           string.find(nameLower, "clam") or
-           string.find(nameLower, "murloc") or
-           string.find(nameLower, "firefin") then
-            return true
-        end
-    end
-
-    return false
 end
 
 -- Check if item is a fishing lure or buff item (should not be tracked as a catch)
@@ -609,21 +669,25 @@ function CFC:OnLootReceived(event, message)
     end
 
     -- Check if this loot was obtained while fishing
-    -- Track all items if we were recently fishing (within last 10 seconds) or loot window opened while fishing
-    local timeSinceFishing = time() - self.lastSpellTime
-    local wasFishing = self.lastLootWasFishing or self.isFishing or timeSinceFishing < 10
+    -- Only track if LOOT_OPENED event confirmed this was fishing loot (pole equipped + no dead target)
+    local wasFishing = self.lastLootWasFishing
 
     -- Debug output
     if self.debug then
         print("|cffff8800[CFC Debug]|r Found item: " .. itemName)
         print("|cffff8800[CFC Debug]|r Was fishing: " .. tostring(wasFishing))
         print("|cffff8800[CFC Debug]|r lastLootWasFishing: " .. tostring(self.lastLootWasFishing))
-        print("|cffff8800[CFC Debug]|r isFishing: " .. tostring(self.isFishing))
-        print("|cffff8800[CFC Debug]|r Time since last cast: " .. timeSinceFishing .. "s")
     end
 
     if wasFishing then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Recording catch from fishing")
+        end
         self:RecordFishCatch(itemName)
+    else
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Skipping - not from fishing")
+        end
     end
 end
 
@@ -654,17 +718,29 @@ function CFC:RecordFishCatch(itemName)
 
     -- Update fish-specific data
     if not self.db.profile.fishData[itemName] then
+        -- Get item icon texture when first catching this fish
+        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemName)
+
         self.db.profile.fishData[itemName] = {
             count = 0,
             firstCatch = timestamp,
             lastCatch = timestamp,
             locations = {},
+            icon = itemTexture,  -- Cache the icon texture
         }
     end
 
     local fishData = self.db.profile.fishData[itemName]
     fishData.count = fishData.count + 1
     fishData.lastCatch = timestamp
+
+    -- Update cached icon if we don't have one yet
+    if not fishData.icon then
+        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemName)
+        if itemTexture then
+            fishData.icon = itemTexture
+        end
+    end
 
     -- Add location if not already recorded
     local locationKey = zone .. ":" .. subzone
@@ -1016,6 +1092,19 @@ function CFC:SwapGear()
         return
     end
 
+    -- Check if casting or channeling
+    local castingSpell = UnitCastingInfo("player")
+    local channelingSpell = UnitChannelInfo("player")
+
+    if castingSpell or channelingSpell then
+        local spellName = castingSpell or channelingSpell
+        print("|cffff0000Classic Fishing Companion:|r Cannot swap gear while casting!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Currently casting/channeling: " .. tostring(spellName) .. " - aborting gear swap")
+        end
+        return
+    end
+
     if not self.db or not self.db.profile or not self.db.profile.gearSets then
         print("|cffff0000Classic Fishing Companion:|r No gear sets configured!")
         print("|cffffcc00Tip:|r Equip your combat gear, then type |cffff8800/cfc savecombat|r")
@@ -1296,6 +1385,337 @@ function CFC:GetCurrentGearMode()
     end
 
     return mode
+end
+
+-- ========================================
+-- DATA IMPORT/EXPORT SYSTEM
+-- ========================================
+
+-- Serialize a table to a string (recursive)
+local function SerializeTable(tbl, indent)
+    indent = indent or 0
+    local result = "{\n"
+    local indentStr = string.rep("  ", indent + 1)
+
+    for key, value in pairs(tbl) do
+        -- Format the key
+        local keyStr
+        if type(key) == "string" then
+            keyStr = string.format('[%q]', key)
+        else
+            keyStr = "[" .. tostring(key) .. "]"
+        end
+
+        -- Format the value
+        local valueStr
+        if type(value) == "table" then
+            valueStr = SerializeTable(value, indent + 1)
+        elseif type(value) == "string" then
+            valueStr = string.format("%q", value)
+        elseif type(value) == "boolean" then
+            valueStr = tostring(value)
+        elseif type(value) == "number" then
+            valueStr = tostring(value)
+        else
+            valueStr = "nil"
+        end
+
+        result = result .. indentStr .. keyStr .. " = " .. valueStr .. ",\n"
+    end
+
+    result = result .. string.rep("  ", indent) .. "}"
+    return result
+end
+
+-- Export all fishing data to a string
+function CFC:ExportData()
+    if not self.db or not self.db.profile then
+        print("|cffff0000Classic Fishing Companion:|r No data to export!")
+        return
+    end
+
+    -- Create export data structure (only fishing-related data)
+    local exportData = {
+        version = "1.0.5",
+        catches = self.db.profile.catches,
+        fishData = self.db.profile.fishData,
+        statistics = self.db.profile.statistics,
+        sessions = self.db.profile.sessions,
+        buffUsage = self.db.profile.buffUsage,
+        skillLevels = self.db.profile.skillLevels,
+        poleUsage = self.db.profile.poleUsage,
+    }
+
+    -- Serialize to string
+    local serialized = "return " .. SerializeTable(exportData)
+
+    -- Show export dialog using the custom UI
+    if CFC.UI and CFC.UI.ShowExportDialog then
+        CFC.UI:ShowExportDialog(serialized)
+    else
+        print("|cffff0000Classic Fishing Companion:|r Export dialog not available!")
+    end
+
+    print("|cff00ff00Classic Fishing Companion:|r Data exported successfully!")
+end
+
+-- Purge a specific item from the database
+function CFC:PurgeItem(itemName)
+    if not itemName or itemName == "" then
+        print("|cffff0000Classic Fishing Companion:|r No item name provided!")
+        return false
+    end
+
+    local removedCount = 0
+    local foundInFishData = false
+    local foundInPoleUsage = false
+
+    -- Remove from catches array
+    local newCatches = {}
+    for _, catch in ipairs(self.db.profile.catches) do
+        if catch.itemName ~= itemName then
+            table.insert(newCatches, catch)
+        else
+            removedCount = removedCount + 1
+        end
+    end
+    self.db.profile.catches = newCatches
+
+    -- Remove from fishData
+    if self.db.profile.fishData[itemName] then
+        self.db.profile.fishData[itemName] = nil
+        foundInFishData = true
+    end
+
+    -- Remove from poleUsage (fishing poles used)
+    if self.db.profile.poleUsage[itemName] then
+        self.db.profile.poleUsage[itemName] = nil
+        foundInPoleUsage = true
+    end
+
+    -- Update total catches count
+    if removedCount > 0 then
+        self.db.profile.statistics.totalCatches = math.max(0, self.db.profile.statistics.totalCatches - removedCount)
+    end
+
+    -- Update UI if open
+    if self.UpdateUI then
+        self:UpdateUI()
+    end
+
+    -- Update HUD
+    if self.HUD and self.HUD.Update then
+        self.HUD:Update()
+    end
+
+    if removedCount > 0 or foundInFishData or foundInPoleUsage then
+        local message = "|cff00ff00Classic Fishing Companion:|r Removed '" .. itemName .. "' from database"
+        if removedCount > 0 then
+            message = message .. " (" .. removedCount .. " catches)"
+        end
+        if foundInPoleUsage then
+            message = message .. " (pole usage)"
+        end
+        print(message)
+        return true
+    else
+        print("|cffffcc00Classic Fishing Companion:|r Item '" .. itemName .. "' not found in database")
+        return false
+    end
+end
+
+-- Import fishing data from a string
+function CFC:ImportData(importString)
+    if not importString or importString == "" then
+        print("|cffff0000Classic Fishing Companion:|r Import failed - no data provided!")
+        return
+    end
+
+    -- Try to deserialize the data
+    local loadFunc, loadError = loadstring(importString)
+
+    if not loadFunc then
+        print("|cffff0000Classic Fishing Companion:|r Import failed - invalid data format!")
+        print("|cffff0000Error:|r " .. tostring(loadError))
+        return
+    end
+
+    -- Execute the function to get the data
+    local success, importData = pcall(loadFunc)
+
+    if not success or type(importData) ~= "table" then
+        print("|cffff0000Classic Fishing Companion:|r Import failed - could not load data!")
+        return
+    end
+
+    -- Validate version (optional, just for info)
+    if importData.version then
+        print("|cff00ff00Classic Fishing Companion:|r Importing data from version " .. importData.version)
+    end
+
+    -- Import the data
+    if importData.catches then
+        self.db.profile.catches = importData.catches
+    end
+
+    if importData.fishData then
+        self.db.profile.fishData = importData.fishData
+    end
+
+    if importData.statistics then
+        -- Preserve current session info but import totals
+        local currentSessionCatches = self.db.profile.statistics.sessionCatches
+        local currentSessionStart = self.db.profile.statistics.sessionStartTime
+
+        self.db.profile.statistics = importData.statistics
+
+        -- Restore current session info
+        self.db.profile.statistics.sessionCatches = currentSessionCatches
+        self.db.profile.statistics.sessionStartTime = currentSessionStart
+    end
+
+    if importData.sessions then
+        self.db.profile.sessions = importData.sessions
+    end
+
+    if importData.buffUsage then
+        self.db.profile.buffUsage = importData.buffUsage
+    end
+
+    if importData.skillLevels then
+        self.db.profile.skillLevels = importData.skillLevels
+    end
+
+    if importData.poleUsage then
+        self.db.profile.poleUsage = importData.poleUsage
+    end
+
+    print("|cff00ff00Classic Fishing Companion:|r Data imported successfully!")
+
+    -- Update UI if open
+    if self.UpdateUI then
+        self:UpdateUI()
+    end
+
+    -- Update HUD
+    if self.HUD and self.HUD.Update then
+        self.HUD:Update()
+    end
+end
+
+-- Create an internal backup of fishing data
+function CFC:CreateBackup()
+    if not self.db or not self.db.profile then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Cannot create backup - no data")
+        end
+        return false
+    end
+
+    -- Create backup snapshot (deep copy of fishing data only)
+    local backupData = {
+        version = "1.0.5",
+        timestamp = time(),
+        catches = self:DeepCopy(self.db.profile.catches),
+        fishData = self:DeepCopy(self.db.profile.fishData),
+        statistics = self:DeepCopy(self.db.profile.statistics),
+        sessions = self:DeepCopy(self.db.profile.sessions),
+        buffUsage = self:DeepCopy(self.db.profile.buffUsage),
+        skillLevels = self:DeepCopy(self.db.profile.skillLevels),
+        poleUsage = self:DeepCopy(self.db.profile.poleUsage),
+    }
+
+    -- Store backup
+    self.db.profile.backup.data = backupData
+
+    -- Update last backup timestamp (real-world time)
+    self.db.profile.backup.lastBackupTime = time()
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Backup created successfully at " .. date("%Y-%m-%d %H:%M:%S", backupData.timestamp))
+    end
+
+    return true
+end
+
+-- Restore fishing data from internal backup
+function CFC:RestoreFromBackup()
+    if not self.db or not self.db.profile or not self.db.profile.backup.data then
+        print("|cffff0000Classic Fishing Companion:|r No backup data available to restore!")
+        return false
+    end
+
+    local backupData = self.db.profile.backup.data
+
+    -- Restore fishing data from backup
+    if backupData.catches then
+        self.db.profile.catches = self:DeepCopy(backupData.catches)
+    end
+
+    if backupData.fishData then
+        self.db.profile.fishData = self:DeepCopy(backupData.fishData)
+    end
+
+    if backupData.statistics then
+        -- Preserve session data, restore everything else
+        local sessionCatches = self.db.profile.statistics.sessionCatches
+        local sessionStartTime = self.db.profile.statistics.sessionStartTime
+
+        self.db.profile.statistics = self:DeepCopy(backupData.statistics)
+
+        -- Restore current session data
+        self.db.profile.statistics.sessionCatches = sessionCatches
+        self.db.profile.statistics.sessionStartTime = sessionStartTime
+    end
+
+    if backupData.sessions then
+        self.db.profile.sessions = self:DeepCopy(backupData.sessions)
+    end
+
+    if backupData.buffUsage then
+        self.db.profile.buffUsage = self:DeepCopy(backupData.buffUsage)
+    end
+
+    if backupData.skillLevels then
+        self.db.profile.skillLevels = self:DeepCopy(backupData.skillLevels)
+    end
+
+    if backupData.poleUsage then
+        self.db.profile.poleUsage = self:DeepCopy(backupData.poleUsage)
+    end
+
+    local backupDate = date("%Y-%m-%d %H:%M:%S", backupData.timestamp)
+    print("|cff00ff00Classic Fishing Companion:|r Data restored from backup created on " .. backupDate)
+
+    -- Update UI if open
+    if self.UpdateUI then
+        self:UpdateUI()
+    end
+
+    -- Update HUD
+    if self.HUD and self.HUD.Update then
+        self.HUD:Update()
+    end
+
+    return true
+end
+
+-- Deep copy helper function
+function CFC:DeepCopy(original)
+    if type(original) ~= "table" then
+        return original
+    end
+
+    local copy = {}
+    for key, value in pairs(original) do
+        if type(value) == "table" then
+            copy[key] = self:DeepCopy(value)
+        else
+            copy[key] = value
+        end
+    end
+
+    return copy
 end
 
 -- Slash command handler

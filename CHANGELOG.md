@@ -26,6 +26,25 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - **Centralized version management**
   - Single version constant (CFC.VERSION) used throughout addon
   - Easier version updates and maintenance
+- **Statistics Tab enhancements**
+  - Hourly productivity analysis showing catches by hour of day
+  - Weekly breakdown showing last 7 days of fishing activity
+  - Monthly breakdown showing last 4 weeks of fishing activity
+  - Visual bar graphs for hourly, daily, and weekly statistics
+  - Peak fishing period detection (morning, afternoon, evening, night)
+- **Fish rarity color coding**
+  - Fish names now display in their item quality color (gray/white/green/blue/purple/orange)
+  - Applied throughout Overview, Fish List, History, and Statistics tabs
+- **Catch milestone notifications**
+  - Celebrates fishing milestones: 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000 catches
+  - On-screen notification and sound effect when reaching milestones
+- **Max fishing skill announcement**
+  - Optional announcement when reaching maximum fishing skill (300)
+  - Configurable channel: Off, Say, Party, Guild, or Emote
+  - Setting available in Settings tab
+- **Centralized color codes and constants**
+  - CFC.COLORS table for consistent color usage across addon
+  - CFC.CONSTANTS table for slots, bags, intervals, lure IDs, enchant IDs, and milestones
 
 ### Fixed
 - Fixed lure statistics incorrectly incrementing when using `/reload` command
@@ -37,6 +56,19 @@ All notable changes to Classic Fishing Companion will be documented in this file
   - Tries multiple methods to retrieve icons: cached data, item link, item name, bag scanning
   - Better handling of WoW API item data caching delays
   - New fish caught going forward will have more reliable icon caching
+- Fixed debug spam in Apply Lure function
+  - Wrapped 30+ debug print statements in conditional checks
+  - Only user-facing messages now display during normal operation
+- Added nil checks to catch history loops
+  - Prevents "nil" appearing in output if catch data is incomplete
+  - Fallback values for missing itemName, zone, and date fields
+- Improved gear swap error messages
+  - Added cursor validation after item pickup
+  - User-friendly error messages instead of silent failures
+- Locale-independent lure detection
+  - Now uses weapon enchant IDs instead of tooltip text parsing
+  - Works correctly regardless of game language setting
+  - Fallback to tooltip parsing if enchant ID not recognized
 
 ## [1.0.5] - 2025-11-30
 

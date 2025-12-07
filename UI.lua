@@ -595,33 +595,48 @@ function UI:CreateStatsTab()
     frame.weeklyBars = {}
     frame.hourlyBars = {}
 
-    -- Daily bars (7 days)
+    -- Hourly bars (top 5) with header
+    frame.hourlyContainer = CreateFrame("Frame", nil, frame.scrollChild)
+    frame.hourlyContainer:SetSize(400, 160)
+    frame.hourlyHeader = frame.hourlyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.hourlyHeader:SetPoint("TOPLEFT", frame.hourlyContainer, "TOPLEFT", 0, 0)
+    frame.hourlyHeader:SetTextColor(1, 0.82, 0, 1)  -- Gold
+    frame.hourlySubheader = frame.hourlyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    frame.hourlySubheader:SetPoint("TOPLEFT", frame.hourlyHeader, "BOTTOMLEFT", 0, -2)
+    for i = 1, 5 do
+        local bar = UI:CreateBar(frame.hourlyContainer, i)
+        bar:SetPoint("TOPLEFT", frame.hourlyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
+        bar.fill:SetColorTexture(1.0, 0.6, 0.0, 1.0)  -- Orange fill for hourly
+        frame.hourlyBars[i] = bar
+    end
+
+    -- Daily bars (7 days) with header
     frame.dailyContainer = CreateFrame("Frame", nil, frame.scrollChild)
-    frame.dailyContainer:SetSize(400, 150)
+    frame.dailyContainer:SetSize(400, 200)
+    frame.dailyHeader = frame.dailyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.dailyHeader:SetPoint("TOPLEFT", frame.dailyContainer, "TOPLEFT", 0, 0)
+    frame.dailyHeader:SetTextColor(1, 0.82, 0, 1)  -- Gold
+    frame.dailySubheader = frame.dailyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    frame.dailySubheader:SetPoint("TOPLEFT", frame.dailyHeader, "BOTTOMLEFT", 0, -2)
     for i = 1, 7 do
         local bar = UI:CreateBar(frame.dailyContainer, i)
-        bar:SetPoint("TOPLEFT", frame.dailyContainer, "TOPLEFT", 0, -((i-1) * 20))
+        bar:SetPoint("TOPLEFT", frame.dailyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
         frame.dailyBars[i] = bar
     end
 
-    -- Weekly bars (4 weeks)
+    -- Weekly bars (4 weeks) with header
     frame.weeklyContainer = CreateFrame("Frame", nil, frame.scrollChild)
-    frame.weeklyContainer:SetSize(400, 100)
+    frame.weeklyContainer:SetSize(400, 140)
+    frame.weeklyHeader = frame.weeklyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.weeklyHeader:SetPoint("TOPLEFT", frame.weeklyContainer, "TOPLEFT", 0, 0)
+    frame.weeklyHeader:SetTextColor(1, 0.82, 0, 1)  -- Gold
+    frame.weeklySubheader = frame.weeklyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    frame.weeklySubheader:SetPoint("TOPLEFT", frame.weeklyHeader, "BOTTOMLEFT", 0, -2)
     for i = 1, 4 do
         local bar = UI:CreateBar(frame.weeklyContainer, i)
-        bar:SetPoint("TOPLEFT", frame.weeklyContainer, "TOPLEFT", 0, -((i-1) * 20))
+        bar:SetPoint("TOPLEFT", frame.weeklyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
         bar.fill:SetColorTexture(0.2, 0.6, 1.0, 1.0)  -- Blue fill for weekly
         frame.weeklyBars[i] = bar
-    end
-
-    -- Hourly bars (top 5)
-    frame.hourlyContainer = CreateFrame("Frame", nil, frame.scrollChild)
-    frame.hourlyContainer:SetSize(400, 120)
-    for i = 1, 5 do
-        local bar = UI:CreateBar(frame.hourlyContainer, i)
-        bar:SetPoint("TOPLEFT", frame.hourlyContainer, "TOPLEFT", 0, -((i-1) * 20))
-        bar.fill:SetColorTexture(1.0, 0.6, 0.0, 1.0)  -- Orange fill for hourly
-        frame.hourlyBars[i] = bar
     end
 
     mainFrame.statsFrame = frame
@@ -652,44 +667,34 @@ function UI:UpdateStats()
         text = text .. "Fishing skill not detected yet\n"
     end
 
-    -- Hourly Productivity
-    text = text .. "\n\n|cffffd700Hourly Productivity (Top 5 Hours):|r\n"
-    text = text .. "Peak Period: "
+    -- Get stats data
     local hourlyStats = CFC.Database:GetHourlyStats()
-    if hourlyStats.totalCatches > 0 then
-        text = text .. "|cff00ff00" .. hourlyStats.peakPeriod .. "|r\n\n"
-    else
-        text = text .. "|cffaaaaaa-----|r\n\n"
-    end
-
-    -- Add placeholder for hourly graph
-    text = text .. "\n\n\n\n\n\n\n\n\n"  -- Space for 5 bars
-
-    -- Weekly Breakdown
-    text = text .. "\n\n|cffffd700Weekly Breakdown (Last 7 Days):|r\n"
     local weeklyStats = CFC.Database:GetWeeklyStats()
-    if weeklyStats.totalCatches > 0 then
-        text = text .. "Total: |cff00ff00" .. weeklyStats.totalCatches .. "|r fish  |  "
-        text = text .. "Avg: |cff00ff00" .. string.format("%.1f", weeklyStats.averagePerDay) .. "|r/day\n\n"
-    else
-        text = text .. "No catches in the last 7 days\n\n"
-    end
-
-    -- Add placeholder for daily graph
-    text = text .. "\n\n\n\n\n\n\n\n\n\n\n"  -- Space for 7 bars
-
-    -- Monthly Breakdown
-    text = text .. "\n\n|cffffd700Monthly Breakdown (Last 4 Weeks):|r\n"
     local monthlyStats = CFC.Database:GetMonthlyStats()
-    if monthlyStats.totalCatches > 0 then
-        text = text .. "Total: |cff00ff00" .. monthlyStats.totalCatches .. "|r fish  |  "
-        text = text .. "Avg: |cff00ff00" .. string.format("%.1f", monthlyStats.averagePerWeek) .. "|r/week\n\n"
+
+    -- Set up hourly header
+    frame.hourlyHeader:SetText("Hourly Productivity (Top 5 Hours):")
+    if hourlyStats.totalCatches > 0 then
+        frame.hourlySubheader:SetText("Peak Period: |cff00ff00" .. hourlyStats.peakPeriod .. "|r")
     else
-        text = text .. "No catches in the last 4 weeks\n\n"
+        frame.hourlySubheader:SetText("Peak Period: |cffaaaaaa-----|r")
     end
 
-    -- Add placeholder for weekly graph
-    text = text .. "\n\n\n\n\n\n\n\n"  -- Space for 4 bars
+    -- Set up daily header
+    frame.dailyHeader:SetText("Weekly Breakdown (Last 7 Days):")
+    if weeklyStats.totalCatches > 0 then
+        frame.dailySubheader:SetText("Total: |cff00ff00" .. weeklyStats.totalCatches .. "|r fish  |  Avg: |cff00ff00" .. string.format("%.1f", weeklyStats.averagePerDay) .. "|r/day")
+    else
+        frame.dailySubheader:SetText("No catches in the last 7 days")
+    end
+
+    -- Set up weekly header
+    frame.weeklyHeader:SetText("Monthly Breakdown (Last 4 Weeks):")
+    if monthlyStats.totalCatches > 0 then
+        frame.weeklySubheader:SetText("Total: |cff00ff00" .. monthlyStats.totalCatches .. "|r fish  |  Avg: |cff00ff00" .. string.format("%.1f", monthlyStats.averagePerWeek) .. "|r/week")
+    else
+        frame.weeklySubheader:SetText("No catches in the last 4 weeks")
+    end
 
     -- Update hourly bar graph
     local sortedHours = {}
@@ -745,12 +750,12 @@ function UI:UpdateStats()
     frame.dailyContainer:ClearAllPoints()
     frame.weeklyContainer:ClearAllPoints()
 
-    frame.hourlyContainer:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 20, -175)
-    frame.dailyContainer:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 20, -340)
-    frame.weeklyContainer:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 20, -560)
+    frame.hourlyContainer:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 20, -150)
+    frame.dailyContainer:SetPoint("TOPLEFT", frame.hourlyContainer, "BOTTOMLEFT", 0, -10)
+    frame.weeklyContainer:SetPoint("TOPLEFT", frame.dailyContainer, "BOTTOMLEFT", 0, -10)
 
-    -- Fishing Poles Used
-    text = text .. "\n\n|cffffd700Fishing Poles Used:|r\n"
+    -- Fishing Poles Used (positioned after all graph containers)
+    text = text .. "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n|cffffd700Fishing Poles Used:|r\n"
     if CFC.db.profile.poleUsage then
         local poleList = {}
         for poleName, data in pairs(CFC.db.profile.poleUsage) do

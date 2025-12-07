@@ -77,6 +77,7 @@ CFC.CONSTANTS = {
         [2605] = "Bright Baubles",         -- +75 fishing
         [2606] = "Aquadynamic Fish Attractor", -- +100 fishing
         [2607] = "Flesh Eating Worm",      -- +75 fishing
+        [2608] = "Aquadynamic Fish Lens",  -- +50 fishing (Engineering)
     },
     -- Catch milestones for notifications
     MILESTONES = {

@@ -128,3 +128,197 @@ function CFC.Database:GetLifetimeStats()
         uniqueZones = #self:GetZoneList(),
     }
 end
+
+-- Get catches within a time period
+function CFC.Database:GetCatchesInPeriod(startTime, endTime)
+    local catches = {}
+    endTime = endTime or time()
+
+    for _, catch in ipairs(CFC.db.profile.catches) do
+        if catch.timestamp and catch.timestamp >= startTime and catch.timestamp <= endTime then
+            table.insert(catches, catch)
+        end
+    end
+
+    return catches
+end
+
+-- Get weekly statistics (last 7 days, broken down by day)
+function CFC.Database:GetWeeklyStats()
+    local now = time()
+    local daySeconds = 86400  -- seconds in a day
+    local stats = {
+        days = {},
+        totalCatches = 0,
+        bestDay = nil,
+        bestDayCount = 0,
+    }
+
+    -- Calculate stats for each of the last 7 days
+    for i = 0, 6 do
+        local dayEnd = now - (i * daySeconds)
+        local dayStart = dayEnd - daySeconds
+
+        -- Get day name
+        local dayName = date("%A", dayEnd)  -- Full day name
+        local dayDate = date("%m/%d", dayEnd)  -- Short date
+
+        local dayCatches = self:GetCatchesInPeriod(dayStart, dayEnd)
+        local dayCount = #dayCatches
+
+        stats.days[i + 1] = {
+            name = dayName,
+            date = dayDate,
+            catches = dayCount,
+            daysAgo = i,
+        }
+
+        stats.totalCatches = stats.totalCatches + dayCount
+
+        if dayCount > stats.bestDayCount then
+            stats.bestDayCount = dayCount
+            stats.bestDay = dayName .. " (" .. dayDate .. ")"
+        end
+    end
+
+    stats.averagePerDay = stats.totalCatches / 7
+
+    return stats
+end
+
+-- Get monthly statistics (last 30 days, broken down by week)
+function CFC.Database:GetMonthlyStats()
+    local now = time()
+    local daySeconds = 86400
+    local weekSeconds = daySeconds * 7
+    local stats = {
+        weeks = {},
+        totalCatches = 0,
+        bestWeek = nil,
+        bestWeekCount = 0,
+    }
+
+    -- Calculate stats for each of the last 4 weeks
+    for i = 0, 3 do
+        local weekEnd = now - (i * weekSeconds)
+        local weekStart = weekEnd - weekSeconds
+
+        local weekLabel = "Week " .. (i + 1)
+        if i == 0 then
+            weekLabel = "This Week"
+        elseif i == 1 then
+            weekLabel = "Last Week"
+        end
+
+        local weekCatches = self:GetCatchesInPeriod(weekStart, weekEnd)
+        local weekCount = #weekCatches
+
+        stats.weeks[i + 1] = {
+            label = weekLabel,
+            catches = weekCount,
+            weeksAgo = i,
+        }
+
+        stats.totalCatches = stats.totalCatches + weekCount
+
+        if weekCount > stats.bestWeekCount then
+            stats.bestWeekCount = weekCount
+            stats.bestWeek = weekLabel
+        end
+    end
+
+    stats.averagePerWeek = stats.totalCatches / 4
+
+    return stats
+end
+
+-- Get hourly productivity analysis (which hours are most productive)
+function CFC.Database:GetHourlyStats()
+    local hourCounts = {}
+    local totalCatches = 0
+
+    -- Initialize all hours
+    for h = 0, 23 do
+        hourCounts[h] = 0
+    end
+
+    -- Count catches by hour
+    for _, catch in ipairs(CFC.db.profile.catches) do
+        if catch.timestamp then
+            local hour = tonumber(date("%H", catch.timestamp))
+            if hour then
+                hourCounts[hour] = hourCounts[hour] + 1
+                totalCatches = totalCatches + 1
+            end
+        end
+    end
+
+    -- Find best and worst hours
+    local bestHour, bestCount = 0, 0
+    local worstHour, worstCount = 0, totalCatches + 1
+
+    local stats = {
+        hours = {},
+        bestHour = nil,
+        bestHourCount = 0,
+        peakPeriod = nil,
+    }
+
+    for h = 0, 23 do
+        local count = hourCounts[h]
+        local timeLabel = string.format("%d:00 - %d:59", h, h)
+
+        -- Convert to 12-hour format for display
+        local displayHour = h
+        local ampm = "AM"
+        if h == 0 then
+            displayHour = 12
+        elseif h == 12 then
+            ampm = "PM"
+        elseif h > 12 then
+            displayHour = h - 12
+            ampm = "PM"
+        end
+        local displayLabel = string.format("%d %s", displayHour, ampm)
+
+        stats.hours[h] = {
+            hour = h,
+            label = displayLabel,
+            catches = count,
+            percentage = totalCatches > 0 and (count / totalCatches * 100) or 0,
+        }
+
+        if count > bestCount then
+            bestCount = count
+            bestHour = h
+        end
+    end
+
+    -- Determine peak period (morning, afternoon, evening, night)
+    local morning = 0   -- 6-11
+    local afternoon = 0 -- 12-17
+    local evening = 0   -- 18-23
+    local night = 0     -- 0-5
+
+    for h = 0, 5 do night = night + hourCounts[h] end
+    for h = 6, 11 do morning = morning + hourCounts[h] end
+    for h = 12, 17 do afternoon = afternoon + hourCounts[h] end
+    for h = 18, 23 do evening = evening + hourCounts[h] end
+
+    local peakCount = math.max(morning, afternoon, evening, night)
+    if peakCount == morning then
+        stats.peakPeriod = "Morning (6 AM - 12 PM)"
+    elseif peakCount == afternoon then
+        stats.peakPeriod = "Afternoon (12 PM - 6 PM)"
+    elseif peakCount == evening then
+        stats.peakPeriod = "Evening (6 PM - 12 AM)"
+    else
+        stats.peakPeriod = "Night (12 AM - 6 AM)"
+    end
+
+    stats.bestHour = stats.hours[bestHour].label
+    stats.bestHourCount = bestCount
+    stats.totalCatches = totalCatches
+
+    return stats
+end

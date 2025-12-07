@@ -15,6 +15,75 @@ end
 -- Local references
 local CFC = CFC
 
+-- Version constant (single source of truth)
+CFC.VERSION = "1.0.6"
+
+-- Centralized color codes for consistent styling
+CFC.COLORS = {
+    SUCCESS = "|cff00ff00",   -- Green - success messages, positive values
+    ERROR = "|cffff0000",     -- Red - error messages, critical warnings
+    WARNING = "|cffffff00",   -- Yellow - warnings, caution
+    DEBUG = "|cffff8800",     -- Orange - debug messages
+    TIP = "|cffffcc00",       -- Gold - tips, hints
+    INFO = "|cffaaaaaa",      -- Gray - secondary info
+    HEADER = "|cffffd700",    -- Gold - section headers
+    RESET = "|r",             -- Reset color
+    -- Item quality colors (WoW standard)
+    QUALITY = {
+        [0] = "|cff9d9d9d",   -- Poor (gray)
+        [1] = "|cffffffff",   -- Common (white)
+        [2] = "|cff1eff00",   -- Uncommon (green)
+        [3] = "|cff0070dd",   -- Rare (blue)
+        [4] = "|cffa335ee",   -- Epic (purple)
+        [5] = "|cffff8000",   -- Legendary (orange)
+        [6] = "|cffe6cc80",   -- Artifact (light gold)
+        [7] = "|cff00ccff",   -- Heirloom (light blue)
+    },
+}
+
+-- Centralized constants to avoid magic numbers
+CFC.CONSTANTS = {
+    -- Equipment slot IDs
+    SLOTS = {
+        MAIN_HAND = 16,
+        OFF_HAND = 17,
+        TABARD = 19,
+    },
+    -- Bag indices
+    BAGS = {
+        FIRST = 0,
+        LAST = 4,
+    },
+    -- Timing intervals (seconds)
+    INTERVALS = {
+        CAST_TIMEOUT = 2,
+        BUFF_CHECK = 60,
+        ICON_REFRESH = 300,
+        AUTO_BACKUP = 86400,      -- 24 hours
+        EXPORT_REMINDER = 604800, -- 7 days
+    },
+    -- Known fishing lure item IDs (for reliable detection)
+    LURE_IDS = {
+        [6529] = "Shiny Bauble",
+        [6530] = "Nightcrawlers",
+        [6811] = "Bright Baubles",
+        [7307] = "Flesh Eating Worm",
+        [6533] = "Aquadynamic Fish Attractor",
+    },
+    -- Weapon enchant IDs for fishing lures (locale-independent detection)
+    LURE_ENCHANT_IDS = {
+        [2603] = "Shiny Bauble",           -- +25 fishing
+        [2604] = "Nightcrawlers",          -- +50 fishing
+        [2605] = "Bright Baubles",         -- +75 fishing
+        [2606] = "Aquadynamic Fish Attractor", -- +100 fishing
+        [2607] = "Flesh Eating Worm",      -- +75 fishing
+    },
+    -- Catch milestones for notifications
+    MILESTONES = {
+        10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000
+    },
+}
+
 -- Default database structure
 local defaults = {
     profile = {
@@ -26,6 +95,7 @@ local defaults = {
             announceBuffs = true,  -- Warn when fishing without buff (enabled by default)
             announceCatches = false,  -- Announce fish catches in chat
             announceSkillUps = true,  -- Announce fishing skill increases (enabled by default)
+            maxSkillAnnounce = "OFF",  -- Channel to announce max fishing skill: OFF, SAY, YELL, PARTY, GUILD, EMOTE
         },
         hud = {
             show = true,  -- Show stats HUD by default
@@ -101,12 +171,32 @@ function CFC:OnInitialize()
         end
     end
 
+    -- Database migration system
+    if not self.db.profile.dbVersion or self.db.profile.dbVersion < 2 then
+        -- Mark database version immediately
+        self.db.profile.dbVersion = 2
+
+        -- Schedule migration message after 30 seconds to allow item cache to load
+        C_Timer.After(30, function()
+            -- Check if user has any fish data
+            local fishCount = 0
+            for _ in pairs(self.db.profile.fishData) do
+                fishCount = fishCount + 1
+            end
+
+            if fishCount > 0 then
+                print("|cffffcc00Classic Fishing Companion:|r Database upgraded to v" .. CFC.VERSION .. "!")
+                print("|cffffcc00Tip:|r Fish icons will now cache reliably. Use 'Refresh Icons' button in Fish List if you have fish in your bags.")
+            end
+        end)
+    end
+
     -- Reset session statistics on login
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
 
-    print("|cff00ff00Classic Fishing Companion|r loaded! v1.0.5 by Relyk. Type |cffff8800/cfc|r to open or use the minimap button.")
-    print("|cffffcc00Tip:|r Always export your fishing data from Settings for backup!")
+    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
+    print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
 end
 
 -- Handle addon loading
@@ -124,12 +214,16 @@ function CFC:OnEnable()
     self.currentTrackedPole = nil  -- Track current pole to detect changes
     self.lastPoleTrackTime = 0  -- Track last time we counted a pole cast
     self.lastBuffTrackTime = 0  -- Track last time we counted a buff application
+    self.addonJustLoaded = true  -- Flag to prevent counting existing lures on first check after load/reload
 
     -- Create scanning tooltip for lure detection
     if not CFC_ScanTooltip then
         CFC_ScanTooltip = CreateFrame("GameTooltip", "CFC_ScanTooltip", nil, "GameTooltipTemplate")
         CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     end
+
+    -- Start automatic background icon refresh (runs every 5 minutes)
+    self:ScheduleBackgroundIconRefresh()
 
     -- Register events
     self:RegisterEvent("CHAT_MSG_LOOT", "OnLootReceived")
@@ -208,7 +302,12 @@ function CFC:UpdateFishingSkill()
                     date = date("%Y-%m-%d %H:%M:%S", time()),
                 })
                 if self.db.profile.settings.announceSkillUps then
-                    print("|cff00ff00Classic Fishing Companion:|r Fishing skill increased to " .. skillLevel .. "!")
+                    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Fishing skill increased to " .. skillLevel .. "!")
+                end
+
+                -- Check if just hit max skill (300 in Classic)
+                if skillLevel >= skillMaxLevel and oldSkill < skillMaxLevel then
+                    self:AnnounceMaxSkill(skillLevel)
                 end
             end
             break
@@ -304,21 +403,30 @@ function CFC:CheckLureChanges()
         -- Convert expiration from milliseconds to seconds
         local expirationSeconds = math.floor(mainHandExpiration / 1000)
 
-        -- Detect the actual lure name from tooltip (don't trust selected lure in UI)
-        local lureName = nil
-        CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        CFC_ScanTooltip:ClearLines()
-        CFC_ScanTooltip:SetInventoryItem("player", 16)
+        -- First try to detect lure by enchant ID (locale-independent, most reliable)
+        local lureName = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantID]
 
-        for i = 1, CFC_ScanTooltip:NumLines() do
-            local line = _G["CFC_ScanTooltipTextLeft" .. i]
-            if line then
-                local text = line:GetText()
-                if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing")) then
-                    -- Remove duration text like "(10 min)" or "(13 sec)" to get consistent name
-                    lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
-                    break
+        -- Fallback: Parse tooltip if enchant ID not in our mapping (handles unknown/future lures)
+        if not lureName then
+            CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+            CFC_ScanTooltip:ClearLines()
+            CFC_ScanTooltip:SetInventoryItem("player", CFC.CONSTANTS.SLOTS.MAIN_HAND)
+
+            for i = 1, CFC_ScanTooltip:NumLines() do
+                local line = _G["CFC_ScanTooltipTextLeft" .. i]
+                if line then
+                    local text = line:GetText()
+                    -- Look for fishing-related text (works for English clients, fallback for unknown enchants)
+                    if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing") or string.find(text, "Fishing Skill")) then
+                        -- Remove duration text like "(10 min)" or "(13 sec)" to get consistent name
+                        lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                        break
+                    end
                 end
+            end
+            -- If still no name found, use generic name with enchant ID for tracking
+            if not lureName then
+                lureName = "Unknown Lure (ID: " .. tostring(mainHandEnchantID) .. ")"
             end
         end
 
@@ -345,24 +453,38 @@ function CFC:CheckLureChanges()
             end
 
             if isNewApplication then
-                -- Initialize tracking for this lure if needed
-                if not self.db.profile.buffUsage[lureName] then
-                    self.db.profile.buffUsage[lureName] = {
-                        name = lureName,
-                        count = 0,
-                        firstUsed = time(),
-                        lastUsed = time(),
-                    }
-                end
+                -- Check if this is just the first detection after addon load/reload
+                -- Don't count it if the addon just loaded - we're just detecting an existing lure
+                if self.addonJustLoaded then
+                    -- Just start tracking, don't increment count
+                    self.currentTrackedBuff = lureName
+                    self.currentBuffExpiration = expirationSeconds
+                    self.addonJustLoaded = false  -- Clear the flag
 
-                -- Increment count
-                self.db.profile.buffUsage[lureName].count = self.db.profile.buffUsage[lureName].count + 1
-                self.db.profile.buffUsage[lureName].lastUsed = time()
-                self.currentTrackedBuff = lureName
-                self.currentBuffExpiration = expirationSeconds
+                    if self.debug then
+                        print("|cffff8800[CFC Debug]|r Detected existing lure after addon load: " .. lureName .. " (not counting)")
+                    end
+                else
+                    -- This is a genuine new lure application, count it
+                    -- Initialize tracking for this lure if needed
+                    if not self.db.profile.buffUsage[lureName] then
+                        self.db.profile.buffUsage[lureName] = {
+                            name = lureName,
+                            count = 0,
+                            firstUsed = time(),
+                            lastUsed = time(),
+                        }
+                    end
 
-                if self.debug then
-                    print("|cffff8800[CFC Debug]|r NEW lure applied: " .. lureName .. " (Total: " .. self.db.profile.buffUsage[lureName].count .. ")")
+                    -- Increment count
+                    self.db.profile.buffUsage[lureName].count = self.db.profile.buffUsage[lureName].count + 1
+                    self.db.profile.buffUsage[lureName].lastUsed = time()
+                    self.currentTrackedBuff = lureName
+                    self.currentBuffExpiration = expirationSeconds
+
+                    if self.debug then
+                        print("|cffff8800[CFC Debug]|r NEW lure applied: " .. lureName .. " (Total: " .. self.db.profile.buffUsage[lureName].count .. ")")
+                    end
                 end
             else
                 -- Just update the expiration time for tracking (time naturally decreases)
@@ -377,6 +499,15 @@ function CFC:CheckLureChanges()
             end
             self.currentTrackedBuff = nil
             self.currentBuffExpiration = 0
+        end
+
+        -- Clear the "just loaded" flag if no lure is present
+        -- This handles the case where player reloads without a lure active
+        if self.addonJustLoaded then
+            self.addonJustLoaded = false
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Addon loaded with no lure active - ready to track new lures")
+            end
         end
     end
 end
@@ -682,8 +813,9 @@ function CFC:OnLootReceived(event, message)
     if wasFishing then
         if self.debug then
             print("|cffff8800[CFC Debug]|r Recording catch from fishing")
+            print("|cffff8800[CFC Debug]|r Item link: " .. tostring(itemLink))
         end
-        self:RecordFishCatch(itemName)
+        self:RecordFishCatch(itemName, itemLink)
     else
         if self.debug then
             print("|cffff8800[CFC Debug]|r Skipping - not from fishing")
@@ -692,7 +824,7 @@ function CFC:OnLootReceived(event, message)
 end
 
 -- Record a fish catch
-function CFC:RecordFishCatch(itemName)
+function CFC:RecordFishCatch(itemName, itemLink)
     local timestamp = time()
     local zone = GetRealZoneText() or "Unknown"
     local subzone = GetSubZoneText() or ""
@@ -719,15 +851,36 @@ function CFC:RecordFishCatch(itemName)
     -- Update fish-specific data
     if not self.db.profile.fishData[itemName] then
         -- Get item icon texture when first catching this fish
-        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemName)
+        -- Use itemLink if available (more reliable), otherwise fall back to itemName
+        local itemTexture = nil
+        if itemLink then
+            local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemLink)
+            itemTexture = texture
+            if self.debug and texture then
+                print("|cffff8800[CFC Debug]|r Got icon from itemLink: " .. tostring(texture))
+            end
+        end
+
+        -- Fallback to itemName if itemLink didn't work
+        if not itemTexture then
+            local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemName)
+            itemTexture = texture
+            if self.debug and texture then
+                print("|cffff8800[CFC Debug]|r Got icon from itemName: " .. tostring(texture))
+            end
+        end
 
         self.db.profile.fishData[itemName] = {
             count = 0,
             firstCatch = timestamp,
             lastCatch = timestamp,
             locations = {},
-            icon = itemTexture,  -- Cache the icon texture
+            icon = itemTexture,  -- Cache the icon texture (may be nil if item not cached yet)
         }
+
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Created fishData for: " .. itemName .. ", icon: " .. tostring(itemTexture))
+        end
     end
 
     local fishData = self.db.profile.fishData[itemName]
@@ -735,10 +888,13 @@ function CFC:RecordFishCatch(itemName)
     fishData.lastCatch = timestamp
 
     -- Update cached icon if we don't have one yet
-    if not fishData.icon then
-        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemName)
+    if not fishData.icon and itemLink then
+        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
         if itemTexture then
             fishData.icon = itemTexture
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Updated icon for " .. itemName .. ": " .. tostring(itemTexture))
+            end
         end
     end
 
@@ -757,6 +913,9 @@ function CFC:RecordFishCatch(itemName)
     if self.db.profile.settings.announceCatches then
         print("|cff00ff00Classic Fishing Companion Announcements:|r Caught " .. itemName .. " in " .. zone)
     end
+
+    -- Check for milestone notifications
+    self:CheckMilestone(self.db.profile.statistics.totalCatches)
 
     -- Update UI if open
     if CFC.UpdateUI then
@@ -792,6 +951,70 @@ function CFC:GetTotalFishingTime()
     local sessionTime = time() - self.db.profile.statistics.sessionStartTime
     local totalSeconds = self.db.profile.statistics.totalFishingTime + sessionTime
     return totalSeconds / 3600
+end
+
+-- Get item name with quality color
+function CFC:GetColoredItemName(itemName)
+    if not itemName then return "Unknown" end
+
+    -- Try to get item info
+    local _, _, quality = GetItemInfo(itemName)
+
+    -- Default to common (white) if quality not found
+    quality = quality or 1
+
+    local colorCode = CFC.COLORS.QUALITY[quality] or CFC.COLORS.QUALITY[1]
+    return colorCode .. itemName .. CFC.COLORS.RESET
+end
+
+-- Announce max fishing skill to chosen channel
+function CFC:AnnounceMaxSkill(skillLevel)
+    local channel = self.db.profile.settings.maxSkillAnnounce
+
+    -- Always show local notification
+    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. "Congratulations! You've reached maximum fishing skill (" .. skillLevel .. ")!" .. CFC.COLORS.RESET)
+    RaidNotice_AddMessage(RaidWarningFrame, "MAX FISHING SKILL REACHED!", ChatTypeInfo["RAID_WARNING"], 5)
+    PlaySound(SOUNDKIT.UI_PLAYER_LEVEL_UP or 888)
+
+    -- Send to chat channel if configured
+    if channel and channel ~= "OFF" then
+        local playerName = UnitName("player")
+        local message = "Classic Fishing Companion: " .. playerName .. " has reached Fishing skill (" .. skillLevel .. ")!"
+
+        if channel == "SAY" then
+            SendChatMessage(message, "SAY")
+        elseif channel == "PARTY" then
+            if IsInGroup() then
+                SendChatMessage(message, "PARTY")
+            end
+        elseif channel == "GUILD" then
+            if IsInGuild() then
+                SendChatMessage(message, "GUILD")
+            end
+        elseif channel == "EMOTE" then
+            SendChatMessage("has reached maximum Fishing skill (" .. skillLevel .. ") using Classic Fishing Companion!", "EMOTE")
+        end
+    end
+end
+
+-- Check if a catch count hits a milestone and notify
+function CFC:CheckMilestone(catchCount)
+    for _, milestone in ipairs(CFC.CONSTANTS.MILESTONES) do
+        if catchCount == milestone then
+            -- Show milestone notification
+            local message = "Milestone reached: " .. milestone .. " fish caught!"
+            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
+
+            -- Show raid warning style notification
+            RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
+
+            -- Play a sound (use achievement sound)
+            PlaySound(SOUNDKIT.UI_PLAYER_LEVEL_UP or 888)
+
+            return true
+        end
+    end
+    return false
 end
 
 -- ========================================
@@ -983,11 +1206,20 @@ function CFC:LoadGearSet(setName)
                         end
                     end
 
-                    PickupInventoryItem(slotID)
-                    ClearCursor()  -- Clear cursor after swap
-                    swappedCount = swappedCount + 1
+                    -- Validate that item was picked up
+                    local cursorType = GetCursorInfo()
+                    if cursorType ~= "item" then
+                        print("|cffffff00Classic Fishing Companion:|r Could not pick up " .. itemName .. " - item may be locked")
+                        ClearCursor()
+                        notFoundCount = notFoundCount + 1
+                    else
+                        PickupInventoryItem(slotID)
+                        ClearCursor()  -- Clear cursor after swap
+                        swappedCount = swappedCount + 1
+                    end
                 else
                     notFoundCount = notFoundCount + 1
+                    print("|cffffff00Classic Fishing Companion:|r Could not find " .. itemName .. " in your bags")
                     if self.debug then
                         print("|cffff0000[CFC Debug]|r   Item not in bags: " .. itemName .. " (ID: " .. itemID .. ")")
                     end
@@ -1036,7 +1268,7 @@ function CFC:FindItemInBags(itemID)
             print("|cffff8800[CFC Debug]|r Using legacy bag API (Classic Era)")
         end
     else
-        print("|cffff0000Classic Fishing Companion:|r ERROR: No bag API available!")
+        print("|cffff0000Classic Fishing Companion:|r Unable to access bag contents. Please try /reload or restart WoW.")
         if self.debug then
             print("|cffff0000[CFC Debug]|r C_Container exists: " .. tostring(C_Container ~= nil))
             if C_Container then
@@ -1048,7 +1280,7 @@ function CFC:FindItemInBags(itemID)
         return nil, nil
     end
 
-    for b = 0, 4 do
+    for b = CFC.CONSTANTS.BAGS.FIRST, CFC.CONSTANTS.BAGS.LAST do
         local numSlots = GetNumSlots(b) or 0
         if self.debug then
             print("|cffff8800[CFC Debug]|r   Checking bag " .. b .. " (" .. numSlots .. " slots)")
@@ -1157,34 +1389,50 @@ end
 
 -- Apply selected lure to fishing pole
 function CFC:ApplySelectedLure()
-    print("|cffff8800[CFC Debug]|r ===== APPLY LURE INITIATED =====")
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r ===== APPLY LURE INITIATED =====")
+    end
 
     -- Check if in combat
     if InCombatLockdown() then
-        print("|cffff0000[CFC Debug]|r Cannot apply lure - IN COMBAT!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Cannot apply lure - IN COMBAT!")
+        end
         print("|cffff0000Classic Fishing Companion:|r Cannot apply lure while in combat!")
         return
     end
-    print("|cff00ff00[CFC Debug]|r Combat check passed - not in combat")
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Combat check passed - not in combat")
+    end
 
     -- Check database
     if not self.db or not self.db.profile then
-        print("|cffff0000[CFC Debug]|r Database not initialized!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Database not initialized!")
+        end
         return
     end
-    print("|cff00ff00[CFC Debug]|r Database check passed")
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Database check passed")
+    end
 
     -- Check if lure is selected
     local selectedLureID = self.db.profile.selectedLure
-    print("|cffff8800[CFC Debug]|r Selected lure ID from DB: " .. tostring(selectedLureID))
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Selected lure ID from DB: " .. tostring(selectedLureID))
+    end
 
     if not selectedLureID then
-        print("|cffff0000[CFC Debug]|r No lure selected in database!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r No lure selected in database!")
+        end
         print("|cffff0000Classic Fishing Companion:|r No lure selected!")
         print("|cffffcc00Tip:|r Open the Lure Manager tab to select a lure")
         return
     end
-    print("|cff00ff00[CFC Debug]|r Lure selection check passed - ID: " .. selectedLureID)
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Lure selection check passed - ID: " .. selectedLureID)
+    end
 
     -- Lure names mapping
     local lureNames = {
@@ -1196,10 +1444,14 @@ function CFC:ApplySelectedLure()
     }
 
     local lureName = lureNames[selectedLureID] or "Unknown Lure"
-    print("|cffff8800[CFC Debug]|r Lure name: " .. lureName)
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Lure name: " .. lureName)
+    end
 
     -- Check if player has the lure in bags
-    print("|cffff8800[CFC Debug]|r Scanning bags for lure...")
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Scanning bags for lure...")
+    end
     local hasLure = false
     local lureBag, lureSlot = nil, nil
 
@@ -1212,7 +1464,9 @@ function CFC:ApplySelectedLure()
         GetItemInfo = function(bag, slot)
             return C_Container.GetContainerItemInfo(bag, slot)
         end
-        print("|cffff8800[CFC Debug]|r Using C_Container API (Classic Anniversary)")
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Using C_Container API (Classic Anniversary)")
+        end
     -- Fallback to old global API (Classic Era)
     elseif _G.GetContainerNumSlots and type(_G.GetContainerNumSlots) == "function" then
         GetNumSlots = _G.GetContainerNumSlots
@@ -1220,18 +1474,24 @@ function CFC:ApplySelectedLure()
             local texture, count, locked, quality, readable, lootable, itemLink = _G.GetContainerItemInfo(bag, slot)
             return { iconFileID = texture, stackCount = count, isLocked = locked, quality = quality, isReadable = readable, hasLoot = lootable, hyperlink = itemLink }
         end
-        print("|cffff8800[CFC Debug]|r Using legacy bag API (Classic Era)")
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Using legacy bag API (Classic Era)")
+        end
     else
-        print("|cffff0000[CFC Debug]|r ERROR: No bag API available!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r ERROR: No bag API available!")
+        end
         print("|cffff0000Classic Fishing Companion:|r Cannot access bags - API not available")
         return
     end
 
     -- Use pcall to catch any errors during bag scanning
     local scanSuccess, scanError = pcall(function()
-        for bag = 0, 4 do
+        for bag = CFC.CONSTANTS.BAGS.FIRST, CFC.CONSTANTS.BAGS.LAST do
             local numSlots = GetNumSlots(bag)
-            print("|cffff8800[CFC Debug]|r Bag " .. bag .. " has " .. tostring(numSlots) .. " slots")
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Bag " .. bag .. " has " .. tostring(numSlots) .. " slots")
+            end
 
             if numSlots and numSlots > 0 then
                 for slot = 1, numSlots do
@@ -1246,12 +1506,16 @@ function CFC:ApplySelectedLure()
                             local itemID = itemString and tonumber(itemString)
 
                             if itemID then
-                                print("|cffff8800[CFC Debug]|r   Slot " .. slot .. ": ItemID = " .. itemID)
+                                if self.debug then
+                                    print("|cffff8800[CFC Debug]|r   Slot " .. slot .. ": ItemID = " .. itemID)
+                                end
                                 if itemID == selectedLureID then
                                     hasLure = true
                                     lureBag = bag
                                     lureSlot = slot
-                                    print("|cff00ff00[CFC Debug]|r   FOUND LURE! Bag " .. bag .. " Slot " .. slot)
+                                    if self.debug then
+                                        print("|cff00ff00[CFC Debug]|r   FOUND LURE! Bag " .. bag .. " Slot " .. slot)
+                                    end
                                     return  -- Exit the loop
                                 end
                             end
@@ -1264,29 +1528,41 @@ function CFC:ApplySelectedLure()
 
     -- Check if scanning encountered an error
     if not scanSuccess then
-        print("|cffff0000[CFC Debug]|r ERROR during bag scan: " .. tostring(scanError))
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r ERROR during bag scan: " .. tostring(scanError))
+        end
         print("|cffff0000Classic Fishing Companion:|r Error scanning bags - please try again")
         return
     end
 
     if not hasLure then
-        print("|cffff0000[CFC Debug]|r Lure not found in bags!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Lure not found in bags!")
+        end
         print("|cffff0000Classic Fishing Companion:|r You don't have " .. lureName .. " in your bags!")
         return
     end
 
-    print("|cff00ff00[CFC Debug]|r Lure found - Bag: " .. lureBag .. ", Slot: " .. lureSlot)
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Lure found - Bag: " .. lureBag .. ", Slot: " .. lureSlot)
+    end
 
     -- Check if fishing pole is equipped in main hand
-    print("|cffff8800[CFC Debug]|r Checking main hand for fishing pole...")
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Checking main hand for fishing pole...")
+    end
     local mainHandLink = GetInventoryItemLink("player", 16)
     if not mainHandLink then
-        print("|cffff0000[CFC Debug]|r No item equipped in main hand!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r No item equipped in main hand!")
+        end
         print("|cffff0000Classic Fishing Companion:|r No fishing pole equipped!")
         return
     end
 
-    print("|cff00ff00[CFC Debug]|r Main hand item: " .. mainHandLink)
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Main hand item: " .. mainHandLink)
+    end
 
     -- Determine which UseContainerItem API to use
     local UseItemFromBag
@@ -1294,56 +1570,84 @@ function CFC:ApplySelectedLure()
         UseItemFromBag = function(bag, slot)
             C_Container.UseContainerItem(bag, slot)
         end
-        print("|cffff8800[CFC Debug]|r Using C_Container.UseContainerItem")
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Using C_Container.UseContainerItem")
+        end
     elseif _G.UseContainerItem and type(_G.UseContainerItem) == "function" then
         UseItemFromBag = _G.UseContainerItem
-        print("|cffff8800[CFC Debug]|r Using legacy UseContainerItem")
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Using legacy UseContainerItem")
+        end
     else
-        print("|cffff0000[CFC Debug]|r ERROR: No UseContainerItem API available!")
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r ERROR: No UseContainerItem API available!")
+        end
         print("|cffff0000Classic Fishing Companion:|r Cannot use items from bags")
         return
     end
 
     -- Apply the lure: Use the lure item (picks it up on cursor), then click the fishing pole
     -- In Classic WoW, we need a small delay between these two actions
-    print("|cffff8800[CFC Debug]|r Step 1: Using lure from bag " .. lureBag .. " slot " .. lureSlot)
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Step 1: Using lure from bag " .. lureBag .. " slot " .. lureSlot)
+    end
     UseItemFromBag(lureBag, lureSlot)
-    print("|cffff8800[CFC Debug]|r Called UseItemFromBag - lure should now be on cursor")
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Called UseItemFromBag - lure should now be on cursor")
+    end
 
     -- Wait a short moment for the cursor to update, then apply to fishing pole
-    print("|cffff8800[CFC Debug]|r Waiting 0.1 seconds before applying to fishing pole...")
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Waiting 0.1 seconds before applying to fishing pole...")
+    end
     C_Timer.After(0.1, function()
-        print("|cffff8800[CFC Debug]|r Step 2: Checking cursor state...")
+        if CFC.debug then
+            print("|cffff8800[CFC Debug]|r Step 2: Checking cursor state...")
+        end
         local cursorType, itemID = GetCursorInfo()
-        print("|cffff8800[CFC Debug]|r Cursor type: " .. tostring(cursorType) .. ", ItemID: " .. tostring(itemID))
+        if CFC.debug then
+            print("|cffff8800[CFC Debug]|r Cursor type: " .. tostring(cursorType) .. ", ItemID: " .. tostring(itemID))
+        end
 
         if cursorType == "item" and itemID == selectedLureID then
-            print("|cff00ff00[CFC Debug]|r Cursor has lure! Applying to fishing pole...")
-            PickupInventoryItem(16)  -- 16 = main hand weapon slot
-            print("|cffff8800[CFC Debug]|r Called PickupInventoryItem(16)")
+            if CFC.debug then
+                print("|cff00ff00[CFC Debug]|r Cursor has lure! Applying to fishing pole...")
+            end
+            PickupInventoryItem(CFC.CONSTANTS.SLOTS.MAIN_HAND)  -- main hand weapon slot
+            if CFC.debug then
+                print("|cffff8800[CFC Debug]|r Called PickupInventoryItem(16)")
+            end
 
             -- Check if successful
             C_Timer.After(0.1, function()
                 local stillHasCursor = GetCursorInfo()
                 if stillHasCursor then
-                    print("|cffff0000[CFC Debug]|r WARNING: Cursor still has item - application may have failed")
+                    if CFC.debug then
+                        print("|cffff0000[CFC Debug]|r WARNING: Cursor still has item - application may have failed")
+                    end
                     ClearCursor()  -- Clear cursor to prevent issues
                 else
-                    print("|cff00ff00[CFC Debug]|r Success! Cursor cleared - lure applied")
+                    if CFC.debug then
+                        print("|cff00ff00[CFC Debug]|r Success! Cursor cleared - lure applied")
+                    end
                 end
             end)
 
-            print("|cff00ff00Classic Fishing Companion:|r Applied " .. lureName .. " to fishing pole!")
+            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Applied " .. lureName .. " to fishing pole!")
         else
-            print("|cffff0000[CFC Debug]|r ERROR: Cursor doesn't have lure! Type: " .. tostring(cursorType))
+            if CFC.debug then
+                print("|cffff0000[CFC Debug]|r ERROR: Cursor doesn't have lure! Type: " .. tostring(cursorType))
+            end
             if cursorType then
                 ClearCursor()  -- Clear whatever is on cursor
             end
-            print("|cffff0000Classic Fishing Companion:|r Failed to apply lure - please try again")
+            print(CFC.COLORS.ERROR .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Failed to apply lure - please try again")
         end
     end)
 
-    print("|cff00ff00[CFC Debug]|r ===== APPLY LURE INITIATED (waiting for completion) =====")
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r ===== APPLY LURE INITIATED (waiting for completion) =====")
+    end
 end
 
 -- Check if gear sets are configured
@@ -1436,7 +1740,7 @@ function CFC:ExportData()
 
     -- Create export data structure (only fishing-related data)
     local exportData = {
-        version = "1.0.5",
+        version = CFC.VERSION,
         catches = self.db.profile.catches,
         fishData = self.db.profile.fishData,
         statistics = self.db.profile.statistics,
@@ -1614,7 +1918,7 @@ function CFC:CreateBackup()
 
     -- Create backup snapshot (deep copy of fishing data only)
     local backupData = {
-        version = "1.0.5",
+        version = CFC.VERSION,
         timestamp = time(),
         catches = self:DeepCopy(self.db.profile.catches),
         fishData = self:DeepCopy(self.db.profile.fishData),
@@ -1804,5 +2108,164 @@ function CFC:GetUniqueFishCount()
         count = count + 1
     end
     return count
+end
+
+-- Refresh fish icons by scanning bags
+function CFC:RefreshFishIcons()
+    print("|cff00ff00Classic Fishing Companion:|r Scanning bags for fish icons...")
+
+    local iconsFound = 0
+    local iconsUpdated = 0
+
+    -- Determine which bag API to use
+    local GetNumSlots, GetItemLink, GetItemInfo_Bag
+
+    -- Try C_Container API first (Anniversary Classic)
+    if C_Container and C_Container.GetContainerNumSlots then
+        GetNumSlots = function(bag) return C_Container.GetContainerNumSlots(bag) end
+        GetItemLink = function(bag, slot) return C_Container.GetContainerItemLink(bag, slot) end
+        GetItemInfo_Bag = function(bag, slot)
+            local itemInfo = C_Container.GetContainerItemInfo(bag, slot)
+            return itemInfo and itemInfo.iconFileID
+        end
+    -- Fallback to old API (Classic Era)
+    elseif GetContainerNumSlots then
+        GetNumSlots = GetContainerNumSlots
+        GetItemLink = GetContainerItemLink
+        GetItemInfo_Bag = function(bag, slot)
+            local texture = GetContainerItemInfo(bag, slot)
+            return texture
+        end
+    else
+        print("|cffff0000Classic Fishing Companion:|r Error: Bag API not available!")
+        return
+    end
+
+    -- Scan all bags
+    for bag = 0, 4 do
+        local numSlots = GetNumSlots(bag) or 0
+
+        for slot = 1, numSlots do
+            local itemLink = GetItemLink(bag, slot)
+
+            if itemLink then
+                local itemName = GetItemInfo(itemLink)
+
+                -- Check if this item is in our fish database
+                if itemName and self.db.profile.fishData[itemName] then
+                    -- Get the icon from the bag
+                    local iconTexture = GetItemInfo_Bag(bag, slot)
+
+                    if iconTexture then
+                        -- Update the cached icon
+                        local oldIcon = self.db.profile.fishData[itemName].icon
+                        self.db.profile.fishData[itemName].icon = iconTexture
+                        iconsFound = iconsFound + 1
+
+                        if not oldIcon or oldIcon == "Interface\\Icons\\INV_Misc_Fish_02" then
+                            iconsUpdated = iconsUpdated + 1
+                        end
+
+                        if self.debug then
+                            print("|cffff8800[CFC Debug]|r Updated icon for: " .. itemName .. " -> " .. tostring(iconTexture))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Update the UI if open
+    if CFC.UI and CFC.UI.UpdateFishList then
+        CFC.UI:UpdateFishList()
+    end
+
+    if iconsUpdated > 0 then
+        print("|cff00ff00Classic Fishing Companion:|r Found " .. iconsFound .. " fish in bags, updated " .. iconsUpdated .. " icons!")
+    else
+        print("|cffffcc00Classic Fishing Companion:|r Found " .. iconsFound .. " fish in bags (all already had icons cached).")
+    end
+end
+
+-- Background icon refresh (silent, runs every 5 minutes)
+function CFC:RefreshFishIconsBackground()
+    if not self.db or not self.db.profile or not self.db.profile.fishData then
+        return
+    end
+
+    local iconsUpdated = 0
+
+    -- Determine which bag API to use
+    local GetNumSlots, GetItemLink, GetItemInfo_Bag
+
+    -- Try C_Container API first (Anniversary Classic)
+    if C_Container and C_Container.GetContainerNumSlots then
+        GetNumSlots = function(bag) return C_Container.GetContainerNumSlots(bag) end
+        GetItemLink = function(bag, slot) return C_Container.GetContainerItemLink(bag, slot) end
+        GetItemInfo_Bag = function(bag, slot)
+            local itemInfo = C_Container.GetContainerItemInfo(bag, slot)
+            return itemInfo and itemInfo.iconFileID
+        end
+    -- Fallback to old API (Classic Era)
+    elseif GetContainerNumSlots then
+        GetNumSlots = GetContainerNumSlots
+        GetItemLink = GetContainerItemLink
+        GetItemInfo_Bag = function(bag, slot)
+            local texture = GetContainerItemInfo(bag, slot)
+            return texture
+        end
+    else
+        return -- No bag API available
+    end
+
+    -- Scan all bags silently
+    for bag = 0, 4 do
+        local numSlots = GetNumSlots(bag) or 0
+
+        for slot = 1, numSlots do
+            local itemLink = GetItemLink(bag, slot)
+
+            if itemLink then
+                local itemName = GetItemInfo(itemLink)
+
+                -- Check if this item is in our fish database and needs icon update
+                if itemName and self.db.profile.fishData[itemName] then
+                    local fishData = self.db.profile.fishData[itemName]
+
+                    -- Only update if icon is missing or is the default
+                    if not fishData.icon or fishData.icon == "Interface\\Icons\\INV_Misc_Fish_02" then
+                        local iconTexture = GetItemInfo_Bag(bag, slot)
+
+                        if iconTexture then
+                            fishData.icon = iconTexture
+                            iconsUpdated = iconsUpdated + 1
+
+                            if self.debug then
+                                print("|cffff8800[CFC Debug]|r Background refresh: Updated icon for " .. itemName)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Update UI if open (silent refresh)
+    if CFC.UI and CFC.UI.UpdateFishList and iconsUpdated > 0 then
+        CFC.UI:UpdateFishList()
+    end
+end
+
+-- Schedule background icon refresh
+function CFC:ScheduleBackgroundIconRefresh()
+    -- Run first refresh after 60 seconds (gives WoW time to cache items)
+    C_Timer.After(60, function()
+        self:RefreshFishIconsBackground()
+
+        -- Then schedule recurring refresh every 5 minutes (300 seconds)
+        C_Timer.NewTicker(300, function()
+            self:RefreshFishIconsBackground()
+        end)
+    end)
 end
 

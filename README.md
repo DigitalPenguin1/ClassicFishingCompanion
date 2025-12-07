@@ -136,7 +136,7 @@ Lightweight design with minimal impact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-**Latest (v1.0.5)**: Lure buff display on HUD, casting protection for gear swaps, configurable announcements, data import/export, automatic backup system, and performance optimizations.
+**Latest (v1.0.6)**: Fixed lure statistics incorrectly incrementing on `/reload` command.
 
 
 ## Support

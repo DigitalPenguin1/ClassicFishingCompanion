@@ -2,6 +2,42 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.6] - 2025-12-05
+
+### Added
+- **Refresh Icons** button in Fish List tab
+  - Scans your bags for fish and updates their icons in the database
+  - Useful for updating icons of fish caught before v1.0.6
+  - Shows how many icons were found and updated
+  - Icons are saved permanently once refreshed
+- **Automatic background icon refresh**
+  - Runs silently every 5 minutes to update fish icons from bags
+  - Only updates missing or default icons (non-intrusive)
+  - Automatically keeps your fish icons up-to-date
+- **"What's New" dialog**
+  - Shows version highlights when opening UI after update
+  - Can be dismissed permanently or acknowledged for future updates
+  - Helps users discover new features and fixes
+  - Dynamic content system - easy to update for new versions
+- **Automatic database migration** v1.0.6
+  - Detects when upgrading from older version
+  - Notifies users about improved icon caching
+  - Reminds users to use Refresh Icons button if they have fish in bags
+- **Centralized version management**
+  - Single version constant (CFC.VERSION) used throughout addon
+  - Easier version updates and maintenance
+
+### Fixed
+- Fixed lure statistics incorrectly incrementing when using `/reload` command
+  - Addon now detects existing lures on load/reload and doesn't count them as new applications
+  - Only genuine new lure applications are tracked in statistics
+  - Prevents inflation of lure usage counts from UI reloads
+- Improved Fish List icon loading reliability
+  - Now uses item links (more reliable) when caching fish icons at catch time
+  - Tries multiple methods to retrieve icons: cached data, item link, item name, bag scanning
+  - Better handling of WoW API item data caching delays
+  - New fish caught going forward will have more reliable icon caching
+
 ## [1.0.5] - 2025-11-30
 
 ### Added

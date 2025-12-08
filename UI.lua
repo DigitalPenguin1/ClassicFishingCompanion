@@ -777,8 +777,8 @@ function UI:UpdateStats()
         text = text .. "No fishing poles tracked yet\n"
     end
 
-    -- Fishing Buffs Used
-    text = text .. "\n\n|cffffd700Fishing Buffs Used:|r\n"
+    -- Fishing Lures Used
+    text = text .. "\n\n|cffffd700Fishing Lures Used:|r\n"
     if CFC.db.profile.buffUsage then
         local buffList = {}
         for buffName, data in pairs(CFC.db.profile.buffUsage) do
@@ -1207,33 +1207,63 @@ function UI:CreateSettingsTab()
     frame.announceCatchesDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.announceCatchesDesc:SetText("Display chat messages when you catch fish.")
 
-    -- Announce Buffs Checkbox
-    frame.announceBuffsCheck = CreateFrame("CheckButton", "CFCAnnounceBuffsCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.announceBuffsCheck:SetPoint("TOPLEFT", frame.announceCatchesDesc, "BOTTOMLEFT", -25, -20)
-    frame.announceBuffsCheck.text = frame.announceBuffsCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.announceBuffsCheck.text:SetPoint("LEFT", frame.announceBuffsCheck, "RIGHT", 5, 0)
-    frame.announceBuffsCheck.text:SetText("Warn When Fishing Without Buff")
+    -- Announce Lures Checkbox
+    frame.announceLuresCheck = CreateFrame("CheckButton", "CFCAnnounceLuresCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.announceLuresCheck:SetPoint("TOPLEFT", frame.announceCatchesDesc, "BOTTOMLEFT", -25, -20)
+    frame.announceLuresCheck.text = frame.announceLuresCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.announceLuresCheck.text:SetPoint("LEFT", frame.announceLuresCheck, "RIGHT", 5, 0)
+    frame.announceLuresCheck.text:SetText("Warn When Fishing Without Lure")
 
-    frame.announceBuffsCheck:SetScript("OnClick", function(self)
-        CFC.db.profile.settings.announceBuffs = self:GetChecked()
-        if CFC.db.profile.settings.announceBuffs then
-            print("|cff00ff00Classic Fishing Companion:|r Missing buff warnings |cff00ff00enabled|r")
+    frame.announceLuresCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.announceLures = self:GetChecked()
+        if CFC.db.profile.settings.announceLures then
+            print("|cff00ff00Classic Fishing Companion:|r Missing lure warnings |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Missing buff warnings |cffff0000disabled|r")
+            print("|cff00ff00Classic Fishing Companion:|r Missing lure warnings |cffff0000disabled|r")
         end
     end)
 
-    -- Announce buffs description
-    frame.announceBuffsDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.announceBuffsDesc:SetPoint("TOPLEFT", frame.announceBuffsCheck, "BOTTOMLEFT", 25, -5)
-    frame.announceBuffsDesc:SetJustifyH("LEFT")
-    frame.announceBuffsDesc:SetWidth(500)
-    frame.announceBuffsDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.announceBuffsDesc:SetText("Show on-screen warning every 30 seconds when fishing without a lure/buff applied.")
+    -- Announce lures description
+    frame.announceLuresDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.announceLuresDesc:SetPoint("TOPLEFT", frame.announceLuresCheck, "BOTTOMLEFT", 25, -5)
+    frame.announceLuresDesc:SetJustifyH("LEFT")
+    frame.announceLuresDesc:SetWidth(500)
+    frame.announceLuresDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.announceLuresDesc:SetText("Show on-screen warning when fishing without a lure applied.")
+
+    -- Lure Warning Interval Dropdown
+    frame.lureIntervalLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.lureIntervalLabel:SetPoint("TOPLEFT", frame.announceLuresDesc, "BOTTOMLEFT", 0, -15)
+    frame.lureIntervalLabel:SetText("Warning Interval:")
+
+    frame.lureIntervalDropdown = CreateFrame("Frame", "CFCLureIntervalDropdown", frame.scrollChild, "UIDropDownMenuTemplate")
+    frame.lureIntervalDropdown:SetPoint("LEFT", frame.lureIntervalLabel, "RIGHT", -10, -2)
+    UIDropDownMenu_SetWidth(frame.lureIntervalDropdown, 100)
+
+    local function LureIntervalDropdown_Initialize(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        local intervals = {30, 60, 90}
+        local labels = {"30 seconds", "60 seconds", "90 seconds"}
+
+        for i, interval in ipairs(intervals) do
+            info.text = labels[i]
+            info.value = interval
+            info.func = function()
+                CFC.db.profile.settings.lureWarningInterval = interval
+                UIDropDownMenu_SetSelectedValue(frame.lureIntervalDropdown, interval)
+                UIDropDownMenu_SetText(frame.lureIntervalDropdown, labels[i])
+                print("|cff00ff00Classic Fishing Companion:|r Lure warning interval set to |cffffff00" .. interval .. " seconds|r")
+            end
+            info.checked = (CFC.db.profile.settings.lureWarningInterval == interval)
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end
+
+    UIDropDownMenu_Initialize(frame.lureIntervalDropdown, LureIntervalDropdown_Initialize)
 
     -- Announce Skill Ups Checkbox
     frame.announceSkillUpsCheck = CreateFrame("CheckButton", "CFCAnnounceSkillUpsCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.announceSkillUpsCheck:SetPoint("TOPLEFT", frame.announceBuffsDesc, "BOTTOMLEFT", -25, -20)
+    frame.announceSkillUpsCheck:SetPoint("TOPLEFT", frame.lureIntervalLabel, "BOTTOMLEFT", -25, -20)
     frame.announceSkillUpsCheck.text = frame.announceSkillUpsCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.announceSkillUpsCheck.text:SetPoint("LEFT", frame.announceSkillUpsCheck, "RIGHT", 5, 0)
     frame.announceSkillUpsCheck.text:SetText("Announce Fishing Skill Increases")
@@ -1507,8 +1537,18 @@ function UI:UpdateSettings()
 
     -- Update announcement checkboxes
     frame.announceCatchesCheck:SetChecked(CFC.db.profile.settings.announceCatches)
-    frame.announceBuffsCheck:SetChecked(CFC.db.profile.settings.announceBuffs)
+    frame.announceLuresCheck:SetChecked(CFC.db.profile.settings.announceLures)
     frame.announceSkillUpsCheck:SetChecked(CFC.db.profile.settings.announceSkillUps)
+
+    -- Update lure warning interval dropdown
+    local intervalLabels = {
+        [30] = "30 seconds",
+        [60] = "60 seconds",
+        [90] = "90 seconds",
+    }
+    local currentInterval = CFC.db.profile.settings.lureWarningInterval or 30
+    UIDropDownMenu_SetSelectedValue(frame.lureIntervalDropdown, currentInterval)
+    UIDropDownMenu_SetText(frame.lureIntervalDropdown, intervalLabels[currentInterval] or "30 seconds")
 
     -- Update max skill dropdown
     local channelNames = {
@@ -1601,7 +1641,7 @@ end
 
 -- Confirmation dialog for clearing all statistics
 StaticPopupDialogs["CFC_CLEAR_STATS_CONFIRM"] = {
-    text = "Are you sure you want to clear ALL fishing statistics?\n\nThis will delete:\n• All fish catches\n• Fishing history\n• Buff usage tracking\n• Skill level records\n• Session statistics\n\nThis action CANNOT be undone!",
+    text = "Are you sure you want to clear ALL fishing statistics?\n\nThis will delete:\n• All fish catches\n• Fishing history\n• Lure usage tracking\n• Skill level records\n• Session statistics\n\nThis action CANNOT be undone!",
     button1 = "Yes, Clear Everything",
     button2 = "Cancel",
     OnAccept = function()

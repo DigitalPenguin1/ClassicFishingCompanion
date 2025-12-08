@@ -93,7 +93,8 @@ local defaults = {
             minimapPos = 220,
         },
         settings = {
-            announceBuffs = true,  -- Warn when fishing without buff (enabled by default)
+            announceLures = true,  -- Warn when fishing without lure (enabled by default)
+            lureWarningInterval = 30,  -- Interval in seconds for lure warning (30, 60, or 90)
             announceCatches = false,  -- Announce fish catches in chat
             announceSkillUps = true,  -- Announce fishing skill increases (enabled by default)
             maxSkillAnnounce = "OFF",  -- Channel to announce max fishing skill: OFF, SAY, YELL, PARTY, GUILD, EMOTE
@@ -366,21 +367,22 @@ function CFC:CheckFishingState()
         self.lastSkillCheck = currentTime
     end
 
-    -- Check for missing buff warning when we have pole equipped
-    if self.db.profile.settings.announceBuffs then
-        if currentTime - self.lastBuffWarningTime >= 30 then
+    -- Check for missing lure warning when we have pole equipped
+    if self.db.profile.settings.announceLures then
+        local warningInterval = self.db.profile.settings.lureWarningInterval or 30
+        if currentTime - self.lastBuffWarningTime >= warningInterval then
             if not self:HasFishingBuff() then
                 -- Only warn if in fishing gear mode (we already know pole is equipped since we're in CheckFishingState)
                 local currentMode = self:GetCurrentGearMode()
                 if currentMode == "fishing" then
-                    RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Pole Buff!", ChatTypeInfo["RAID_WARNING"], 10)
+                    RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Lure!", ChatTypeInfo["RAID_WARNING"], 10)
                     self.lastBuffWarningTime = currentTime
                     if self.debug then
-                        print("|cffff8800[CFC Debug]|r Warning: Fishing without buff!")
+                        print("|cffff8800[CFC Debug]|r Warning: Fishing without lure!")
                     end
                 end
             else
-                -- Reset timer when buff is active to restart the 30 second countdown
+                -- Reset timer when lure is active to restart the countdown
                 self.lastBuffWarningTime = currentTime
             end
         end
@@ -425,10 +427,8 @@ function CFC:CheckLureChanges()
                     end
                 end
             end
-            -- If still no name found, use generic name with enchant ID for tracking
-            if not lureName then
-                lureName = "Unknown Lure (ID: " .. tostring(mainHandEnchantID) .. ")"
-            end
+            -- If still no name found, this is not a fishing lure - ignore it entirely
+            -- (e.g., weapon enchants like sharpening stones should not be tracked)
         end
 
         if lureName then
@@ -1774,6 +1774,7 @@ function CFC:PurgeItem(itemName)
     local removedCount = 0
     local foundInFishData = false
     local foundInPoleUsage = false
+    local foundInLureUsage = false
 
     -- Remove from catches array
     local newCatches = {}
@@ -1798,6 +1799,12 @@ function CFC:PurgeItem(itemName)
         foundInPoleUsage = true
     end
 
+    -- Remove from buffUsage (lures/buffs used)
+    if self.db.profile.buffUsage and self.db.profile.buffUsage[itemName] then
+        self.db.profile.buffUsage[itemName] = nil
+        foundInLureUsage = true
+    end
+
     -- Update total catches count
     if removedCount > 0 then
         self.db.profile.statistics.totalCatches = math.max(0, self.db.profile.statistics.totalCatches - removedCount)
@@ -1813,13 +1820,16 @@ function CFC:PurgeItem(itemName)
         self.HUD:Update()
     end
 
-    if removedCount > 0 or foundInFishData or foundInPoleUsage then
+    if removedCount > 0 or foundInFishData or foundInPoleUsage or foundInLureUsage then
         local message = "|cff00ff00Classic Fishing Companion:|r Removed '" .. itemName .. "' from database"
         if removedCount > 0 then
             message = message .. " (" .. removedCount .. " catches)"
         end
         if foundInPoleUsage then
             message = message .. " (pole usage)"
+        end
+        if foundInLureUsage then
+            message = message .. " (lure usage)"
         end
         print(message)
         return true

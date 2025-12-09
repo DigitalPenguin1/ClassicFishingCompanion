@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.6"
+CFC.VERSION = "1.0.7"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -980,7 +980,7 @@ function CFC:AnnounceMaxSkill(skillLevel)
     -- Send to chat channel if configured
     if channel and channel ~= "OFF" then
         local playerName = UnitName("player")
-        local message = "Classic Fishing Companion: " .. playerName .. " has reached Fishing skill (" .. skillLevel .. ")!"
+        local message = "[Classic Fishing Companion]: " .. playerName .. " has reached Fishing skill (" .. skillLevel .. ")!"
 
         if channel == "SAY" then
             SendChatMessage(message, "SAY")
@@ -993,7 +993,7 @@ function CFC:AnnounceMaxSkill(skillLevel)
                 SendChatMessage(message, "GUILD")
             end
         elseif channel == "EMOTE" then
-            SendChatMessage("has reached maximum Fishing skill (" .. skillLevel .. ") using Classic Fishing Companion!", "EMOTE")
+            SendChatMessage("has reached maximum Fishing skill (" .. skillLevel .. ") using [Classic Fishing Companion]!", "EMOTE")
         end
     end
 end

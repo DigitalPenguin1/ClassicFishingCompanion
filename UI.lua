@@ -1702,6 +1702,19 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.7"] = {
+        features = {
+            "Configurable lure warning interval (30, 60, or 90 seconds)",
+            "New dropdown in Settings to choose warning frequency",
+        },
+        fixes = {
+            "Fixed 'Unknown Lure (ID: XXX)' appearing in statistics",
+            "Non-fishing enchants no longer tracked as lures",
+            "Purge function now removes items from lure usage data",
+            "Renamed 'Buff' to 'Lure' throughout the UI for clarity",
+        },
+        tip = "TIP: If you have 'Unknown Lure (ID: XXX)' in your statistics,\nuse Purge Item in Settings to remove it!"
+    },
     ["1.0.6"] = {
         features = {
             "Refresh Icons button to update fish icons from bags",

@@ -2,6 +2,30 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.7] - 2025-12-08
+
+### Added
+- **Configurable lure warning interval**
+  - New dropdown in Settings to choose warning frequency: 30, 60, or 90 seconds
+  - Replaces the hardcoded 30-second interval
+  - Setting persists across sessions
+
+### Changed
+- Renamed "Buff" to "Lure" throughout the addon for clarity
+  - Raid warning now says "No Fishing Lure!" instead of "No Fishing Pole Buff!"
+  - Settings checkbox now says "Warn When Fishing Without Lure"
+  - Statistics tab now shows "Fishing Lures Used" instead of "Fishing Buffs Used"
+  - Clear stats dialog updated to reference "Lure usage tracking"
+
+### Fixed
+- Fixed "Unknown Lure (ID: XXX)" appearing in lure statistics
+  - Non-fishing weapon enchants (sharpening stones, weightstones, etc.) were being incorrectly tracked as lures
+  - Addon now only tracks enchants that are confirmed fishing lures (by enchant ID or tooltip text)
+  - Unknown enchants are now ignored instead of creating erroneous entries
+- Fixed purge function not removing items from lure usage statistics
+  - Purge Item now also checks the lure/buff usage table
+  - Can now properly remove incorrectly tracked lures like "Unknown Lure (ID: 625)"
+
 ## [1.0.6] - 2025-12-05
 
 ### Added

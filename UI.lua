@@ -1285,16 +1285,42 @@ function UI:CreateSettingsTab()
     frame.announceSkillUpsDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.announceSkillUpsDesc:SetText("Display a chat message when your fishing skill increases.")
 
-    -- Max Skill Announcement Dropdown
-    frame.maxSkillLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.maxSkillLabel:SetPoint("TOPLEFT", frame.announceSkillUpsDesc, "BOTTOMLEFT", 0, -20)
-    frame.maxSkillLabel:SetText("Announce Max Skill (300) to:")
+    -- Max Skill Announcement Checkbox
+    frame.maxSkillCheck = CreateFrame("CheckButton", "CFCMaxSkillCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.maxSkillCheck:SetPoint("TOPLEFT", frame.announceSkillUpsDesc, "BOTTOMLEFT", -25, -30)
+    frame.maxSkillCheck.text = frame.maxSkillCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.maxSkillCheck.text:SetPoint("LEFT", frame.maxSkillCheck, "RIGHT", 5, 0)
+    frame.maxSkillCheck.text:SetText("Announce Max Skill (300)")
+
+    frame.maxSkillCheck:SetScript("OnClick", function(self)
+        local enabled = self:GetChecked()
+        CFC.db.profile.settings.maxSkillAnnounceEnabled = enabled
+
+        -- Enable/disable the dropdown
+        if frame.maxSkillDropdown then
+            UIDropDownMenu_EnableDropDown(frame.maxSkillDropdown)
+            if not enabled then
+                UIDropDownMenu_DisableDropDown(frame.maxSkillDropdown)
+            end
+        end
+
+        if enabled then
+            print("|cff00ff00Classic Fishing Companion:|r Max skill announcements |cff00ff00enabled|r")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Max skill announcements |cffff0000disabled|r")
+        end
+    end)
+
+    -- Max Skill Announcement Channel Label
+    frame.maxSkillLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.maxSkillLabel:SetPoint("TOPLEFT", frame.maxSkillCheck, "BOTTOMLEFT", 25, -10)
+    frame.maxSkillLabel:SetText("Announce to:")
+    frame.maxSkillLabel:SetTextColor(0.7, 0.7, 0.7)
 
     frame.maxSkillDropdown = CreateFrame("Frame", "CFCMaxSkillDropdown", frame.scrollChild, "UIDropDownMenuTemplate")
     frame.maxSkillDropdown:SetPoint("LEFT", frame.maxSkillLabel, "RIGHT", -10, -2)
 
     local maxSkillChannels = {
-        { text = "Off (No Announcement)", value = "OFF" },
         { text = "Say", value = "SAY" },
         { text = "Party", value = "PARTY" },
         { text = "Guild", value = "GUILD" },
@@ -1318,15 +1344,80 @@ function UI:CreateSettingsTab()
     end)
 
     frame.maxSkillDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.maxSkillDesc:SetPoint("TOPLEFT", frame.maxSkillLabel, "BOTTOMLEFT", 0, -30)
+    frame.maxSkillDesc:SetPoint("TOPLEFT", frame.maxSkillLabel, "BOTTOMLEFT", 10, -30)
     frame.maxSkillDesc:SetJustifyH("LEFT")
     frame.maxSkillDesc:SetWidth(500)
     frame.maxSkillDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.maxSkillDesc:SetText("Celebrate reaching max fishing skill by announcing to a chat channel.")
 
+    -- Milestone Announcement Checkbox
+    frame.milestonesCheck = CreateFrame("CheckButton", "CFCMilestonesCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.milestonesCheck:SetPoint("TOPLEFT", frame.maxSkillDesc, "BOTTOMLEFT", -25, -30)
+    frame.milestonesCheck.text = frame.milestonesCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.milestonesCheck.text:SetPoint("LEFT", frame.milestonesCheck, "RIGHT", 5, 0)
+    frame.milestonesCheck.text:SetText("Announce Milestones")
+
+    frame.milestonesCheck:SetScript("OnClick", function(self)
+        local enabled = self:GetChecked()
+        CFC.db.profile.settings.milestonesAnnounceEnabled = enabled
+
+        -- Enable/disable the dropdown
+        if frame.milestonesDropdown then
+            UIDropDownMenu_EnableDropDown(frame.milestonesDropdown)
+            if not enabled then
+                UIDropDownMenu_DisableDropDown(frame.milestonesDropdown)
+            end
+        end
+
+        if enabled then
+            print("|cff00ff00Classic Fishing Companion:|r Milestone announcements |cff00ff00enabled|r")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Milestone announcements |cffff0000disabled|r")
+        end
+    end)
+
+    -- Milestone Announcement Channel Label
+    frame.milestonesLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.milestonesLabel:SetPoint("TOPLEFT", frame.milestonesCheck, "BOTTOMLEFT", 25, -10)
+    frame.milestonesLabel:SetText("Announce to:")
+    frame.milestonesLabel:SetTextColor(0.7, 0.7, 0.7)
+
+    frame.milestonesDropdown = CreateFrame("Frame", "CFCMilestonesDropdown", frame.scrollChild, "UIDropDownMenuTemplate")
+    frame.milestonesDropdown:SetPoint("LEFT", frame.milestonesLabel, "RIGHT", -10, -2)
+
+    local milestonesChannels = {
+        { text = "Say", value = "SAY" },
+        { text = "Party", value = "PARTY" },
+        { text = "Guild", value = "GUILD" },
+        { text = "Emote", value = "EMOTE" },
+    }
+
+    UIDropDownMenu_SetWidth(frame.milestonesDropdown, 150)
+    UIDropDownMenu_Initialize(frame.milestonesDropdown, function(self, level)
+        for _, channel in ipairs(milestonesChannels) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = channel.text
+            info.value = channel.value
+            info.func = function(self)
+                CFC.db.profile.settings.milestonesAnnounce = self.value
+                UIDropDownMenu_SetSelectedValue(frame.milestonesDropdown, self.value)
+                UIDropDownMenu_SetText(frame.milestonesDropdown, self:GetText())
+            end
+            info.checked = (CFC.db.profile.settings.milestonesAnnounce == channel.value)
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end)
+
+    frame.milestonesDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.milestonesDesc:SetPoint("TOPLEFT", frame.milestonesCheck, "BOTTOMLEFT", 25, -35)
+    frame.milestonesDesc:SetJustifyH("LEFT")
+    frame.milestonesDesc:SetWidth(500)
+    frame.milestonesDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.milestonesDesc:SetText("Share your fishing achievements by announcing when you reach catch milestones (100, 250, 500, 1000, 2500, 5000, 10000, etc.).")
+
     -- Show Stats HUD Checkbox
     frame.showHUDCheck = CreateFrame("CheckButton", "CFCShowHUDCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.showHUDCheck:SetPoint("TOPLEFT", frame.maxSkillDesc, "BOTTOMLEFT", -25, -20)
+    frame.showHUDCheck:SetPoint("TOPLEFT", frame.milestonesDesc, "BOTTOMLEFT", -25, -20)
     frame.showHUDCheck.text = frame.showHUDCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.showHUDCheck.text:SetPoint("LEFT", frame.showHUDCheck, "RIGHT", 5, 0)
     frame.showHUDCheck.text:SetText("Show Stats HUD")
@@ -1550,17 +1641,45 @@ function UI:UpdateSettings()
     UIDropDownMenu_SetSelectedValue(frame.lureIntervalDropdown, currentInterval)
     UIDropDownMenu_SetText(frame.lureIntervalDropdown, intervalLabels[currentInterval] or "30 seconds")
 
-    -- Update max skill dropdown
+    -- Update max skill checkbox and dropdown
+    local maxSkillEnabled = CFC.db.profile.settings.maxSkillAnnounceEnabled
+    if maxSkillEnabled == nil then
+        maxSkillEnabled = (CFC.db.profile.settings.maxSkillAnnounce ~= nil and CFC.db.profile.settings.maxSkillAnnounce ~= "OFF")
+        CFC.db.profile.settings.maxSkillAnnounceEnabled = maxSkillEnabled
+    end
+    frame.maxSkillCheck:SetChecked(maxSkillEnabled)
+
     local channelNames = {
-        OFF = "Off (No Announcement)",
         SAY = "Say",
         PARTY = "Party",
         GUILD = "Guild",
         EMOTE = "Emote",
     }
-    local currentChannel = CFC.db.profile.settings.maxSkillAnnounce or "OFF"
+    local currentChannel = CFC.db.profile.settings.maxSkillAnnounce
+    if currentChannel == "OFF" or currentChannel == nil then
+        currentChannel = "GUILD"
+        CFC.db.profile.settings.maxSkillAnnounce = currentChannel
+    end
     UIDropDownMenu_SetSelectedValue(frame.maxSkillDropdown, currentChannel)
-    UIDropDownMenu_SetText(frame.maxSkillDropdown, channelNames[currentChannel] or "Off (No Announcement)")
+    UIDropDownMenu_SetText(frame.maxSkillDropdown, channelNames[currentChannel] or "Guild")
+
+    -- Disable dropdown if checkbox is unchecked
+    if not maxSkillEnabled then
+        UIDropDownMenu_DisableDropDown(frame.maxSkillDropdown)
+    end
+
+    -- Update milestones checkbox and dropdown
+    local milestonesEnabled = CFC.db.profile.settings.milestonesAnnounceEnabled or false
+    frame.milestonesCheck:SetChecked(milestonesEnabled)
+
+    local milestonesChannel = CFC.db.profile.settings.milestonesAnnounce or "GUILD"
+    UIDropDownMenu_SetSelectedValue(frame.milestonesDropdown, milestonesChannel)
+    UIDropDownMenu_SetText(frame.milestonesDropdown, channelNames[milestonesChannel] or "Guild")
+
+    -- Disable dropdown if checkbox is unchecked
+    if not milestonesEnabled then
+        UIDropDownMenu_DisableDropDown(frame.milestonesDropdown)
+    end
 
     -- Update HUD checkboxes
     frame.showHUDCheck:SetChecked(CFC.db.profile.hud.show)

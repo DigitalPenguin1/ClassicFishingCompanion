@@ -81,7 +81,7 @@ CFC.CONSTANTS = {
     },
     -- Catch milestones for notifications
     MILESTONES = {
-        10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000
+        100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
     },
 }
 
@@ -97,7 +97,10 @@ local defaults = {
             lureWarningInterval = 30,  -- Interval in seconds for lure warning (30, 60, or 90)
             announceCatches = false,  -- Announce fish catches in chat
             announceSkillUps = true,  -- Announce fishing skill increases (enabled by default)
-            maxSkillAnnounce = "OFF",  -- Channel to announce max fishing skill: OFF, SAY, YELL, PARTY, GUILD, EMOTE
+            maxSkillAnnounceEnabled = false,  -- Enable/disable max skill announcements (disabled by default)
+            maxSkillAnnounce = "GUILD",  -- Channel to announce max fishing skill: SAY, PARTY, GUILD, EMOTE
+            milestonesAnnounceEnabled = false,  -- Enable/disable milestone announcements (disabled by default)
+            milestonesAnnounce = "GUILD",  -- Channel to announce milestones: SAY, PARTY, GUILD, EMOTE
         },
         hud = {
             show = true,  -- Show stats HUD by default
@@ -970,6 +973,7 @@ end
 
 -- Announce max fishing skill to chosen channel
 function CFC:AnnounceMaxSkill(skillLevel)
+    local enabled = self.db.profile.settings.maxSkillAnnounceEnabled
     local channel = self.db.profile.settings.maxSkillAnnounce
 
     -- Always show local notification
@@ -977,8 +981,8 @@ function CFC:AnnounceMaxSkill(skillLevel)
     RaidNotice_AddMessage(RaidWarningFrame, "MAX FISHING SKILL REACHED!", ChatTypeInfo["RAID_WARNING"], 5)
     PlaySound(SOUNDKIT.UI_PLAYER_LEVEL_UP or 888)
 
-    -- Send to chat channel if configured
-    if channel and channel ~= "OFF" then
+    -- Send to chat channel if enabled
+    if enabled and channel then
         local playerName = UnitName("player")
         local message = "[Classic Fishing Companion]: " .. playerName .. " has reached Fishing skill (" .. skillLevel .. ")!"
 
@@ -1002,6 +1006,9 @@ end
 function CFC:CheckMilestone(catchCount)
     for _, milestone in ipairs(CFC.CONSTANTS.MILESTONES) do
         if catchCount == milestone then
+            local enabled = self.db.profile.settings.milestonesAnnounceEnabled
+            local channel = self.db.profile.settings.milestonesAnnounce
+
             -- Show milestone notification
             local message = "Milestone reached: " .. milestone .. " fish caught!"
             print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
@@ -1011,6 +1018,26 @@ function CFC:CheckMilestone(catchCount)
 
             -- Play a sound (use achievement sound)
             PlaySound(SOUNDKIT.UI_PLAYER_LEVEL_UP or 888)
+
+            -- Send to chat channel if enabled
+            if enabled and channel then
+                local playerName = UnitName("player")
+                local chatMessage = "[Classic Fishing Companion]: " .. playerName .. " has caught " .. milestone .. " fish!"
+
+                if channel == "SAY" then
+                    SendChatMessage(chatMessage, "SAY")
+                elseif channel == "PARTY" then
+                    if IsInGroup() then
+                        SendChatMessage(chatMessage, "PARTY")
+                    end
+                elseif channel == "GUILD" then
+                    if IsInGuild() then
+                        SendChatMessage(chatMessage, "GUILD")
+                    end
+                elseif channel == "EMOTE" then
+                    SendChatMessage("has caught " .. milestone .. " fish using [Classic Fishing Companion]!", "EMOTE")
+                end
+            end
 
             return true
         end

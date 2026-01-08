@@ -65,7 +65,7 @@ end
 function UI:CreateTabs()
     local tabs = {
         { name = "overview", label = "Overview" },
-        { name = "fishlist", label = "Fish List" },
+        { name = "fishlist", label = "Catch List" },
         { name = "history", label = "History" },
         { name = "stats", label = "Statistics" },
         { name = "gearsets", label = "Gear Sets" },
@@ -255,7 +255,7 @@ function UI:UpdateOverview()
     frame.recentContent:SetHeight(math.max(150, textHeight + 10))
 end
 
--- Create Fish List Tab
+-- Create Catch List Tab
 function UI:CreateFishListTab()
     local frame = CreateFrame("Frame", nil, mainFrame.content)
     frame:SetAllPoints()
@@ -275,9 +275,9 @@ function UI:CreateFishListTab()
     -- Tooltip for the button
     refreshButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Refresh Fish Icons", 1, 1, 1)
-        GameTooltip:AddLine("Scans your bags for fish and updates their icons in the list.", nil, nil, nil, true)
-        GameTooltip:AddLine("Works for fish currently in your bags.", 0.5, 0.5, 0.5, true)
+        GameTooltip:SetText("Refresh Catch Icons", 1, 1, 1)
+        GameTooltip:AddLine("Scans your bags for catches and updates their icons in the list.", nil, nil, nil, true)
+        GameTooltip:AddLine("Works for items currently in your bags.", 0.5, 0.5, 0.5, true)
         GameTooltip:Show()
     end)
     refreshButton:SetScript("OnLeave", function()
@@ -300,30 +300,145 @@ function UI:CreateFishListTab()
     mainFrame.fishListFrame = frame
 end
 
--- Update Fish List Tab
+-- Update Catch List Tab
 function UI:UpdateFishList()
     local frame = mainFrame.fishListFrame
-    local fishList = CFC.Database:GetFishList()
+    local allCatches = CFC.Database:GetFishList()
 
     -- Clear existing entries
     for _, entry in ipairs(frame.fishEntries) do
         entry:Hide()
     end
 
+    -- Separate fish from miscellaneous items
+    local fishList = {}
+    local miscList = {}
+
+    for _, item in ipairs(allCatches) do
+        -- Get itemType and itemSubType if not cached
+        local itemType = item.itemType
+        local itemSubType = item.itemSubType
+
+        -- If not cached, query GetItemInfo
+        if not itemType then
+            local _, _, _, _, _, iType, iSubType = GetItemInfo(item.name)
+            itemType = iType
+            itemSubType = iSubType
+
+            -- Cache it in the database for future use
+            if itemType and CFC.db.profile.fishData[item.name] then
+                CFC.db.profile.fishData[item.name].itemType = itemType
+                CFC.db.profile.fishData[item.name].itemSubType = itemSubType
+            end
+        end
+
+        -- Determine if this is a fish or miscellaneous item
+        local isFish = false
+        local nameLower = string.lower(item.name)
+
+        -- First priority: Check for fish keywords (these override everything else)
+        local fishKeywords = {
+            "fish", "salmon", "trout", "bass", "catfish", "snapper",
+            "rockscale", "cod", "tuna", "mahi", "grouper", "sunfish",
+            "perch", "carp", "eel", "mackerel", "herring", "squid",
+            "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
+            "redgill", "whitescale", "bluegill", "stonescale", "yellowtail"
+        }
+
+        for _, keyword in ipairs(fishKeywords) do
+            if string.find(nameLower, keyword) then
+                isFish = true
+                break
+            end
+        end
+
+        -- If not a fish by name, check item type
+        if not isFish and itemType and itemSubType then
+            local typeLower = string.lower(itemType)
+            local subTypeLower = string.lower(itemSubType)
+
+            -- Fish are consumables with "Food" or "Food & Drink" subtype
+            -- But NOT potions, elixirs, scrolls
+            if typeLower == "consumable" and
+               (string.find(subTypeLower, "food") or string.find(subTypeLower, "drink")) and
+               not string.find(subTypeLower, "potion") and
+               not string.find(subTypeLower, "elixir") and
+               not string.find(nameLower, "potion") and
+               not string.find(nameLower, "elixir") and
+               not string.find(nameLower, "scroll") then
+                isFish = true
+            end
+        end
+
+        -- Override: If it's marked as fish but has certain keywords, it's actually misc
+        -- But ONLY if it doesn't explicitly have "fish" in the name
+        if isFish and not string.find(nameLower, "fish") then
+            local miscKeywords = {
+                "lockbox", "chest", "wreckage", "debris", "crate", "case",
+                "strongbox", "footlocker", "trunk", "coffer", "shoulders",
+                "helm", "gauntlets", "boots", "belt", "cloak", "ring",
+                "trinket", "necklace", "amulet", "sword", "axe", "mace",
+                "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
+                "gem", "pearl", "note", "letter", "ore", "bar", "crystal",
+                "essence", "shard", "gloves", "leggings", "bracers"
+            }
+
+            for _, keyword in ipairs(miscKeywords) do
+                if string.find(nameLower, keyword) then
+                    isFish = false
+                    break
+                end
+            end
+        end
+
+        if isFish then
+            table.insert(fishList, item)
+        else
+            table.insert(miscList, item)
+        end
+    end
+
     -- Pre-query all items to trigger caching
     for _, fish in ipairs(fishList) do
         GetItemInfo(fish.name)
     end
+    for _, misc in ipairs(miscList) do
+        GetItemInfo(misc.name)
+    end
 
     -- Create or update entries
     local yOffset = -5
+    local entryIndex = 1
 
-    for i, fish in ipairs(fishList) do
-        local entry = frame.fishEntries[i]
+    -- Add Fish section header if there are fish
+    if #fishList > 0 then
+        local headerEntry = frame.fishEntries[entryIndex]
+        if not headerEntry then
+            headerEntry = CreateFrame("Frame", nil, frame.scrollChild)
+            headerEntry:SetSize(530, 25)
+            headerEntry.isHeader = true
 
-        if not entry then
+            headerEntry.text = headerEntry:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            headerEntry.text:SetPoint("LEFT", headerEntry, "LEFT", 10, 0)
+            headerEntry.text:SetText("|cffffd700Fish|r")
+
+            frame.fishEntries[entryIndex] = headerEntry
+        end
+
+        headerEntry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, yOffset)
+        headerEntry:Show()
+        yOffset = yOffset - 30
+        entryIndex = entryIndex + 1
+    end
+
+    -- Display fish
+    for _, fish in ipairs(fishList) do
+        local entry = frame.fishEntries[entryIndex]
+
+        if not entry or entry.isHeader then
             entry = CreateFrame("Frame", nil, frame.scrollChild)
             entry:SetSize(530, 30)
+            entry.isHeader = false
 
             entry.bg = entry:CreateTexture(nil, "BACKGROUND")
             entry.bg:SetAllPoints()
@@ -345,7 +460,67 @@ function UI:UpdateFishList()
             -- Store fish name for later reference
             entry.fishName = nil
 
-            frame.fishEntries[i] = entry
+            -- Add tooltip functionality
+            entry:EnableMouse(true)
+            entry:SetScript("OnEnter", function(self)
+                if not self.fishName then return end
+
+                local fishData = CFC.db.profile.fishData[self.fishName]
+                if not fishData then return end
+
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+                -- Show item tooltip if available
+                local itemName, itemLink = GetItemInfo(self.fishName)
+                if itemLink then
+                    GameTooltip:SetHyperlink(itemLink)
+                else
+                    GameTooltip:SetText(self.fishName, 1, 1, 1)
+                end
+
+                -- Add catch statistics
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("|cffffff00Catch Statistics:|r")
+                GameTooltip:AddDoubleLine("Total Caught:", "|cff00ff00" .. fishData.count .. "|r", 1, 1, 1)
+
+                if fishData.firstCatch then
+                    GameTooltip:AddDoubleLine("First Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.firstCatch) .. "|r", 1, 1, 1)
+                end
+
+                if fishData.lastCatch then
+                    GameTooltip:AddDoubleLine("Last Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.lastCatch) .. "|r", 1, 1, 1)
+                end
+
+                -- Add locations
+                if fishData.locations and next(fishData.locations) then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("|cffffff00Caught in:|r")
+
+                    -- Sort locations by count
+                    local locationList = {}
+                    for _, locData in pairs(fishData.locations) do
+                        table.insert(locationList, locData)
+                    end
+                    table.sort(locationList, function(a, b) return a.count > b.count end)
+
+                    for i, locData in ipairs(locationList) do
+                        if i > 5 then break end  -- Show max 5 locations
+                        local location = locData.zone
+                        if locData.subzone and locData.subzone ~= "" then
+                            location = locData.zone .. " - " .. locData.subzone
+                        end
+                        GameTooltip:AddDoubleLine("  " .. location, "|cff00ff00" .. locData.count .. "|r", 0.8, 0.8, 0.8)
+                    end
+                end
+
+                GameTooltip:Show()
+            end)
+
+            entry:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+
+            frame.fishEntries[entryIndex] = entry
         end
 
         entry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, yOffset)
@@ -356,7 +531,7 @@ function UI:UpdateFishList()
         if CFC.db.profile.fishData[fish.name] and CFC.db.profile.fishData[fish.name].icon then
             itemTexture = CFC.db.profile.fishData[fish.name].icon
             if CFC.debug then
-                print("|cffff8800[CFC Debug]|r Fish List - Item: " .. fish.name)
+                print("|cffff8800[CFC Debug]|r Catch List - Item: " .. fish.name)
                 print("|cffff8800[CFC Debug]|r   Using cached icon: " .. tostring(itemTexture))
             end
         end
@@ -368,7 +543,7 @@ function UI:UpdateFishList()
 
             -- Debug logging for icon loading
             if CFC.debug then
-                print("|cffff8800[CFC Debug]|r Fish List - Item: " .. fish.name)
+                print("|cffff8800[CFC Debug]|r Catch List - Item: " .. fish.name)
                 print("|cffff8800[CFC Debug]|r   GetItemInfo returned: " .. tostring(itemName ~= nil))
                 print("|cffff8800[CFC Debug]|r   Texture from GetItemInfo: " .. tostring(itemTexture))
             end
@@ -479,6 +654,259 @@ function UI:UpdateFishList()
         entry:Show()
 
         yOffset = yOffset - 35
+        entryIndex = entryIndex + 1
+    end
+
+    -- Add Miscellaneous section header if there are miscellaneous items
+    if #miscList > 0 then
+        -- Add spacing between sections
+        if #fishList > 0 then
+            yOffset = yOffset - 10
+        end
+
+        local headerEntry = frame.fishEntries[entryIndex]
+        if not headerEntry or not headerEntry.isHeader then
+            headerEntry = CreateFrame("Frame", nil, frame.scrollChild)
+            headerEntry:SetSize(530, 25)
+            headerEntry.isHeader = true
+
+            headerEntry.text = headerEntry:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            headerEntry.text:SetPoint("LEFT", headerEntry, "LEFT", 10, 0)
+            headerEntry.text:SetText("|cffffd700Miscellaneous|r")
+
+            frame.fishEntries[entryIndex] = headerEntry
+        end
+
+        headerEntry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, yOffset)
+        headerEntry:Show()
+        yOffset = yOffset - 30
+        entryIndex = entryIndex + 1
+    end
+
+    -- Display miscellaneous items
+    for _, misc in ipairs(miscList) do
+        local entry = frame.fishEntries[entryIndex]
+
+        if not entry or entry.isHeader then
+            entry = CreateFrame("Frame", nil, frame.scrollChild)
+            entry:SetSize(530, 30)
+            entry.isHeader = false
+
+            entry.bg = entry:CreateTexture(nil, "BACKGROUND")
+            entry.bg:SetAllPoints()
+            entry.bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+
+            -- Icon texture
+            entry.icon = entry:CreateTexture(nil, "ARTWORK")
+            entry.icon:SetSize(24, 24)
+            entry.icon:SetPoint("LEFT", entry, "LEFT", 10, 0)
+
+            entry.name = entry:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            entry.name:SetPoint("LEFT", entry.icon, "RIGHT", 8, 0)
+            entry.name:SetJustifyH("LEFT")
+            entry.name:SetWidth(280)
+
+            entry.count = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            entry.count:SetPoint("RIGHT", entry, "RIGHT", -10, 0)
+
+            -- Store item name for later reference
+            entry.fishName = nil
+
+            -- Add tooltip functionality
+            entry:EnableMouse(true)
+            entry:SetScript("OnEnter", function(self)
+                if not self.fishName then return end
+
+                local fishData = CFC.db.profile.fishData[self.fishName]
+                if not fishData then return end
+
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+                -- Show item tooltip if available
+                local itemName, itemLink = GetItemInfo(self.fishName)
+                if itemLink then
+                    GameTooltip:SetHyperlink(itemLink)
+                else
+                    GameTooltip:SetText(self.fishName, 1, 1, 1)
+                end
+
+                -- Add catch statistics
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("|cffffff00Catch Statistics:|r")
+                GameTooltip:AddDoubleLine("Total Caught:", "|cff00ff00" .. fishData.count .. "|r", 1, 1, 1)
+
+                if fishData.firstCatch then
+                    GameTooltip:AddDoubleLine("First Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.firstCatch) .. "|r", 1, 1, 1)
+                end
+
+                if fishData.lastCatch then
+                    GameTooltip:AddDoubleLine("Last Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.lastCatch) .. "|r", 1, 1, 1)
+                end
+
+                -- Add locations
+                if fishData.locations and next(fishData.locations) then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("|cffffff00Caught in:|r")
+
+                    -- Sort locations by count
+                    local locationList = {}
+                    for _, locData in pairs(fishData.locations) do
+                        table.insert(locationList, locData)
+                    end
+                    table.sort(locationList, function(a, b) return a.count > b.count end)
+
+                    for i, locData in ipairs(locationList) do
+                        if i > 5 then break end  -- Show max 5 locations
+                        local location = locData.zone
+                        if locData.subzone and locData.subzone ~= "" then
+                            location = locData.zone .. " - " .. locData.subzone
+                        end
+                        GameTooltip:AddDoubleLine("  " .. location, "|cff00ff00" .. locData.count .. "|r", 0.8, 0.8, 0.8)
+                    end
+                end
+
+                GameTooltip:Show()
+            end)
+
+            entry:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+
+            frame.fishEntries[entryIndex] = entry
+        end
+
+        entry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, yOffset)
+        entry.fishName = misc.name
+
+        -- Try to get icon from cached data first (saved when item was caught)
+        local itemTexture = nil
+        if CFC.db.profile.fishData[misc.name] and CFC.db.profile.fishData[misc.name].icon then
+            itemTexture = CFC.db.profile.fishData[misc.name].icon
+            if CFC.debug then
+                print("|cffff8800[CFC Debug]|r Catch List - Item: " .. misc.name)
+                print("|cffff8800[CFC Debug]|r   Using cached icon: " .. tostring(itemTexture))
+            end
+        end
+
+        -- If no cached icon, try GetItemInfo with item name
+        if not itemTexture then
+            local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, texture = GetItemInfo(misc.name)
+            itemTexture = texture
+
+            -- Debug logging for icon loading
+            if CFC.debug then
+                print("|cffff8800[CFC Debug]|r Catch List - Item: " .. misc.name)
+                print("|cffff8800[CFC Debug]|r   GetItemInfo returned: " .. tostring(itemName ~= nil))
+                print("|cffff8800[CFC Debug]|r   Texture from GetItemInfo: " .. tostring(itemTexture))
+            end
+
+            -- If GetItemInfo gave us an itemLink, try using that for better icon results
+            if not itemTexture and itemLink then
+                local _, _, _, _, _, _, _, _, _, linkTexture = GetItemInfo(itemLink)
+                if linkTexture then
+                    itemTexture = linkTexture
+                    if CFC.debug then
+                        print("|cffff8800[CFC Debug]|r   Got texture from itemLink: " .. tostring(linkTexture))
+                    end
+                end
+            end
+
+            -- Cache the icon if we got it
+            if itemTexture and CFC.db.profile.fishData[misc.name] then
+                CFC.db.profile.fishData[misc.name].icon = itemTexture
+                if CFC.debug then
+                    print("|cffff8800[CFC Debug]|r   Cached icon for future use")
+                end
+            end
+        end
+
+        -- If still no texture, try to find the item in bags
+        if not itemTexture then
+            if CFC.debug then
+                print("|cffff8800[CFC Debug]|r   Searching bags for item...")
+            end
+
+            -- Try to find item in player's bags
+            local success, err = pcall(function()
+                for bag = 0, 4 do
+                    -- Use C_Container API for Anniversary Classic
+                    local numSlots = 0
+                    if C_Container and C_Container.GetContainerNumSlots then
+                        numSlots = C_Container.GetContainerNumSlots(bag) or 0
+                    elseif GetContainerNumSlots then
+                        numSlots = GetContainerNumSlots(bag) or 0
+                    end
+
+                    for slot = 1, numSlots do
+                        -- Get container item link
+                        local containerItemLink = nil
+                        if C_Container and C_Container.GetContainerItemLink then
+                            containerItemLink = C_Container.GetContainerItemLink(bag, slot)
+                        elseif GetContainerItemLink then
+                            containerItemLink = GetContainerItemLink(bag, slot)
+                        end
+
+                        if containerItemLink then
+                            local bagItemName = GetItemInfo(containerItemLink)
+                            if bagItemName == misc.name then
+                                -- Found the item, get its texture from the bag slot
+                                local bagItemTexture = nil
+                                if C_Container and C_Container.GetContainerItemInfo then
+                                    local itemInfo = C_Container.GetContainerItemInfo(bag, slot)
+                                    if itemInfo and itemInfo.iconFileID then
+                                        bagItemTexture = itemInfo.iconFileID
+                                    end
+                                elseif GetContainerItemInfo then
+                                    bagItemTexture = GetContainerItemInfo(bag, slot)
+                                end
+
+                                if bagItemTexture then
+                                    itemTexture = bagItemTexture
+
+                                    -- Cache the icon for future use
+                                    if CFC.db.profile.fishData[misc.name] then
+                                        CFC.db.profile.fishData[misc.name].icon = bagItemTexture
+                                    end
+
+                                    if CFC.debug then
+                                        print("|cffff8800[CFC Debug]|r   Found in bag " .. bag .. " slot " .. slot .. ", texture: " .. tostring(itemTexture))
+                                        print("|cffff8800[CFC Debug]|r   Cached icon for future use")
+                                    end
+                                    return  -- Exit function early when found
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+
+            if not success and CFC.debug then
+                print("|cffff8800[CFC Debug]|r   Error scanning bags: " .. tostring(err))
+            end
+
+            -- If still no texture, use default misc icon
+            if not itemTexture then
+                itemTexture = "Interface\\Icons\\INV_Misc_QuestionMark"
+                if CFC.debug then
+                    print("|cffff8800[CFC Debug]|r   Item not in bags, using default misc icon")
+                end
+            end
+        end
+
+        -- Set icon (itemTexture is guaranteed to exist at this point)
+        entry.icon:SetTexture(itemTexture)
+        if CFC.debug then
+            print("|cffff8800[CFC Debug]|r   ✓ Icon set to: " .. tostring(itemTexture))
+        end
+        entry.icon:Show()
+
+        local coloredName = CFC:GetColoredItemName(misc.name)
+        entry.name:SetText(coloredName)
+        entry.count:SetText("|cff00ff00" .. misc.count .. "|r caught")
+        entry:Show()
+
+        yOffset = yOffset - 35
+        entryIndex = entryIndex + 1
     end
 
     frame.scrollChild:SetHeight(math.abs(yOffset))
@@ -1183,9 +1611,40 @@ function UI:CreateSettingsTab()
     frame.minimapDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.minimapDesc:SetText("Display the fishing companion icon on the minimap for quick access.")
 
+    -- Per-Character Mode Checkbox
+    frame.perCharacterCheck = CreateFrame("CheckButton", "CFCPerCharacterCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.perCharacterCheck:SetPoint("TOPLEFT", frame.minimapDesc, "BOTTOMLEFT", -25, -20)
+    frame.perCharacterCheck.text = frame.perCharacterCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.perCharacterCheck.text:SetPoint("LEFT", frame.perCharacterCheck, "RIGHT", 5, 0)
+    frame.perCharacterCheck.text:SetText("Per-Character Statistics")
+
+    frame.perCharacterCheck:SetScript("OnClick", function(self)
+        local enabled = self:GetChecked()
+
+        if enabled then
+            -- Enabling per-character mode - show enable dialog with catch count
+            local totalCatches = 0
+            if ClassicFishingCompanionDB and ClassicFishingCompanionDB.profile and ClassicFishingCompanionDB.profile.statistics then
+                totalCatches = ClassicFishingCompanionDB.profile.statistics.totalCatches or 0
+            end
+            StaticPopup_Show("CFC_PERCHAR_ENABLE", totalCatches)
+        else
+            -- Disabling per-character mode - show disable dialog
+            StaticPopup_Show("CFC_PERCHAR_DISABLE")
+        end
+    end)
+
+    -- Per-character description
+    frame.perCharacterDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.perCharacterDesc:SetPoint("TOPLEFT", frame.perCharacterCheck, "BOTTOMLEFT", 25, -5)
+    frame.perCharacterDesc:SetJustifyH("LEFT")
+    frame.perCharacterDesc:SetWidth(500)
+    frame.perCharacterDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.perCharacterDesc:SetText("Track fishing statistics separately for each character instead of account-wide. |cffff6600WARNING:|r Enabling this will start fresh statistics for this character!")
+
     -- Announce Catches Checkbox
     frame.announceCatchesCheck = CreateFrame("CheckButton", "CFCAnnounceCatchesCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.announceCatchesCheck:SetPoint("TOPLEFT", frame.minimapDesc, "BOTTOMLEFT", -25, -20)
+    frame.announceCatchesCheck:SetPoint("TOPLEFT", frame.perCharacterDesc, "BOTTOMLEFT", -25, -20)
     frame.announceCatchesCheck.text = frame.announceCatchesCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.announceCatchesCheck.text:SetPoint("LEFT", frame.announceCatchesCheck, "RIGHT", 5, 0)
     frame.announceCatchesCheck.text:SetText("Announce Fish Catches")
@@ -1626,6 +2085,9 @@ function UI:UpdateSettings()
     -- Update minimap checkbox (inverted because db stores "hide")
     frame.minimapCheck:SetChecked(not CFC.db.profile.minimap.hide)
 
+    -- Update per-character mode checkbox (always read from account-wide DB)
+    frame.perCharacterCheck:SetChecked(ClassicFishingCompanionDB.profile.settings.perCharacterMode)
+
     -- Update announcement checkboxes
     frame.announceCatchesCheck:SetChecked(CFC.db.profile.settings.announceCatches)
     frame.announceLuresCheck:SetChecked(CFC.db.profile.settings.announceLures)
@@ -1809,9 +2271,127 @@ StaticPopupDialogs["CFC_RESTORE_BACKUP_CONFIRM"] = {
     preferredIndex = 3,
 }
 
+-- Per-character mode ENABLE dialog (with copy option)
+StaticPopupDialogs["CFC_PERCHAR_ENABLE"] = {
+    text = "Enable Per-Character Statistics?\n\n|cffffcc00Choose how to start:|r\n\n|cff00ff00Copy Account Data:|r\nThis character will start with all your current catches (%d total).\n\n|cffaaaaaa[Cancel] Start Fresh:|r\nThis character will start with 0 catches.\n\n|cff888888Your account-wide data remains safe either way.|r",
+    button1 = "Copy Account Data",
+    button2 = "Cancel",
+    OnAccept = function(self)
+        -- Copy account-wide data to this character's database
+        if ClassicFishingCompanionCharDB and ClassicFishingCompanionDB and ClassicFishingCompanionDB.profile then
+            -- Deep copy all fishing data
+            ClassicFishingCompanionCharDB.profile = {}
+            for key, value in pairs(ClassicFishingCompanionDB.profile) do
+                if type(value) == "table" then
+                    ClassicFishingCompanionCharDB.profile[key] = {}
+                    for k, v in pairs(value) do
+                        if type(v) == "table" then
+                            ClassicFishingCompanionCharDB.profile[key][k] = {}
+                            for kk, vv in pairs(v) do
+                                if type(vv) == "table" then
+                                    -- Deep copy nested tables (like catches, fishData)
+                                    ClassicFishingCompanionCharDB.profile[key][k][kk] = {}
+                                    for kkk, vvv in pairs(vv) do
+                                        ClassicFishingCompanionCharDB.profile[key][k][kk][kkk] = vvv
+                                    end
+                                else
+                                    ClassicFishingCompanionCharDB.profile[key][k][kk] = vv
+                                end
+                            end
+                        else
+                            ClassicFishingCompanionCharDB.profile[key][k] = v
+                        end
+                    end
+                else
+                    ClassicFishingCompanionCharDB.profile[key] = value
+                end
+            end
+        end
+
+        -- Enable per-character mode
+        ClassicFishingCompanionDB.profile.settings.perCharacterMode = true
+        print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cff00ff00enabled|r with account data copied. Reloading UI...")
+
+        -- Reload UI
+        ReloadUI()
+    end,
+    OnCancel = function(self)
+        -- Show the "start fresh" confirmation
+        StaticPopup_Show("CFC_PERCHAR_ENABLE_FRESH")
+    end,
+    OnHide = function(self)
+        -- If dialog was hidden without choosing, revert checkbox
+        if mainFrame and mainFrame.settingsFrame and mainFrame.settingsFrame.perCharacterCheck then
+            mainFrame.settingsFrame.perCharacterCheck:SetChecked(ClassicFishingCompanionDB.profile.settings.perCharacterMode)
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+-- Per-character mode ENABLE with fresh start
+StaticPopupDialogs["CFC_PERCHAR_ENABLE_FRESH"] = {
+    text = "Start Fresh?\n\nThis character will begin with:\n• 0 catches\n• Empty fish list\n• Fresh statistics\n\n|cff888888Your account-wide data (%d catches) remains safe.|r",
+    button1 = "Start Fresh",
+    button2 = "Go Back",
+    OnAccept = function(self)
+        -- Enable per-character mode without copying data
+        ClassicFishingCompanionDB.profile.settings.perCharacterMode = true
+        print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cff00ff00enabled|r (starting fresh). Reloading UI...")
+
+        -- Reload UI
+        ReloadUI()
+    end,
+    OnCancel = function(self)
+        -- Go back to the main enable dialog
+        local totalCatches = 0
+        if ClassicFishingCompanionDB and ClassicFishingCompanionDB.profile and ClassicFishingCompanionDB.profile.statistics then
+            totalCatches = ClassicFishingCompanionDB.profile.statistics.totalCatches or 0
+        end
+        StaticPopup_Show("CFC_PERCHAR_ENABLE", totalCatches)
+    end,
+    OnHide = function(self)
+        -- If dialog was hidden without choosing, revert checkbox
+        if mainFrame and mainFrame.settingsFrame and mainFrame.settingsFrame.perCharacterCheck then
+            mainFrame.settingsFrame.perCharacterCheck:SetChecked(ClassicFishingCompanionDB.profile.settings.perCharacterMode)
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+-- Per-character mode DISABLE dialog
+StaticPopupDialogs["CFC_PERCHAR_DISABLE"] = {
+    text = "Disable Per-Character Statistics?\n\nYou'll switch back to account-wide statistics.\n\n|cff888888This character's data will be preserved and available when you re-enable per-character mode.|r",
+    button1 = "Disable & Reload",
+    button2 = "Cancel",
+    OnAccept = function(self)
+        -- Disable per-character mode
+        ClassicFishingCompanionDB.profile.settings.perCharacterMode = false
+        print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cffff0000disabled|r. Reloading UI...")
+
+        -- Reload UI
+        ReloadUI()
+    end,
+    OnCancel = function(self)
+        -- Revert checkbox to current state
+        if mainFrame and mainFrame.settingsFrame and mainFrame.settingsFrame.perCharacterCheck then
+            mainFrame.settingsFrame.perCharacterCheck:SetChecked(ClassicFishingCompanionDB.profile.settings.perCharacterMode)
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 -- About dialog
 StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
-    text = "|cff00ff00Classic Fishing Companion|r\n\nVersion: |cffffcc00" .. (CFC.VERSION or "1.0.6") .. "|r\n\nDeveloped by: |cff00ccffRelyk|r\n\n|cffffffffThank you for using Classic Fishing Companion!|r\n\nThis addon helps you track your fishing progress, manage gear, and optimize your fishing experience in Classic WoW.\n\n|cffffcc00If you enjoy this addon and want to support development:|r\n\n|cff00ff00Buy me a coffee at:|r\n|cff88ccffhttps://buymeacoffee.com/relyk22|r",
+    text = "|cff00ff00Classic Fishing Companion|r\n\nVersion: |cffffcc00" .. (CFC.VERSION or "1.0.8") .. "|r\n\nDeveloped by: |cff00ccffRelyk|r\n\n|cffffffffThank you for using Classic Fishing Companion!|r\n\nThis addon helps you track your fishing progress, manage gear, and optimize your fishing experience in Classic WoW.\n\n|cffffcc00If you enjoy this addon and want to support development:|r\n\n|cff00ff00Buy me a coffee at:|r\n|cff88ccffhttps://buymeacoffee.com/relyk22|r",
     button1 = "Close",
     timeout = 0,
     whileDead = true,
@@ -1821,6 +2401,22 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.8"] = {
+        features = {
+            "Renamed 'Fish List' to 'Catch List' for clarity",
+            "Separated fish from miscellaneous catches (lockboxes, gear, etc.)",
+            "Rich tooltips on catches showing statistics and locations",
+            "Per-Character Statistics mode (optional)",
+            "Copy account-wide data to character when enabling per-character mode",
+            "Smart fish categorization using item types and keywords",
+        },
+        fixes = {
+            "Improved catch categorization logic",
+            "Better handling of non-fish items (armor, potions, gems, etc.)",
+            "Fixed miscellaneous items being shown as fish",
+        },
+        tip = "TIP: Hover over catches in the Catch List to see detailed statistics!\nEnable Per-Character mode in Settings to track each character separately."
+    },
     ["1.0.7"] = {
         features = {
             "Configurable lure warning interval (30, 60, or 90 seconds)",
@@ -1900,7 +2496,7 @@ end
 
 -- What's New dialog (dynamic content)
 StaticPopupDialogs["CFC_WHATS_NEW"] = {
-    text = GetWhatsNewText(CFC.VERSION or "1.0.6"),
+    text = GetWhatsNewText(CFC.VERSION or "1.0.8"),
     button1 = "Got it!",
     button2 = "Don't show again",
     timeout = 0,

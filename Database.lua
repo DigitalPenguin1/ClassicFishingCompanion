@@ -55,6 +55,8 @@ function CFC.Database:GetFishList()
             firstCatch = data.firstCatch,
             lastCatch = data.lastCatch,
             locations = data.locations,
+            itemType = data.itemType,
+            itemSubType = data.itemSubType,
         })
     end
 

@@ -11,6 +11,7 @@ ignore:
   - .github
   - .gitignore
   - .pkgmeta
+  - .claude
 
 # Changelog file to include in the package
 manual-changelog: CHANGELOG.md

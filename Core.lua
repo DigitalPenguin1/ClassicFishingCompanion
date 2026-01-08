@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.7"
+CFC.VERSION = "1.0.8"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -93,6 +93,7 @@ local defaults = {
             minimapPos = 220,
         },
         settings = {
+            perCharacterMode = false,  -- Use per-character statistics instead of account-wide (disabled by default)
             announceLures = true,  -- Warn when fishing without lure (enabled by default)
             lureWarningInterval = 30,  -- Interval in seconds for lure warning (30, 60, or 90)
             announceCatches = false,  -- Announce fish catches in chat
@@ -141,13 +142,36 @@ local defaults = {
 
 -- Initialize database
 function CFC:OnInitialize()
-    -- Initialize saved variables
+    -- Initialize saved variables (both account-wide and per-character)
     if not ClassicFishingCompanionDB then
         ClassicFishingCompanionDB = {}
     end
+    if not ClassicFishingCompanionCharDB then
+        ClassicFishingCompanionCharDB = {}
+    end
 
-    -- Set database reference
-    self.db = ClassicFishingCompanionDB
+    -- Initialize account-wide database first (to get settings)
+    if not ClassicFishingCompanionDB.profile then
+        ClassicFishingCompanionDB.profile = {}
+    end
+
+    -- Ensure settings exist in account-wide DB (settings are always account-wide)
+    if not ClassicFishingCompanionDB.profile.settings then
+        ClassicFishingCompanionDB.profile.settings = {}
+    end
+    for k, v in pairs(defaults.profile.settings) do
+        if ClassicFishingCompanionDB.profile.settings[k] == nil then
+            ClassicFishingCompanionDB.profile.settings[k] = v
+        end
+    end
+
+    -- Choose which database to use based on perCharacterMode setting
+    local usePerCharacter = ClassicFishingCompanionDB.profile.settings.perCharacterMode
+    if usePerCharacter then
+        self.db = ClassicFishingCompanionCharDB
+    else
+        self.db = ClassicFishingCompanionDB
+    end
 
     -- Set defaults if not exist
     if not self.db.profile then
@@ -854,23 +878,32 @@ function CFC:RecordFishCatch(itemName, itemLink)
 
     -- Update fish-specific data
     if not self.db.profile.fishData[itemName] then
-        -- Get item icon texture when first catching this fish
+        -- Get item info when first catching this item
         -- Use itemLink if available (more reliable), otherwise fall back to itemName
         local itemTexture = nil
+        local itemType = nil
+        local itemSubType = nil
+
         if itemLink then
-            local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemLink)
+            local _, _, _, _, _, iType, iSubType, _, _, texture = GetItemInfo(itemLink)
             itemTexture = texture
+            itemType = iType
+            itemSubType = iSubType
             if self.debug and texture then
                 print("|cffff8800[CFC Debug]|r Got icon from itemLink: " .. tostring(texture))
+                print("|cffff8800[CFC Debug]|r itemType: " .. tostring(itemType) .. ", itemSubType: " .. tostring(itemSubType))
             end
         end
 
         -- Fallback to itemName if itemLink didn't work
         if not itemTexture then
-            local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemName)
+            local _, _, _, _, _, iType, iSubType, _, _, texture = GetItemInfo(itemName)
             itemTexture = texture
+            itemType = iType
+            itemSubType = iSubType
             if self.debug and texture then
                 print("|cffff8800[CFC Debug]|r Got icon from itemName: " .. tostring(texture))
+                print("|cffff8800[CFC Debug]|r itemType: " .. tostring(itemType) .. ", itemSubType: " .. tostring(itemSubType))
             end
         end
 
@@ -880,6 +913,8 @@ function CFC:RecordFishCatch(itemName, itemLink)
             lastCatch = timestamp,
             locations = {},
             icon = itemTexture,  -- Cache the icon texture (may be nil if item not cached yet)
+            itemType = itemType,  -- Cache item type for categorization
+            itemSubType = itemSubType,  -- Cache item subtype for categorization
         }
 
         if self.debug then
@@ -891,13 +926,20 @@ function CFC:RecordFishCatch(itemName, itemLink)
     fishData.count = fishData.count + 1
     fishData.lastCatch = timestamp
 
-    -- Update cached icon if we don't have one yet
-    if not fishData.icon and itemLink then
-        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
-        if itemTexture then
+    -- Update cached icon and item type info if we don't have them yet
+    if (not fishData.icon or not fishData.itemType) and itemLink then
+        local _, _, _, _, _, iType, iSubType, _, _, itemTexture = GetItemInfo(itemLink)
+        if itemTexture and not fishData.icon then
             fishData.icon = itemTexture
             if self.debug then
                 print("|cffff8800[CFC Debug]|r Updated icon for " .. itemName .. ": " .. tostring(itemTexture))
+            end
+        end
+        if iType and not fishData.itemType then
+            fishData.itemType = iType
+            fishData.itemSubType = iSubType
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Updated itemType for " .. itemName .. ": " .. tostring(iType) .. ", " .. tostring(iSubType))
             end
         end
     end

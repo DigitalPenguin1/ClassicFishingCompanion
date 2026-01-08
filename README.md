@@ -14,8 +14,10 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click
 - **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button
-- **Detailed Statistics**: Fish list, catch history, top catches, zone productivity, skill progression, and buff/pole usage
-- **Missing Buff Warnings**: On-screen alerts every 30 seconds when fishing without a lure
+- **Detailed Statistics**: Catch list with fish/miscellaneous separation, catch history, top catches, zone productivity, skill progression, and buff/pole usage
+- **Rich Tooltips**: Hover over catches to see detailed statistics and location data
+- **Per-Character Mode**: Optional per-character statistics tracking with account data copy option
+- **Missing Lure Warnings**: Configurable on-screen alerts (30, 60, or 90 seconds) when fishing without a lure
 - **Automatic Backup System**: Internal backups every 24 hours (stored in SavedVariables: `WTF\Account\[ACCOUNT_NAME]\[RandomNumberString]\SavedVariables\ClassicFishingCompanion.lua.bak`)
   - Export reminder shown every 7 days of play time, export reminders every 7 days, one-click restore
 - **Minimap Button**: Quick access to UI (left-click), HUD toggle (right-click), and session stats (hover)
@@ -51,8 +53,8 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 Current session and lifetime stats at a glance with the recent catches list.
 
 
-### Fish List
-All unique fish caught, sorted by count.
+### Catch List
+All unique catches separated into Fish and Miscellaneous sections, sorted by count. Hover over items for detailed statistics, locations, and catch dates.
 
 
 ### History
@@ -74,8 +76,9 @@ Save and manage fishing and combat equipment. Equip your desired gear, click "Sa
 ### Settings
 - Show/hide minimap button and Stats HUD
 - Lock/unlock HUD position
+- **Per-Character Statistics**: Track each character separately or use account-wide tracking
 - Enable/disable fish catch announcements
-- Enable/disable missing buff warnings (30-second interval)
+- Configure lure warning interval (30, 60, or 90 seconds)
 - Enable/disable fishing skill increase announcements
 - Debug mode
 - Enable/disable automatic backups (creates backups every 24 hours in SavedVariables)
@@ -136,7 +139,7 @@ Lightweight design with minimal impact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-**Latest (v1.0.6)**: Fixed lure statistics incorrectly incrementing on `/reload` command.
+**Latest (v1.0.8)**: Renamed Fish List to Catch List, separated fish from miscellaneous catches, added rich tooltips, and per-character statistics mode.
 
 
 ## Support

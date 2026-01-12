@@ -2,6 +2,57 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.9] - 2026-01-08
+
+### Added
+- **Full TBC (The Burning Crusade) support**
+  - Separate TBC-specific UI and HUD files loaded via ClassicFishingCompanion_TBC.toc
+  - Macro-based lure application system for TBC (workaround for Blizzard's API restrictions)
+  - "Update CFC_ApplyLure Macro" button in Lure Manager creates/updates a macro for lure application
+  - Dynamic lure icon on HUD button that changes based on selected lure
+  - Max fishing skill announcement updated to 375 for TBC
+  - All v1.0.8 features (Catch List, tooltips, per-character stats, gear swap) work in both Classic Era and TBC
+
+### Fixed
+- Fixed lure detection not working in TBC
+  - Updated tooltip pattern matching to support TBC's format: "Fishing Lure (+25 Fishing Skill) (10 min)"
+  - Classic Era format still supported: "Fishing Lure +25"
+  - Applied fix to both HUD lure display and missing lure warnings
+- Fixed per-character mode "Cancel" button doing nothing in TBC
+  - Now properly shows "Start Fresh?" confirmation dialog when clicked
+- Fixed missing lure warnings showing even when lure is applied in TBC
+
+### Changed
+- Shared Core.lua, Database.lua, and Minimap.lua files work across both Classic Era and TBC
+- Version detection added to Core.lua (WOW_PROJECT_ID: 2 = Classic Era, 5 = TBC)
+- SavedVariables automatically transfer from Classic Era to TBC when characters move
+
+## [1.0.8] - 2025-12-15
+
+### Added
+- **Renamed Fish List to Catch List**
+  - Better reflects that it tracks all catches, not just fish
+  - Separated fish from miscellaneous catches (lockboxes, gear, potions, etc.)
+  - Two sections: "Fish" and "Miscellaneous" on same page
+- **Rich tooltips on catches**
+  - Hover over any catch to see detailed statistics
+  - Shows total caught, locations where caught, first/last catch dates
+  - Works in Catch List, Overview recent catches, and History tabs
+- **Per-Character Statistics mode**
+  - Optional mode to track each character's fishing separately
+  - Enable in Settings tab with choice to copy account-wide data or start fresh
+  - Account-wide mode remains default for seamless multi-character experience
+  - Can switch back to account-wide mode at any time
+- **Smart fish categorization**
+  - Uses item type, subtype, and keyword matching
+  - Properly categorizes edge cases (potions, gems, crafting materials)
+  - Miscellaneous section includes: lockboxes, chests, gear, potions, gems, scrolls, recipes
+
+### Fixed
+- Improved catch categorization logic to handle non-fish items correctly
+- Better handling of items that don't fit typical fish patterns
+- Fixed miscellaneous items appearing in fish section
+
 ## [1.0.7] - 2025-12-08
 
 ### Added

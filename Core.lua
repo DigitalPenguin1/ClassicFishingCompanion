@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.8"
+CFC.VERSION = "1.0.9"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -646,7 +646,10 @@ function CFC:HasFishingBuff()
             local line = _G["CFCBuffCheckTooltipTextLeft" .. i]
             if line then
                 local text = line:GetText()
-                if text and string.match(text, "Fishing Lure %+(%d+)") then
+                -- Check both formats:
+                -- TBC format: "Fishing Lure (+25 Fishing Skill) (10 min)"
+                -- Classic Era format: "Fishing Lure +25"
+                if text and (string.match(text, "Lure.*%(%+(%d+)") or string.match(text, "Fishing Lure %+(%d+)")) then
                     tooltip:Hide()
                     return true
                 end
@@ -1717,6 +1720,72 @@ function CFC:ApplySelectedLure()
 
     if self.debug then
         print("|cff00ff00[CFC Debug]|r ===== APPLY LURE INITIATED (waiting for completion) =====")
+    end
+end
+
+-- Update lure macro (TBC only - API restrictions)
+function CFC:UpdateLureMacro()
+    -- Check if lure is selected
+    local selectedLureID = self.db and self.db.profile and self.db.profile.selectedLure
+    if not selectedLureID then
+        print("|cffff0000Classic Fishing Companion:|r No lure selected! Go to Lure tab to select one.")
+        return false
+    end
+
+    -- Get lure name and icon
+    local lureData = {
+        [6529] = { name = "Shiny Bauble", icon = "INV_Misc_Orb_03" },
+        [6530] = { name = "Nightcrawlers", icon = "INV_Misc_MonsterTail_03" },
+        [6532] = { name = "Bright Baubles", icon = "INV_Misc_Gem_Variety_02" },
+        [7307] = { name = "Flesh Eating Worm", icon = "INV_Misc_MonsterTail_03" },
+        [6533] = { name = "Aquadynamic Fish Attractor", icon = "INV_Misc_Food_26" },
+        [6811] = { name = "Aquadynamic Fish Lens", icon = "INV_Misc_Spyglass_01" },
+        [3486] = { name = "Sharpened Fish Hook", icon = "INV_Misc_Hook_01" },
+    }
+    local lure = lureData[selectedLureID]
+    if not lure then
+        print("|cffff0000Classic Fishing Companion:|r Unknown lure selected!")
+        return false
+    end
+
+    local lureName = lure.name
+    local lureIcon = lure.icon
+
+    -- Build macro text
+    local macroText = "#showtooltip\n/use " .. lureName .. "\n/use 16"
+    local macroName = "CFC_ApplyLure"
+
+    -- Check if macro exists
+    local macroIndex = GetMacroIndexByName(macroName)
+
+    if macroIndex and macroIndex > 0 then
+        -- Macro exists, try to update it
+        local success, err = pcall(function()
+            EditMacro(macroIndex, macroName, lureIcon, macroText)
+        end)
+
+        if success then
+            print("|cff00ff00Classic Fishing Companion:|r Macro updated with " .. lureName .. "!")
+            return true
+        else
+            print("|cffff0000Classic Fishing Companion:|r Failed to update macro (protected by Blizzard)")
+            print("|cffffcc00→|r Please update the macro manually with the text from the box above")
+            return false
+        end
+    else
+        -- Macro doesn't exist, try to create it
+        local success, err = pcall(function()
+            CreateMacro(macroName, lureIcon, macroText, nil)
+        end)
+
+        if success then
+            print("|cff00ff00Classic Fishing Companion:|r Macro created with " .. lureName .. "!")
+            return true
+        else
+            print("|cffff0000Classic Fishing Companion:|r Failed to create macro (protected by Blizzard)")
+            print("|cffffcc00→|r Please create the macro manually with the text from the box above")
+            return false
+        end
     end
 end
 

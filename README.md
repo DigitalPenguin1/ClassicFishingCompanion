@@ -1,10 +1,10 @@
 # Classic Fishing Companion
 
 
-A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic. Track catches, monitor efficiency, view detailed statistics, and display real-time stats with an on-screen HUD.
+A comprehensive fishing tracker addon for World of Warcraft Classic Era and TBC. Track catches, monitor efficiency, view detailed statistics, and display real-time stats with an on-screen HUD.
 
 
-**Update 12/2/25** - I have been testing in PTR for TBC and making changes needed to work as it should.
+**Update 1/8/26** - Full TBC support released in v1.0.9! The addon now works seamlessly in both Classic Era and TBC with automatic version detection.
 
 
 ## Features
@@ -13,7 +13,7 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 - **Comprehensive Tracking**: Records every fish caught with location, timestamp, and efficiency metrics
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click
-- **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button
+- **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button (Classic Era) or create a macro for application (TBC - due to API restrictions)
 - **Detailed Statistics**: Catch list with fish/miscellaneous separation, catch history, top catches, zone productivity, skill progression, and buff/pole usage
 - **Rich Tooltips**: Hover over catches to see detailed statistics and location data
 - **Per-Character Mode**: Optional per-character statistics tracking with account data copy option
@@ -31,6 +31,8 @@ A comprehensive fishing tracker addon for World of Warcraft Anniversary Classic.
 2. Click the minimap button or type `/cfc` to open the UI
 3. Start fishing - all catches are tracked automatically
 4. Use the Stats HUD for real-time information
+
+**TBC Note**: In TBC, Blizzard blocked the API for applying lures directly. Click the HUD lure button to open Lure Manager, select your lure, then click "Update CFC_ApplyLure Macro" to create a macro. Drag the macro to your action bar and click it to apply lures.
 
 
 ## Commands
@@ -96,7 +98,7 @@ The HUD displays:
 - **Fish/Hour**: Current fishing efficiency
 - **Skill**: Fishing skill level (current/max) with pole bonus (green) and lure bonus (yellow) shown with dynamic icons
 - **Lure**: Active lure with color-coded timer (🟢 >2min, 🟡 1-2min, 🔴 <1min)
-- **Apply Lure**: One-click button to apply selected lure to fishing pole
+- **Lure Button**: One-click button to apply selected lure to fishing pole (Classic Era) or open Lure Manager (TBC - due to API restrictions)
 - **Swap Button**: Quick gear swap showing current mode (🎣 Fishing / ⚔️ Combat), protected during casting
 
 
@@ -139,7 +141,7 @@ Lightweight design with minimal impact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-**Latest (v1.0.8)**: Renamed Fish List to Catch List, separated fish from miscellaneous catches, added rich tooltips, and per-character statistics mode.
+**Latest (v1.0.9)**: Full TBC support with macro-based lure system, dynamic HUD lure icons, and all v1.0.8 features working in both Classic Era and TBC.
 
 
 ## Support

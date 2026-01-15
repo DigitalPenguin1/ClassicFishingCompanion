@@ -2000,9 +2000,33 @@ function UI:CreateSettingsTab()
     frame.lockHUDDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.lockHUDDesc:SetText("Lock the stats HUD in place to prevent accidental dragging. Unlock to reposition.")
 
+    -- Auto-Swap Gear on HUD Toggle Checkbox
+    frame.autoSwapCheck = CreateFrame("CheckButton", "CFCAutoSwapCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.autoSwapCheck:SetPoint("TOPLEFT", frame.lockHUDDesc, "BOTTOMLEFT", -25, -20)
+    frame.autoSwapCheck.text = frame.autoSwapCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.autoSwapCheck.text:SetPoint("LEFT", frame.autoSwapCheck, "RIGHT", 5, 0)
+    frame.autoSwapCheck.text:SetText("Auto-Swap Gear on HUD Toggle")
+
+    frame.autoSwapCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.autoSwapOnHUD = self:GetChecked()
+        if CFC.db.profile.settings.autoSwapOnHUD then
+            print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cff00ff00enabled|r")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cffff0000disabled|r")
+        end
+    end)
+
+    -- Auto-Swap description
+    frame.autoSwapDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.autoSwapDesc:SetPoint("TOPLEFT", frame.autoSwapCheck, "BOTTOMLEFT", 25, -5)
+    frame.autoSwapDesc:SetJustifyH("LEFT")
+    frame.autoSwapDesc:SetWidth(500)
+    frame.autoSwapDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to combat gear when hiding HUD. Requires gear sets to be saved.")
+
     -- Debug Mode Checkbox
     frame.debugCheck = CreateFrame("CheckButton", "CFCDebugCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.debugCheck:SetPoint("TOPLEFT", frame.lockHUDDesc, "BOTTOMLEFT", -25, -20)
+    frame.debugCheck:SetPoint("TOPLEFT", frame.autoSwapDesc, "BOTTOMLEFT", -25, -20)
     frame.debugCheck.text = frame.debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.debugCheck.text:SetPoint("LEFT", frame.debugCheck, "RIGHT", 5, 0)
     frame.debugCheck.text:SetText("Enable Debug Mode")
@@ -2228,6 +2252,9 @@ function UI:UpdateSettings()
     frame.lockHUDCheck:SetChecked(CFC.db.profile.hud.locked)
     -- Disable lock checkbox if HUD is hidden
     frame.lockHUDCheck:SetEnabled(CFC.db.profile.hud.show)
+
+    -- Update auto-swap checkbox
+    frame.autoSwapCheck:SetChecked(CFC.db.profile.settings.autoSwapOnHUD)
 
     -- Update backup checkbox
     frame.autoBackupCheck:SetChecked(CFC.db.profile.backup.enabled)
@@ -2485,6 +2512,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.10"] = {
+        features = {
+            "Auto-Swap Gear on HUD Toggle",
+            "Right-click minimap to show HUD = equips fishing gear",
+            "Right-click minimap to hide HUD = equips combat gear",
+            "New setting in Settings tab to enable/disable",
+        },
+        fixes = {},
+        tip = "TIP: Enable 'Auto-Swap Gear on HUD Toggle' in Settings for one-click fishing setup!\nMake sure to save both your fishing and combat gear sets first."
+    },
     ["1.0.9"] = {
         features = {
             "Full TBC (The Burning Crusade) support!",

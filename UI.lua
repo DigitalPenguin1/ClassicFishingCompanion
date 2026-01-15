@@ -1067,6 +1067,12 @@ function UI:CreateStatsTab()
         frame.weeklyBars[i] = bar
     end
 
+    -- Create a separate text area positioned below the graph containers
+    frame.bottomStatsText = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.bottomStatsText:SetPoint("TOPLEFT", frame.weeklyContainer, "BOTTOMLEFT", -10, -20)
+    frame.bottomStatsText:SetJustifyH("LEFT")
+    frame.bottomStatsText:SetWidth(530)
+
     mainFrame.statsFrame = frame
 end
 
@@ -1182,8 +1188,11 @@ function UI:UpdateStats()
     frame.dailyContainer:SetPoint("TOPLEFT", frame.hourlyContainer, "BOTTOMLEFT", 0, -10)
     frame.weeklyContainer:SetPoint("TOPLEFT", frame.dailyContainer, "BOTTOMLEFT", 0, -10)
 
-    -- Fishing Poles Used (positioned after all graph containers)
-    text = text .. "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n|cffffd700Fishing Poles Used:|r\n"
+    -- Build bottom stats text (positioned via bottomStatsText font string)
+    local bottomText = ""
+
+    -- Fishing Poles Used
+    bottomText = bottomText .. "|cffffd700Fishing Poles Used:|r\n"
     if CFC.db.profile.poleUsage then
         local poleList = {}
         for poleName, data in pairs(CFC.db.profile.poleUsage) do
@@ -1194,19 +1203,18 @@ function UI:UpdateStats()
         table.sort(poleList, function(a, b) return a.count > b.count end)
 
         if #poleList > 0 then
-            text = text .. "\n"
             for _, pole in ipairs(poleList) do
-                text = text .. pole.name .. ": |cff00ff00" .. pole.count .. " catches|r\n"
+                bottomText = bottomText .. pole.name .. ": |cff00ff00" .. pole.count .. " catches|r\n"
             end
         else
-            text = text .. "No fishing poles tracked yet\n"
+            bottomText = bottomText .. "No fishing poles tracked yet\n"
         end
     else
-        text = text .. "No fishing poles tracked yet\n"
+        bottomText = bottomText .. "No fishing poles tracked yet\n"
     end
 
     -- Fishing Lures Used
-    text = text .. "\n\n|cffffd700Fishing Lures Used:|r\n"
+    bottomText = bottomText .. "\n|cffffd700Fishing Lures Used:|r\n"
     if CFC.db.profile.buffUsage then
         local buffList = {}
         for buffName, data in pairs(CFC.db.profile.buffUsage) do
@@ -1217,45 +1225,45 @@ function UI:UpdateStats()
         table.sort(buffList, function(a, b) return a.count > b.count end)
 
         if #buffList > 0 then
-            text = text .. "\n"
             for _, buff in ipairs(buffList) do
-                text = text .. buff.name .. ": |cff00ff00" .. buff.count .. " times|r\n"
+                bottomText = bottomText .. buff.name .. ": |cff00ff00" .. buff.count .. " times|r\n"
             end
         else
-            text = text .. "No fishing buffs tracked yet\n"
+            bottomText = bottomText .. "No fishing buffs tracked yet\n"
         end
     else
-        text = text .. "No fishing buffs tracked yet\n"
+        bottomText = bottomText .. "No fishing buffs tracked yet\n"
     end
 
     -- Top fish
-    text = text .. "\n\n|cffffd700Top 10 Most Caught Fish:|r\n\n"
+    bottomText = bottomText .. "\n|cffffd700Top 10 Most Caught Fish:|r\n"
     local fishList = CFC.Database:GetFishList()
 
     if #fishList > 0 then
         for i = 1, math.min(10, #fishList) do
             local fish = fishList[i]
             local coloredName = CFC:GetColoredItemName(fish.name)
-            text = text .. i .. ". " .. coloredName .. " - |cff00ff00" .. fish.count .. "|r\n"
+            bottomText = bottomText .. i .. ". " .. coloredName .. " - |cff00ff00" .. fish.count .. "|r\n"
         end
     else
-        text = text .. "No fish caught yet\n"
+        bottomText = bottomText .. "No fish caught yet\n"
     end
 
     -- Top zones
-    text = text .. "\n\n|cffffd700Fishing Zones:|r\n\n"
+    bottomText = bottomText .. "\n|cffffd700Fishing Zones:|r\n"
     local zones = CFC.Database:GetZoneList()
 
     if #zones > 0 then
         for i = 1, math.min(10, #zones) do
             local zone = zones[i]
-            text = text .. i .. ". " .. zone.name .. " - |cff00ff00" .. zone.count .. "|r\n"
+            bottomText = bottomText .. i .. ". " .. zone.name .. " - |cff00ff00" .. zone.count .. "|r\n"
         end
     else
-        text = text .. "No zones recorded yet\n"
+        bottomText = bottomText .. "No zones recorded yet\n"
     end
 
     frame.statsText:SetText(text)
+    frame.bottomStatsText:SetText(bottomText)
 
     -- Update scroll height (increased for new stats sections)
     frame.scrollChild:SetHeight(math.max(350, 1400))
@@ -1920,9 +1928,33 @@ function UI:CreateSettingsTab()
     frame.lockHUDDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.lockHUDDesc:SetText("Lock the stats HUD in place to prevent accidental dragging. Unlock to reposition.")
 
+    -- Auto-Swap Gear on HUD Toggle Checkbox
+    frame.autoSwapCheck = CreateFrame("CheckButton", "CFCAutoSwapCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.autoSwapCheck:SetPoint("TOPLEFT", frame.lockHUDDesc, "BOTTOMLEFT", -25, -20)
+    frame.autoSwapCheck.text = frame.autoSwapCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.autoSwapCheck.text:SetPoint("LEFT", frame.autoSwapCheck, "RIGHT", 5, 0)
+    frame.autoSwapCheck.text:SetText("Auto-Swap Gear on HUD Toggle")
+
+    frame.autoSwapCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.autoSwapOnHUD = self:GetChecked()
+        if CFC.db.profile.settings.autoSwapOnHUD then
+            print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cff00ff00enabled|r")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cffff0000disabled|r")
+        end
+    end)
+
+    -- Auto-Swap description
+    frame.autoSwapDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.autoSwapDesc:SetPoint("TOPLEFT", frame.autoSwapCheck, "BOTTOMLEFT", 25, -5)
+    frame.autoSwapDesc:SetJustifyH("LEFT")
+    frame.autoSwapDesc:SetWidth(500)
+    frame.autoSwapDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to combat gear when hiding HUD. Requires gear sets to be saved.")
+
     -- Debug Mode Checkbox
     frame.debugCheck = CreateFrame("CheckButton", "CFCDebugCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.debugCheck:SetPoint("TOPLEFT", frame.lockHUDDesc, "BOTTOMLEFT", -25, -20)
+    frame.debugCheck:SetPoint("TOPLEFT", frame.autoSwapDesc, "BOTTOMLEFT", -25, -20)
     frame.debugCheck.text = frame.debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.debugCheck.text:SetPoint("LEFT", frame.debugCheck, "RIGHT", 5, 0)
     frame.debugCheck.text:SetText("Enable Debug Mode")
@@ -2148,6 +2180,9 @@ function UI:UpdateSettings()
     frame.lockHUDCheck:SetChecked(CFC.db.profile.hud.locked)
     -- Disable lock checkbox if HUD is hidden
     frame.lockHUDCheck:SetEnabled(CFC.db.profile.hud.show)
+
+    -- Update auto-swap checkbox
+    frame.autoSwapCheck:SetChecked(CFC.db.profile.settings.autoSwapOnHUD)
 
     -- Update backup checkbox
     frame.autoBackupCheck:SetChecked(CFC.db.profile.backup.enabled)
@@ -2401,6 +2436,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.10"] = {
+        features = {
+            "Auto-Swap Gear on HUD Toggle",
+            "Right-click minimap to show HUD = equips fishing gear",
+            "Right-click minimap to hide HUD = equips combat gear",
+            "New setting in Settings tab to enable/disable",
+        },
+        fixes = {},
+        tip = "TIP: Enable 'Auto-Swap Gear on HUD Toggle' in Settings for one-click fishing setup!\nMake sure to save both your fishing and combat gear sets first."
+    },
     ["1.0.9"] = {
         features = {
             "Full TBC (The Burning Crusade) support!",

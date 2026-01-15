@@ -49,6 +49,35 @@ function CFC:InitializeMinimap()
         elseif button == "RightButton" then
             -- Toggle HUD visibility on right-click
             if CFC.HUD and CFC.HUD.ToggleShow then
+                -- Check if auto-swap is enabled
+                if CFC.db and CFC.db.profile and CFC.db.profile.settings and CFC.db.profile.settings.autoSwapOnHUD then
+                    -- Check if gear sets are configured
+                    local gearSets = CFC.db.profile.gearSets
+                    local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
+                    local hasCombatGear = gearSets and gearSets.combat and next(gearSets.combat)
+
+                    if not hasFishingGear or not hasCombatGear then
+                        -- Warn if gear sets not configured
+                        print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
+                    else
+                        -- HUD is currently shown, so we're about to hide it -> swap to combat
+                        -- HUD is currently hidden, so we're about to show it -> swap to fishing
+                        local hudCurrentlyShown = CFC.db.profile.hud.show
+                        local currentMode = gearSets.currentMode or "combat"
+
+                        if hudCurrentlyShown then
+                            -- About to hide HUD, swap to combat gear (only if not already in combat mode)
+                            if currentMode ~= "combat" and CFC.SwapGear then
+                                CFC:SwapGear()
+                            end
+                        else
+                            -- About to show HUD, swap to fishing gear (only if not already in fishing mode)
+                            if currentMode ~= "fishing" and CFC.SwapGear then
+                                CFC:SwapGear()
+                            end
+                        end
+                    end
+                end
                 CFC.HUD:ToggleShow()
             end
         end

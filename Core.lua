@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.9-1"
+CFC.VERSION = "1.0.10"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -102,6 +102,7 @@ local defaults = {
             maxSkillAnnounce = "GUILD",  -- Channel to announce max fishing skill: SAY, PARTY, GUILD, EMOTE
             milestonesAnnounceEnabled = false,  -- Enable/disable milestone announcements (disabled by default)
             milestonesAnnounce = "GUILD",  -- Channel to announce milestones: SAY, PARTY, GUILD, EMOTE
+            autoSwapOnHUD = false,  -- Auto-swap to fishing gear when showing HUD via minimap right-click
         },
         hud = {
             show = true,  -- Show stats HUD by default

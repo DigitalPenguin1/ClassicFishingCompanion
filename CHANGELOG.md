@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.10] - 2026-01-15
+
+### Added
+- **Auto-Swap Gear on HUD Toggle**
+  - New option in Settings to automatically swap gear when toggling the HUD via minimap right-click
+  - Right-click minimap to show HUD → automatically equips fishing gear
+  - Right-click minimap to hide HUD → automatically equips combat gear
+  - Shows warning if gear sets are not configured
+
 ## [1.0.9] - 2026-01-08
 
 ### Added

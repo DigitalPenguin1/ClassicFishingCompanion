@@ -1067,6 +1067,12 @@ function UI:CreateStatsTab()
         frame.weeklyBars[i] = bar
     end
 
+    -- Create a separate text area positioned below the graph containers
+    frame.bottomStatsText = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.bottomStatsText:SetPoint("TOPLEFT", frame.weeklyContainer, "BOTTOMLEFT", -10, -20)
+    frame.bottomStatsText:SetJustifyH("LEFT")
+    frame.bottomStatsText:SetWidth(530)
+
     mainFrame.statsFrame = frame
 end
 
@@ -1182,8 +1188,11 @@ function UI:UpdateStats()
     frame.dailyContainer:SetPoint("TOPLEFT", frame.hourlyContainer, "BOTTOMLEFT", 0, -10)
     frame.weeklyContainer:SetPoint("TOPLEFT", frame.dailyContainer, "BOTTOMLEFT", 0, -10)
 
-    -- Fishing Poles Used (positioned after all graph containers)
-    text = text .. "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n|cffffd700Fishing Poles Used:|r\n"
+    -- Build bottom stats text (positioned via bottomStatsText font string)
+    local bottomText = ""
+
+    -- Fishing Poles Used
+    bottomText = bottomText .. "|cffffd700Fishing Poles Used:|r\n"
     if CFC.db.profile.poleUsage then
         local poleList = {}
         for poleName, data in pairs(CFC.db.profile.poleUsage) do
@@ -1194,19 +1203,19 @@ function UI:UpdateStats()
         table.sort(poleList, function(a, b) return a.count > b.count end)
 
         if #poleList > 0 then
-            text = text .. "\n"
+            bottomText = bottomText .. "\n"
             for _, pole in ipairs(poleList) do
-                text = text .. pole.name .. ": |cff00ff00" .. pole.count .. " catches|r\n"
+                bottomText = bottomText .. pole.name .. ": |cff00ff00" .. pole.count .. " catches|r\n"
             end
         else
-            text = text .. "No fishing poles tracked yet\n"
+            bottomText = bottomText .. "No fishing poles tracked yet\n"
         end
     else
-        text = text .. "No fishing poles tracked yet\n"
+        bottomText = bottomText .. "No fishing poles tracked yet\n"
     end
 
     -- Fishing Lures Used
-    text = text .. "\n\n|cffffd700Fishing Lures Used:|r\n"
+    bottomText = bottomText .. "\n\n|cffffd700Fishing Lures Used:|r\n"
     if CFC.db.profile.buffUsage then
         local buffList = {}
         for buffName, data in pairs(CFC.db.profile.buffUsage) do
@@ -1217,45 +1226,46 @@ function UI:UpdateStats()
         table.sort(buffList, function(a, b) return a.count > b.count end)
 
         if #buffList > 0 then
-            text = text .. "\n"
+            bottomText = bottomText .. "\n"
             for _, buff in ipairs(buffList) do
-                text = text .. buff.name .. ": |cff00ff00" .. buff.count .. " times|r\n"
+                bottomText = bottomText .. buff.name .. ": |cff00ff00" .. buff.count .. " times|r\n"
             end
         else
-            text = text .. "No fishing buffs tracked yet\n"
+            bottomText = bottomText .. "No fishing buffs tracked yet\n"
         end
     else
-        text = text .. "No fishing buffs tracked yet\n"
+        bottomText = bottomText .. "No fishing buffs tracked yet\n"
     end
 
     -- Top fish
-    text = text .. "\n\n|cffffd700Top 10 Most Caught Fish:|r\n\n"
+    bottomText = bottomText .. "\n\n|cffffd700Top 10 Most Caught Fish:|r\n\n"
     local fishList = CFC.Database:GetFishList()
 
     if #fishList > 0 then
         for i = 1, math.min(10, #fishList) do
             local fish = fishList[i]
             local coloredName = CFC:GetColoredItemName(fish.name)
-            text = text .. i .. ". " .. coloredName .. " - |cff00ff00" .. fish.count .. "|r\n"
+            bottomText = bottomText .. i .. ". " .. coloredName .. " - |cff00ff00" .. fish.count .. "|r\n"
         end
     else
-        text = text .. "No fish caught yet\n"
+        bottomText = bottomText .. "No fish caught yet\n"
     end
 
     -- Top zones
-    text = text .. "\n\n|cffffd700Fishing Zones:|r\n\n"
+    bottomText = bottomText .. "\n\n|cffffd700Fishing Zones:|r\n\n"
     local zones = CFC.Database:GetZoneList()
 
     if #zones > 0 then
         for i = 1, math.min(10, #zones) do
             local zone = zones[i]
-            text = text .. i .. ". " .. zone.name .. " - |cff00ff00" .. zone.count .. "|r\n"
+            bottomText = bottomText .. i .. ". " .. zone.name .. " - |cff00ff00" .. zone.count .. "|r\n"
         end
     else
-        text = text .. "No zones recorded yet\n"
+        bottomText = bottomText .. "No zones recorded yet\n"
     end
 
     frame.statsText:SetText(text)
+    frame.bottomStatsText:SetText(bottomText)
 
     -- Update scroll height (increased for new stats sections)
     frame.scrollChild:SetHeight(math.max(350, 1400))
@@ -2489,6 +2499,7 @@ local whatsNewContent = {
             "Fixed lure detection not working in TBC",
             "Fixed missing lure warnings in TBC",
             "Fixed per-character mode Cancel button in TBC",
+            "Fixed Statistics tab layout overlapping in TBC",
         },
         tip = "TIP: In TBC, click the HUD lure button to open Lure Manager, then use 'Update CFC_ApplyLure Macro'!\nYour fishing data will seamlessly transfer from Classic Era to TBC."
     },

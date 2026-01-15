@@ -21,6 +21,9 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - Fixed per-character mode "Cancel" button doing nothing in TBC
   - Now properly shows "Start Fresh?" confirmation dialog when clicked
 - Fixed missing lure warnings showing even when lure is applied in TBC
+- Fixed Statistics tab layout overlapping in TBC
+  - "Fishing Poles Used" and other sections were overlapping with the graph bars
+  - Created properly positioned text area below the graph containers
 
 ### Changed
 - Shared Core.lua, Database.lua, and Minimap.lua files work across both Classic Era and TBC

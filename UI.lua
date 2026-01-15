@@ -2415,6 +2415,7 @@ local whatsNewContent = {
             "Fixed lure detection not working in TBC",
             "Fixed missing lure warnings in TBC",
             "Fixed per-character mode Cancel button in TBC",
+            "Fixed Statistics tab layout overlapping in TBC",
         },
         tip = "TIP: In TBC, click the HUD lure button to open Lure Manager, then use 'Update CFC_ApplyLure Macro'!\nYour fishing data will seamlessly transfer from Classic Era to TBC."
     },

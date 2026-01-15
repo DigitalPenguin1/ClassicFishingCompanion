@@ -4,7 +4,27 @@
 A comprehensive fishing tracker addon for World of Warcraft Classic Era and TBC. Track catches, monitor efficiency, view detailed statistics, and display real-time stats with an on-screen HUD.
 
 
-**Update 1/8/26** - Full TBC support released in v1.0.9! The addon now works seamlessly in both Classic Era and TBC with automatic version detection.
+**Update 1/15/26** - Full TBC support released in v1.0.9! The addon now works seamlessly in both Classic Era and TBC with automatic version detection.
+
+
+## Transferring Data from Classic Era to TBC
+
+**Important**: WoW must be completely closed (not just logged out) before copying files.
+
+### Files to Copy
+- **Account-level** (shared settings): `_classic_era_\WTF\Account\[ACCOUNT]\SavedVariables\ClassicFishingCompanion.lua`
+- **Per-character** (fishing statistics): `_classic_era_\WTF\Account\[ACCOUNT]\[SERVER]\[CHARACTER]\SavedVariables\ClassicFishingCompanion.lua`
+
+### Steps
+
+1. **Close WoW completely** (Exit Game, not just log out)
+2. **Copy both files** from your `_classic_era_` folder to the same paths in your `_anniversary_` folder
+3. **Launch TBC** and log into your character
+
+### If It Doesn't Work
+- Make sure WoW was **completely closed** before copying
+- Make sure you copied **both** files
+- You must log into the character in TBC at least once first to create the folders
 
 
 ## Features

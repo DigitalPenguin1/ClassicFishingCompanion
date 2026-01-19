@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.10"
+CFC.VERSION = "1.0.11"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -83,6 +83,19 @@ CFC.CONSTANTS = {
     MILESTONES = {
         100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
     },
+    -- Rare fish item IDs (for sound notification)
+    RARE_FISH = {
+        [19803] = "Brownell's Blue Striped Racer",
+        [19806] = "Dezian Queenfish",
+        [8221] = "Keefer's Angelfish",
+        [27388] = "Mr. Pinchy",
+        [16967] = "Feralas Ahi",
+        [16970] = "Misty Reed Mahi Mahi",
+        [16968] = "Sar'theris Striker",
+        [16969] = "Savage Coast Blue Sailfin",
+    },
+    -- Sound ID for rare fish catch (Classic-compatible)
+    RARE_FISH_SOUND = 2689,
 }
 
 -- Default database structure
@@ -103,6 +116,8 @@ local defaults = {
             milestonesAnnounceEnabled = false,  -- Enable/disable milestone announcements (disabled by default)
             milestonesAnnounce = "GUILD",  -- Channel to announce milestones: SAY, PARTY, GUILD, EMOTE
             autoSwapOnHUD = false,  -- Auto-swap to fishing gear when showing HUD via minimap right-click
+            easyCast = false,  -- Double right-click to cast fishing
+            rareFishSound = true,  -- Play sound when catching rare fish (enabled by default)
         },
         hud = {
             show = true,  -- Show stats HUD by default
@@ -245,6 +260,8 @@ function CFC:OnEnable()
     self.lastPoleTrackTime = 0  -- Track last time we counted a pole cast
     self.lastBuffTrackTime = 0  -- Track last time we counted a buff application
     self.addonJustLoaded = true  -- Flag to prevent counting existing lures on first check after load/reload
+    self.easyCastLootClosedTime = 0  -- Track when loot window closed for Easy Cast
+    self.lastFishingCastTime = 0  -- Track when player last cast Fishing spell (for fallback detection)
 
     -- Create scanning tooltip for lure detection
     if not CFC_ScanTooltip then
@@ -264,6 +281,13 @@ function CFC:OnEnable()
     -- Register fishing detection events
     self:RegisterEvent("LOOT_OPENED", "OnLootOpened")
     self:RegisterEvent("LOOT_CLOSED", "OnLootClosed")
+    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", "OnSpellChannelStart")
+    self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStart")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+
+    -- Initialize Easy Cast system (double right-click to cast fishing)
+    -- Called after event registration to ensure fishing detection works even if Easy Cast fails
+    self:InitializeEasyCast()
 
     -- Create frame for periodic checking (Classic WoW compatible)
     -- Check every 2 seconds for fishing state and lure changes
@@ -449,8 +473,16 @@ function CFC:CheckLureChanges()
                     local text = line:GetText()
                     -- Look for fishing-related text (works for English clients, fallback for unknown enchants)
                     if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing") or string.find(text, "Fishing Skill")) then
-                        -- Remove duration text like "(10 min)" or "(13 sec)" to get consistent name
-                        lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                        -- Normalize lure name to consistent format "Fishing Lure +XX"
+                        -- TBC format: "Fishing Lure (+75 Fishing Skill) (10 min)"
+                        -- Classic Era format: "Fishing Lure +75"
+                        local bonus = string.match(text, "%+(%d+)")
+                        if bonus then
+                            lureName = "Fishing Lure +" .. bonus
+                        else
+                            -- Fallback: just remove duration text
+                            lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                        end
                         break
                     end
                 end
@@ -756,8 +788,46 @@ function CFC:OnLootClosed()
     self.currentTrackedPole = nil
     self.isFishing = false
 
+    -- Mark loot closed time for Easy Cast (allows quick re-cast)
+    self.easyCastLootClosedTime = GetTime()
+
     if self.debug then
         print("|cffff8800[CFC Debug]|r Loot closed - ready for next cast")
+    end
+end
+
+-- Handle spell channel start (for detecting Fishing casts)
+function CFC:OnSpellChannelStart(event, unit, _, spellID)
+    if unit ~= "player" then return end
+
+    -- Get spell name from ID
+    local spellName = GetSpellInfo(spellID)
+
+    -- Check if it's the Fishing spell (works across locales by checking spell ID or name)
+    -- Fishing spell ID is 7620 in Classic, but name check is more reliable
+    if spellName and string.lower(spellName) == "fishing" then
+        self.lastFishingCastTime = GetTime()
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Fishing spell cast detected")
+        end
+    end
+end
+
+-- Handle entering combat (reset fishing cast time since combat interrupts fishing)
+function CFC:OnCombatStart()
+    -- Reset fishing cast time - combat interrupts fishing, so any loot after this is mob loot
+    self.lastFishingCastTime = 0
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Combat started - fishing cast time reset")
+    end
+end
+
+-- Handle leaving combat (clear any Easy Cast bindings that might be stuck)
+function CFC:OnCombatEnd()
+    -- Clear any Easy Cast bindings that might have been stuck during combat
+    self:ClearEasyCastBinding()
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Combat ended - Easy Cast bindings cleared")
     end
 end
 
@@ -832,8 +902,33 @@ function CFC:OnLootReceived(event, message)
     end
 
     -- Check if this loot was obtained while fishing
-    -- Only track if LOOT_OPENED event confirmed this was fishing loot (pole equipped + no dead target)
+    -- Primary: LOOT_OPENED event confirmed this was fishing loot
+    -- Fallback: Check fishing conditions directly (for compatibility with fast auto-loot addons)
     local wasFishing = self.lastLootWasFishing
+
+    -- Fallback detection if LOOT_OPENED didn't fire (e.g., SpeedyAutoLoot)
+    if not wasFishing then
+        local mainHandLink = GetInventoryItemLink("player", 16)
+        if mainHandLink then
+            local _, _, _, _, _, _, itemSubType = GetItemInfo(mainHandLink)
+            if itemSubType then
+                local isFishingPole = string.find(string.lower(itemSubType), "fishing") ~= nil
+                local hasDeadTarget = UnitExists("target") and UnitIsDead("target")
+                -- Check if player recently cast Fishing (within 30 seconds - bobber lasts ~20-25 sec)
+                local recentlyCastFishing = (GetTime() - self.lastFishingCastTime) < 30
+                if isFishingPole and not hasDeadTarget and recentlyCastFishing then
+                    wasFishing = true
+                    -- Track the fishing pole cast (since OnLootOpened didn't fire)
+                    self:TrackFishingPoleCast()
+                    if self.debug then
+                        print("|cffff8800[CFC Debug]|r Fallback fishing detection: pole equipped, no dead target, recently cast Fishing")
+                    end
+                elseif isFishingPole and not hasDeadTarget and self.debug then
+                    print("|cffff8800[CFC Debug]|r Fallback detection SKIPPED: pole equipped but no recent Fishing cast (mob loot?)")
+                end
+            end
+        end
+    end
 
     -- Debug output
     if self.debug then
@@ -879,6 +974,17 @@ function CFC:RecordFishCatch(itemName, itemLink)
     -- Update statistics
     self.db.profile.statistics.totalCatches = self.db.profile.statistics.totalCatches + 1
     self.db.profile.statistics.sessionCatches = self.db.profile.statistics.sessionCatches + 1
+
+    -- Check for rare fish and play sound
+    if self.db.profile.settings.rareFishSound and itemLink then
+        local itemID = tonumber(itemLink:match("item:(%d+)"))
+        if itemID and CFC.CONSTANTS.RARE_FISH[itemID] then
+            PlaySound(CFC.CONSTANTS.RARE_FISH_SOUND, "Master")
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Rare fish caught! Playing sound for: " .. CFC.CONSTANTS.RARE_FISH[itemID])
+            end
+        end
+    end
 
     -- Update fish-specific data
     if not self.db.profile.fishData[itemName] then
@@ -1914,11 +2020,12 @@ function CFC:PurgeItem(itemName)
     local foundInFishData = false
     local foundInPoleUsage = false
     local foundInLureUsage = false
+    local itemNameLower = string.lower(itemName)
 
-    -- Remove from catches array
+    -- Remove from catches array (case-insensitive)
     local newCatches = {}
     for _, catch in ipairs(self.db.profile.catches) do
-        if catch.itemName ~= itemName then
+        if string.lower(catch.itemName) ~= itemNameLower then
             table.insert(newCatches, catch)
         else
             removedCount = removedCount + 1
@@ -1926,22 +2033,33 @@ function CFC:PurgeItem(itemName)
     end
     self.db.profile.catches = newCatches
 
-    -- Remove from fishData
-    if self.db.profile.fishData[itemName] then
-        self.db.profile.fishData[itemName] = nil
-        foundInFishData = true
+    -- Remove from fishData (case-insensitive)
+    for key, _ in pairs(self.db.profile.fishData) do
+        if string.lower(key) == itemNameLower then
+            self.db.profile.fishData[key] = nil
+            foundInFishData = true
+            break
+        end
     end
 
-    -- Remove from poleUsage (fishing poles used)
-    if self.db.profile.poleUsage[itemName] then
-        self.db.profile.poleUsage[itemName] = nil
-        foundInPoleUsage = true
+    -- Remove from poleUsage (case-insensitive)
+    for key, _ in pairs(self.db.profile.poleUsage) do
+        if string.lower(key) == itemNameLower then
+            self.db.profile.poleUsage[key] = nil
+            foundInPoleUsage = true
+            break
+        end
     end
 
-    -- Remove from buffUsage (lures/buffs used)
-    if self.db.profile.buffUsage and self.db.profile.buffUsage[itemName] then
-        self.db.profile.buffUsage[itemName] = nil
-        foundInLureUsage = true
+    -- Remove from buffUsage (lures/buffs used) (case-insensitive)
+    if self.db.profile.buffUsage then
+        for key, _ in pairs(self.db.profile.buffUsage) do
+            if string.lower(key) == itemNameLower then
+                self.db.profile.buffUsage[key] = nil
+                foundInLureUsage = true
+                break
+            end
+        end
     end
 
     -- Update total catches count
@@ -2231,6 +2349,9 @@ SlashCmdList["CFC"] = function(msg)
             print("|cffff0000Classic Fishing Companion:|r Minimap module not loaded or button not created.")
             print("|cffff0000[CFC Debug]|r Try /reload to reinitialize the addon.")
         end
+    elseif msg == "testsound" then
+        PlaySound(CFC.CONSTANTS.RARE_FISH_SOUND, "Master")
+        print("|cff00ff00Classic Fishing Companion:|r Playing rare fish sound (ID: " .. CFC.CONSTANTS.RARE_FISH_SOUND .. ")")
     else
         if CFC.ToggleUI then
             CFC:ToggleUI()
@@ -2417,5 +2538,483 @@ function CFC:ScheduleBackgroundIconRefresh()
             self:RefreshFishIconsBackground()
         end)
     end)
+end
+
+-- ========================================
+-- EASY CAST SYSTEM
+-- Double right-click to cast fishing
+-- ========================================
+
+local EASYCAST_BUTTON_NAME = "CFCEasyCastButton"
+local EASYCAST_LURE_BUTTON_NAME = "CFCEasyCastLureButton"
+local EASYCAST_DOUBLE_CLICK_WINDOW = 0.4  -- Max time between clicks
+local EASYCAST_MAX_TAP_DURATION = 0.2     -- Max hold time to count as a "tap" (not camera movement)
+
+-- Lure ID to name mapping (for Easy Cast lure application)
+local EASYCAST_LURE_NAMES = {
+    [6529] = "Shiny Bauble",
+    [6530] = "Nightcrawlers",
+    [6532] = "Bright Baubles",
+    [7307] = "Flesh Eating Worm",
+    [6533] = "Aquadynamic Fish Attractor",
+    [6811] = "Aquadynamic Fish Lens",
+}
+
+-- Track state
+CFC.easyCastBindingActive = false
+CFC.easyCastBindingSetTime = 0
+CFC.easyCastMouseDownTime = 0  -- When right mouse button was pressed
+CFC.easyCastLastAction = nil   -- "fishing" or "lure" - tracks what the binding will do
+CFC.easyCastLootClosedTime = 0 -- When loot window was last closed (for quick re-cast)
+
+-- Get the fishing spell name (localized)
+function CFC:GetFishingSpellName()
+    -- Try to find by icon first (most reliable across locales)
+    for i = 1, 500 do
+        local name, _, icon = GetSpellInfo(i)
+        if icon and string.find(icon, "Trade_Fishing") then
+            return name
+        end
+    end
+    -- Fallback to English name
+    return "Fishing"
+end
+
+-- Check if cursor is over the fishing bobber
+function CFC:IsOnFishingBobber()
+    if GameTooltip:IsShown() then
+        local tooltipText = GameTooltipTextLeft1:GetText()
+        if tooltipText then
+            -- Check for common bobber names (localized)
+            local bobberNames = {"Fishing Bobber", "Bobber", "Schwimmer", "Bouchon", "Flotador"}
+            for _, name in ipairs(bobberNames) do
+                if string.find(tooltipText, name) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- Check if cursor is over the minimap button
+function CFC:IsOnMinimapButton()
+    if GameTooltip:IsShown() then
+        local tooltipText = GameTooltipTextLeft1:GetText()
+        if tooltipText and string.find(tooltipText, "Classic Fishing") then
+            return true
+        end
+    end
+    return false
+end
+
+-- Check if cursor is over any interactable UI element
+function CFC:IsOverUIElement()
+    -- GetMouseFocus may not exist in Classic Era, use GetMouseFoci or fallback
+    local focusFrame = nil
+    if GetMouseFoci then
+        local frames = GetMouseFoci()
+        if frames and frames[1] then
+            focusFrame = frames[1]
+        end
+    elseif GetMouseFocus then
+        focusFrame = GetMouseFocus()
+    end
+
+    if focusFrame then
+        local name = focusFrame:GetName() or ""
+        -- Allow clicks on WorldFrame (the 3D world)
+        if focusFrame == WorldFrame then
+            return false
+        end
+        -- Block if over any named frame (UI element)
+        if name ~= "" then
+            return true
+        end
+    end
+    return false
+end
+
+-- Create the secure action button for casting
+function CFC:CreateEasyCastButton()
+    if _G[EASYCAST_BUTTON_NAME] then
+        return _G[EASYCAST_BUTTON_NAME]
+    end
+
+    local btn = CreateFrame("Button", EASYCAST_BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
+    btn:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    btn:SetSize(1, 1)
+    btn:SetFrameStrata("LOW")
+    btn:EnableMouse(false)
+    btn:RegisterForClicks("AnyDown")
+    btn:Show()
+
+    -- Set up to cast fishing
+    local fishingName = self:GetFishingSpellName()
+    btn:SetAttribute("type", "spell")
+    btn:SetAttribute("spell", fishingName)
+
+    -- After the button is clicked (fishing cast), clear the binding
+    btn:SetScript("PostClick", function()
+        if not InCombatLockdown() then
+            ClearOverrideBindings(btn)
+        end
+        CFC.easyCastBindingActive = false
+        CFC.easyCastBindingSetTime = 0
+        CFC.easyCastLastAction = nil
+        if CFC.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Fishing cast, binding cleared")
+        end
+    end)
+
+    return btn
+end
+
+-- Create the secure action button for applying lures
+function CFC:CreateEasyCastLureButton()
+    if _G[EASYCAST_LURE_BUTTON_NAME] then
+        return _G[EASYCAST_LURE_BUTTON_NAME]
+    end
+
+    local btn = CreateFrame("Button", EASYCAST_LURE_BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
+    btn:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    btn:SetSize(1, 1)
+    btn:SetFrameStrata("LOW")
+    btn:EnableMouse(false)
+    btn:RegisterForClicks("AnyDown")
+    btn:Show()
+
+    -- Set up as macro type (will be updated with lure macro)
+    btn:SetAttribute("type", "macro")
+    btn:SetAttribute("macrotext", "")  -- Will be set dynamically
+
+    -- After the button is clicked (lure applied), clear the binding
+    btn:SetScript("PostClick", function()
+        if not InCombatLockdown() then
+            ClearOverrideBindings(btn)
+        end
+        CFC.easyCastBindingActive = false
+        CFC.easyCastBindingSetTime = 0
+        CFC.easyCastLastAction = nil
+        if CFC.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Lure applied, binding cleared")
+        end
+    end)
+
+    return btn
+end
+
+-- Check if player has an active fishing lure
+function CFC:HasActiveLure()
+    local hasMainHandEnchant = GetWeaponEnchantInfo()
+    return hasMainHandEnchant
+end
+
+-- Check if lure should be auto-applied
+-- Returns: true if lure needed, false if should cast fishing
+function CFC:ShouldApplyLure()
+    -- If already have a lure active, don't apply another
+    if self:HasActiveLure() then
+        return false
+    end
+
+    -- Check if a lure is selected in settings
+    local selectedLureID = self.db and self.db.profile and self.db.profile.selectedLure
+    if not selectedLureID then
+        return false  -- No lure selected, just cast fishing
+    end
+
+    -- Check if player has the selected lure in bags
+    local lureCount = GetItemCount(selectedLureID)
+    if lureCount == 0 then
+        return false  -- No lures in bags, just cast fishing
+    end
+
+    -- All conditions met - should apply lure
+    return true
+end
+
+-- Get the selected lure name
+function CFC:GetSelectedLureName()
+    local selectedLureID = self.db and self.db.profile and self.db.profile.selectedLure
+    if selectedLureID then
+        return EASYCAST_LURE_NAMES[selectedLureID]
+    end
+    return nil
+end
+
+-- Clear the Easy Cast binding (both fishing and lure buttons)
+function CFC:ClearEasyCastBinding()
+    if not InCombatLockdown() then
+        local fishBtn = _G[EASYCAST_BUTTON_NAME]
+        if fishBtn then
+            ClearOverrideBindings(fishBtn)
+        end
+        local lureBtn = _G[EASYCAST_LURE_BUTTON_NAME]
+        if lureBtn then
+            ClearOverrideBindings(lureBtn)
+        end
+    end
+    self.easyCastBindingActive = false
+    self.easyCastBindingSetTime = 0
+    self.easyCastLastAction = nil
+end
+
+-- Set up binding for fishing cast
+function CFC:SetupEasyCastFishingBinding()
+    if InCombatLockdown() then
+        return false
+    end
+
+    local btn = _G[EASYCAST_BUTTON_NAME]
+    if not btn then
+        btn = self:CreateEasyCastButton()
+    end
+
+    if btn then
+        -- Update the spell name
+        local fishingName = self:GetFishingSpellName()
+        btn:SetAttribute("spell", fishingName)
+
+        -- Set override binding - this redirects BUTTON2 (right-click) to our secure button
+        SetOverrideBindingClick(btn, true, "BUTTON2", EASYCAST_BUTTON_NAME)
+        self.easyCastBindingActive = true
+        self.easyCastBindingSetTime = GetTime()
+        self.easyCastLastAction = "fishing"
+
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Binding SET - next right-click will CAST " .. fishingName)
+        end
+        return true
+    end
+    return false
+end
+
+-- Set up binding for lure application
+function CFC:SetupEasyCastLureBinding()
+    if InCombatLockdown() then
+        return false
+    end
+
+    local btn = _G[EASYCAST_LURE_BUTTON_NAME]
+    if not btn then
+        btn = self:CreateEasyCastLureButton()
+    end
+
+    local lureName = self:GetSelectedLureName()
+    if not lureName then
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: No lure selected, falling back to fishing")
+        end
+        return self:SetupEasyCastFishingBinding()
+    end
+
+    if btn then
+        -- Set up macro to apply lure: /use [lure name] then /use 16 (mainhand slot)
+        local macroText = "/use " .. lureName .. "\n/use 16"
+        btn:SetAttribute("macrotext", macroText)
+
+        -- Set override binding
+        SetOverrideBindingClick(btn, true, "BUTTON2", EASYCAST_LURE_BUTTON_NAME)
+        self.easyCastBindingActive = true
+        self.easyCastBindingSetTime = GetTime()
+        self.easyCastLastAction = "lure"
+
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Binding SET - next right-click will APPLY " .. lureName)
+        end
+        return true
+    end
+    return false
+end
+
+-- Set up binding after first click (catches second click)
+-- Automatically chooses between lure application or fishing cast
+function CFC:SetupEasyCastBinding()
+    if InCombatLockdown() then
+        return false
+    end
+
+    -- Check if we should apply a lure first
+    if self:ShouldApplyLure() then
+        return self:SetupEasyCastLureBinding()
+    else
+        return self:SetupEasyCastFishingBinding()
+    end
+end
+
+-- Handle first right-click (sets up binding for second click)
+function CFC:HandleFirstClick()
+    if CFC.debug then
+        print("|cff00ff00[CFC Debug]|r Easy Cast: HandleFirstClick called")
+    end
+
+    -- Check if feature is enabled
+    if not self.db or not self.db.profile.settings.easyCast then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Feature disabled, skipping") end
+        return false
+    end
+
+    -- Only works when HUD is visible
+    if not self.db.profile.hud.show then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: HUD not visible, skipping") end
+        return false
+    end
+
+    -- Check if we just finished looting (within 2 seconds) - skip some checks for quick re-cast
+    local justLooted = (GetTime() - self.easyCastLootClosedTime) < 2.0
+
+    if CFC.debug and justLooted then
+        print("|cff00ff00[CFC Debug]|r Easy Cast: Just looted, allowing quick re-cast")
+    end
+
+    -- Don't interfere if we're on the bobber (let normal click work)
+    -- Skip this check briefly after looting to allow quick re-cast
+    if not justLooted and self:IsOnFishingBobber() then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: On bobber, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
+    -- Don't interfere if we're on the minimap button
+    if self:IsOnMinimapButton() then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: On minimap button, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
+    -- Don't cast if loot window is open or has items
+    if GetNumLootItems() > 0 then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Loot window has items, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
+    -- Don't cast if LootFrame is visible (catches BoP confirmation scenarios)
+    if LootFrame and LootFrame:IsVisible() then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Loot frame visible, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
+    -- Don't cast if a confirmation popup is open (e.g., BoP loot confirmation)
+    for i = 1, STATICPOPUP_NUMDIALOGS or 4 do
+        local popup = _G["StaticPopup" .. i]
+        if popup and popup:IsVisible() then
+            if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Popup dialog open, skipping") end
+            self:ClearEasyCastBinding()
+            return false
+        end
+    end
+
+    -- Don't do anything in combat
+    if InCombatLockdown() then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: In combat, skipping") end
+        return false
+    end
+
+    -- Don't set binding if over UI elements (skip this check briefly after looting)
+    if not justLooted and self:IsOverUIElement() then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Over UI element, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
+    -- If binding not already active, set it up now
+    -- The NEXT right-click will trigger the fishing cast
+    if not self.easyCastBindingActive then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Setting up binding...") end
+        return self:SetupEasyCastBinding()
+    else
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Binding already active") end
+    end
+
+    return false
+end
+
+-- Initialize Easy Cast system
+function CFC:InitializeEasyCast()
+    -- Create the secure buttons on load (fishing and lure)
+    local fishBtn = self:CreateEasyCastButton()
+    local lureBtn = self:CreateEasyCastLureButton()
+
+    if self.debug then
+        if fishBtn then
+            print("|cff00ff00[CFC Debug]|r Easy Cast fishing button created")
+        end
+        if lureBtn then
+            print("|cff00ff00[CFC Debug]|r Easy Cast lure button created")
+        end
+    end
+
+    -- Create a frame to detect right-clicks and manage binding timeout
+    if not self.easyCastFrame then
+        self.easyCastFrame = CreateFrame("Frame", "CFCEasyCastFrame", UIParent)
+
+        local wasRightDown = false
+        self.easyCastFrame:SetScript("OnUpdate", function(frame, elapsed)
+            -- If in combat, clear binding state and skip processing
+            if InCombatLockdown() then
+                if CFC.easyCastBindingActive then
+                    if CFC.debug then
+                        print("|cff00ff00[CFC Debug]|r Easy Cast: In combat, clearing binding state")
+                    end
+                    -- Can't clear actual binding during combat, but reset state
+                    CFC.easyCastBindingActive = false
+                    CFC.easyCastBindingSetTime = 0
+                    CFC.easyCastLastAction = nil
+                end
+                return
+            end
+
+            -- Expire binding after timeout
+            if CFC.easyCastBindingActive and CFC.easyCastBindingSetTime > 0 then
+                local timeSinceSet = GetTime() - CFC.easyCastBindingSetTime
+                if timeSinceSet > EASYCAST_DOUBLE_CLICK_WINDOW then
+                    if CFC.debug then
+                        print("|cff00ff00[CFC Debug]|r Easy Cast: Binding expired (timeout)")
+                    end
+                    CFC:ClearEasyCastBinding()
+                end
+            end
+
+            -- Only process clicks if Easy Cast is enabled and HUD is visible
+            if not CFC.db or not CFC.db.profile.settings.easyCast then
+                return
+            end
+            if not CFC.db.profile.hud.show then
+                return
+            end
+
+            -- Track right mouse button state
+            local isRightDown = IsMouseButtonDown("RightButton")
+
+            if isRightDown and not wasRightDown then
+                -- Mouse button just pressed - record the time
+                CFC.easyCastMouseDownTime = GetTime()
+            elseif wasRightDown and not isRightDown then
+                -- Mouse button just released - check if it was a quick tap
+                local holdDuration = GetTime() - CFC.easyCastMouseDownTime
+                if holdDuration <= EASYCAST_MAX_TAP_DURATION then
+                    -- Quick tap detected (not camera movement)
+                    if CFC.debug then
+                        print("|cff00ff00[CFC Debug]|r Easy Cast: Quick tap detected (" .. string.format("%.2f", holdDuration) .. "s)")
+                    end
+                    CFC:HandleFirstClick()
+                else
+                    -- Long hold - was camera movement, clear any binding
+                    if CFC.debug then
+                        print("|cff00ff00[CFC Debug]|r Easy Cast: Long hold (" .. string.format("%.2f", holdDuration) .. "s) - camera movement, ignoring")
+                    end
+                    CFC:ClearEasyCastBinding()
+                end
+            end
+            wasRightDown = isRightDown
+        end)
+    end
+
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Easy Cast system initialized")
+    end
 end
 

@@ -2,6 +2,33 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.11] - 2026-01-19
+
+### Added
+- **Easy Cast - One-click fishing with automatic lure application**
+  - Double right-click to cast with fishing pole equipped
+  - Automatically applies selected lure when needed (no buff or buff expired)
+  - No more macros needed - Easy Cast handles everything
+  - Works safely with combat (clears binding state when entering/leaving combat)
+  - Blocked when loot windows or confirmation dialogs are open
+- **Rare fish sound notification**
+  - Plays a sound when catching rare fish (Brownell's Blue Striped Racer, Dezian Queenfish, Keefer's Angelfish, Mr. Pinchy, Feralas Ahi, Misty Reed Mahi Mahi, Sar'theris Striker, Savage Coast Blue Sailfin)
+  - Test with `/cfc testsound` command
+- **Easy Cast status indicator on Lure tab**
+  - Shows "Enabled" (green) or "Disabled" (red) with helpful hints
+- **Settings tab reorganized into sections**
+  - General, Announcements, HUD Settings, Easy Cast, Advanced, Data Management
+  - Easier navigation with section headers and separator lines
+
+### Fixed
+- Fixed mob loot being tracked as fish catches during combat
+  - Combat now resets the fishing cast timer to prevent false tracking
+- Fixed Easy Cast interfering with combat actions
+  - Binding state is cleared when entering combat and after leaving combat
+- Loot windows now properly block Easy Cast recasting
+  - Prevents accidental casts when BoP confirmation dialogs are open
+- Purge button now works with lure usage statistics (case-insensitive matching)
+
 ## [1.0.10] - 2026-01-15
 
 ### Added

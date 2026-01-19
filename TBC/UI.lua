@@ -1471,9 +1471,9 @@ function UI:CreateLuresTab()
     -- Description
     frame.desc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
-    frame.desc:SetWidth(260)
+    frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
-    frame.desc:SetText("Select your preferred fishing lure and update your macro with one click.")
+    frame.desc:SetText("Select your preferred fishing lure. With Easy Cast enabled, double right-click will automatically apply your lure when needed.")
 
     -- Selected lure display
     frame.selectedLureLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1483,64 +1483,6 @@ function UI:CreateLuresTab()
     frame.selectedLure = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
     frame.selectedLure:SetPoint("TOPLEFT", frame.selectedLureLabel, "BOTTOMLEFT", 0, -10)
     frame.selectedLure:SetText("|cffaaaaaa(None selected)|r")
-
-    -- Macro instructions
-    frame.instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.instructions:SetPoint("TOPLEFT", frame, "TOPLEFT", 300, -120)
-    frame.instructions:SetWidth(260)
-    frame.instructions:SetJustifyH("LEFT")
-    frame.instructions:SetTextColor(1, 0.82, 0)
-    frame.instructions:SetText("How to create your lure macro:")
-
-    -- Step 1
-    frame.step1 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step1:SetPoint("TOPLEFT", frame.instructions, "BOTTOMLEFT", 10, -8)
-    frame.step1:SetWidth(250)
-    frame.step1:SetJustifyH("LEFT")
-    frame.step1:SetText("1. Select a lure from the list")
-
-    -- Step 2
-    frame.step2 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step2:SetPoint("TOPLEFT", frame.step1, "BOTTOMLEFT", 0, -5)
-    frame.step2:SetWidth(250)
-    frame.step2:SetJustifyH("LEFT")
-    frame.step2:SetText("2. Click the button below to update your macro:")
-
-    -- Update Macro button
-    frame.updateMacroBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.updateMacroBtn:SetSize(200, 30)
-    frame.updateMacroBtn:SetPoint("TOPLEFT", frame.step2, "BOTTOMLEFT", 10, -10)
-    frame.updateMacroBtn:SetText("Update CFC_ApplyLure Macro")
-    frame.updateMacroBtn:SetScript("OnClick", function()
-        CFC:UpdateLureMacro()
-    end)
-
-    -- Tooltip for update macro button
-    frame.updateMacroBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Update Macro", 1, 1, 1)
-        GameTooltip:AddLine("Automatically updates your CFC_ApplyLure macro", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("with the selected lure", 0.8, 0.8, 0.8)
-        GameTooltip:Show()
-    end)
-
-    frame.updateMacroBtn:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-
-    -- Step 3
-    frame.step3 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step3:SetPoint("TOPLEFT", frame.updateMacroBtn, "BOTTOMLEFT", -10, -10)
-    frame.step3:SetWidth(250)
-    frame.step3:SetJustifyH("LEFT")
-    frame.step3:SetText("3. Type |cffffcc00/macro|r to open the macro interface")
-
-    -- Step 4
-    frame.step4 = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.step4:SetPoint("TOPLEFT", frame.step3, "BOTTOMLEFT", 0, -5)
-    frame.step4:SetWidth(250)
-    frame.step4:SetJustifyH("LEFT")
-    frame.step4:SetText("4. Drag CFC_ApplyLure macro to your action bar")
 
     -- Clear selection button (positioned next to label)
     frame.clearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -1599,11 +1541,24 @@ function UI:CreateLuresTab()
                 CFC.HUD:UpdateLureButton()
             end
             print("|cff00ff00Classic Fishing Companion:|r Selected " .. lure.name)
-            print("|cffffcc00→|r Click 'Update CFC_ApplyLure Macro' button to update your macro")
         end)
 
         yOffset = yOffset - 40
     end
+
+    -- Easy Cast Status section (right side)
+    frame.easyCastLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.easyCastLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 320, -120)
+    frame.easyCastLabel:SetText("Easy Cast Status:")
+    frame.easyCastLabel:SetTextColor(1, 0.82, 0)
+
+    frame.easyCastStatus = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    frame.easyCastStatus:SetPoint("TOPLEFT", frame.easyCastLabel, "BOTTOMLEFT", 0, -10)
+
+    frame.easyCastHint = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.easyCastHint:SetPoint("TOPLEFT", frame.easyCastStatus, "BOTTOMLEFT", 0, -5)
+    frame.easyCastHint:SetWidth(220)
+    frame.easyCastHint:SetJustifyH("LEFT")
 
     -- Store reference
     mainFrame.luresFrame = frame
@@ -1630,6 +1585,17 @@ function UI:UpdateLuresTab()
     else
         frame.selectedLure:SetText("|cffaaaaaa(None selected)|r")
     end
+
+    -- Update Easy Cast status
+    if CFC.db.profile.settings.easyCast then
+        frame.easyCastStatus:SetText("Enabled")
+        frame.easyCastStatus:SetTextColor(0, 1, 0)  -- Green
+        frame.easyCastHint:SetText("Double right-click to apply lure and cast.")
+    else
+        frame.easyCastStatus:SetText("Disabled")
+        frame.easyCastStatus:SetTextColor(1, 0, 0)  -- Red
+        frame.easyCastHint:SetText("Go to Settings tab to enable Easy Cast.")
+    end
 end
 
 -- Create Settings Tab
@@ -1644,8 +1610,24 @@ function UI:CreateSettingsTab()
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
     frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
-    frame.scrollChild:SetSize(530, 700)
+    frame.scrollChild:SetSize(530, 1200)  -- Increased for section headers
     frame.scrollFrame:SetScrollChild(frame.scrollChild)
+
+    -- Helper function to create section headers
+    local function CreateSectionHeader(text, anchor, yOffset)
+        local header = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        header:SetPoint("TOP", anchor, "BOTTOM", 0, yOffset)
+        header:SetPoint("LEFT", frame.scrollChild, "LEFT", 5, 0)
+        header:SetText("|cffffd700" .. text .. "|r")
+
+        local line = frame.scrollChild:CreateTexture(nil, "ARTWORK")
+        line:SetHeight(1)
+        line:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -3)
+        line:SetPoint("RIGHT", frame.scrollChild, "RIGHT", -20, 0)
+        line:SetColorTexture(0.5, 0.5, 0.5, 0.5)
+
+        return header
+    end
 
     -- Settings title
     frame.title = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -1661,9 +1643,14 @@ function UI:CreateSettingsTab()
         StaticPopup_Show("CFC_ABOUT_DIALOG")
     end)
 
+    -- =============================================
+    -- GENERAL SECTION
+    -- =============================================
+    frame.generalHeader = CreateSectionHeader("General", frame.title, -20)
+
     -- Minimap Icon Checkbox
     frame.minimapCheck = CreateFrame("CheckButton", "CFCMinimapCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.minimapCheck:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -20)
+    frame.minimapCheck:SetPoint("TOPLEFT", frame.generalHeader, "BOTTOMLEFT", 0, -15)
     frame.minimapCheck.text = frame.minimapCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.minimapCheck.text:SetPoint("LEFT", frame.minimapCheck, "RIGHT", 5, 0)
     frame.minimapCheck.text:SetText("Show Minimap Icon")
@@ -1722,9 +1709,14 @@ function UI:CreateSettingsTab()
     frame.perCharacterDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.perCharacterDesc:SetText("Track fishing statistics separately for each character instead of account-wide. |cffff6600WARNING:|r Enabling this will start fresh statistics for this character!")
 
+    -- =============================================
+    -- ANNOUNCEMENTS SECTION
+    -- =============================================
+    frame.announcementsHeader = CreateSectionHeader("Announcements", frame.perCharacterDesc, -25)
+
     -- Announce Catches Checkbox
     frame.announceCatchesCheck = CreateFrame("CheckButton", "CFCAnnounceCatchesCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.announceCatchesCheck:SetPoint("TOPLEFT", frame.perCharacterDesc, "BOTTOMLEFT", -25, -20)
+    frame.announceCatchesCheck:SetPoint("TOPLEFT", frame.announcementsHeader, "BOTTOMLEFT", 0, -15)
     frame.announceCatchesCheck.text = frame.announceCatchesCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.announceCatchesCheck.text:SetPoint("LEFT", frame.announceCatchesCheck, "RIGHT", 5, 0)
     frame.announceCatchesCheck.text:SetText("Announce Fish Catches")
@@ -1954,9 +1946,14 @@ function UI:CreateSettingsTab()
     frame.milestonesDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.milestonesDesc:SetText("Share your fishing achievements by announcing when you reach catch milestones (100, 250, 500, 1000, 2500, 5000, 10000, etc.).")
 
+    -- =============================================
+    -- HUD SETTINGS SECTION
+    -- =============================================
+    frame.hudHeader = CreateSectionHeader("HUD Settings", frame.milestonesDesc, -25)
+
     -- Show Stats HUD Checkbox
     frame.showHUDCheck = CreateFrame("CheckButton", "CFCShowHUDCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.showHUDCheck:SetPoint("TOPLEFT", frame.milestonesDesc, "BOTTOMLEFT", -25, -20)
+    frame.showHUDCheck:SetPoint("TOPLEFT", frame.hudHeader, "BOTTOMLEFT", 0, -15)
     frame.showHUDCheck.text = frame.showHUDCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.showHUDCheck.text:SetPoint("LEFT", frame.showHUDCheck, "RIGHT", 5, 0)
     frame.showHUDCheck.text:SetText("Show Stats HUD")
@@ -2024,9 +2021,43 @@ function UI:CreateSettingsTab()
     frame.autoSwapDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to combat gear when hiding HUD. Requires gear sets to be saved.")
 
+    -- =============================================
+    -- EASY CAST SECTION
+    -- =============================================
+    frame.easyCastHeader = CreateSectionHeader("Easy Cast", frame.autoSwapDesc, -25)
+
+    -- Easy Cast Checkbox
+    frame.easyCastCheck = CreateFrame("CheckButton", "CFCEasyCastCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.easyCastCheck:SetPoint("TOPLEFT", frame.easyCastHeader, "BOTTOMLEFT", 0, -15)
+    frame.easyCastCheck.text = frame.easyCastCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.easyCastCheck.text:SetPoint("LEFT", frame.easyCastCheck, "RIGHT", 5, 0)
+    frame.easyCastCheck.text:SetText("Easy Cast (Double Right-Click)")
+
+    frame.easyCastCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.easyCast = self:GetChecked()
+        if CFC.db.profile.settings.easyCast then
+            print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cff00ff00enabled|r - Double right-click to cast fishing!")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cffff0000disabled|r")
+        end
+    end)
+
+    -- Easy Cast description
+    frame.easyCastDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.easyCastDesc:SetPoint("TOPLEFT", frame.easyCastCheck, "BOTTOMLEFT", 25, -5)
+    frame.easyCastDesc:SetJustifyH("LEFT")
+    frame.easyCastDesc:SetWidth(500)
+    frame.easyCastDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.easyCastDesc:SetText("Double right-click anywhere to cast your fishing line. If no lure is active and a lure is selected, it will apply the lure first. Only active when HUD is visible. Single right-click on the bobber still loots normally.")
+
+    -- =============================================
+    -- ADVANCED SECTION
+    -- =============================================
+    frame.advancedHeader = CreateSectionHeader("Advanced", frame.easyCastDesc, -25)
+
     -- Debug Mode Checkbox
     frame.debugCheck = CreateFrame("CheckButton", "CFCDebugCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.debugCheck:SetPoint("TOPLEFT", frame.autoSwapDesc, "BOTTOMLEFT", -25, -20)
+    frame.debugCheck:SetPoint("TOPLEFT", frame.advancedHeader, "BOTTOMLEFT", 0, -15)
     frame.debugCheck.text = frame.debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.debugCheck.text:SetPoint("LEFT", frame.debugCheck, "RIGHT", 5, 0)
     frame.debugCheck.text:SetText("Enable Debug Mode")
@@ -2048,14 +2079,14 @@ function UI:CreateSettingsTab()
     frame.debugDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.debugDesc:SetText("Shows detailed debug messages in chat for troubleshooting.")
 
-    -- Data Import/Export Section
-    frame.dataManagementTitle = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    frame.dataManagementTitle:SetPoint("TOPLEFT", frame.debugDesc, "BOTTOMLEFT", -25, -30)
-    frame.dataManagementTitle:SetText("Data Management")
+    -- =============================================
+    -- DATA MANAGEMENT SECTION
+    -- =============================================
+    frame.dataManagementHeader = CreateSectionHeader("Data Management", frame.debugDesc, -25)
 
     -- Enable Automatic Backups Checkbox
     frame.autoBackupCheck = CreateFrame("CheckButton", "CFCAutoBackupCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.autoBackupCheck:SetPoint("TOPLEFT", frame.dataManagementTitle, "BOTTOMLEFT", 0, -15)
+    frame.autoBackupCheck:SetPoint("TOPLEFT", frame.dataManagementHeader, "BOTTOMLEFT", 0, -15)
     frame.autoBackupCheck.text = frame.autoBackupCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.autoBackupCheck.text:SetPoint("LEFT", frame.autoBackupCheck, "RIGHT", 5, 0)
     frame.autoBackupCheck.text:SetText("Enable Automatic Backups")
@@ -2255,6 +2286,9 @@ function UI:UpdateSettings()
 
     -- Update auto-swap checkbox
     frame.autoSwapCheck:SetChecked(CFC.db.profile.settings.autoSwapOnHUD)
+
+    -- Update easy cast checkbox
+    frame.easyCastCheck:SetChecked(CFC.db.profile.settings.easyCast)
 
     -- Update backup checkbox
     frame.autoBackupCheck:SetChecked(CFC.db.profile.backup.enabled)
@@ -2512,6 +2546,22 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.11"] = {
+        features = {
+            "Easy Cast - Double right-click to cast and auto-apply lures!",
+            "No more macros needed - Easy Cast handles lure application automatically",
+            "Rare fish sound notification when catching rare fish",
+            "Settings tab reorganized into sections for easier navigation",
+            "Easy Cast status indicator on Lure tab",
+        },
+        fixes = {
+            "Fixed mob loot being tracked as fish catches during combat",
+            "Fixed Easy Cast interfering with combat actions",
+            "Loot windows now properly block Easy Cast recasting",
+            "Purge button now works with lure usage statistics (case-insensitive)",
+        },
+        tip = "TIP: Enable Easy Cast in Settings, then double right-click to cast!\nWith a lure selected, Easy Cast will auto-apply it when needed."
+    },
     ["1.0.10"] = {
         features = {
             "Auto-Swap Gear on HUD Toggle",

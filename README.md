@@ -7,29 +7,11 @@ A comprehensive fishing tracker addon for World of Warcraft Classic Era and TBC.
 **Update 1/15/26** - Full TBC support released in v1.0.9! The addon now works seamlessly in both Classic Era and TBC with automatic version detection.
 
 
-## Transferring Data from Classic Era to TBC
-
-**Important**: WoW must be completely closed (not just logged out) before copying files.
-
-### Files to Copy
-- **Account-level** (shared settings): `_classic_era_\WTF\Account\[ACCOUNT]\SavedVariables\ClassicFishingCompanion.lua`
-- **Per-character** (fishing statistics): `_classic_era_\WTF\Account\[ACCOUNT]\[SERVER]\[CHARACTER]\SavedVariables\ClassicFishingCompanion.lua`
-
-### Steps
-
-1. **Close WoW completely** (Exit Game, not just log out)
-2. **Copy both files** from your `_classic_era_` folder to the same paths in your `_anniversary_` folder
-3. **Launch TBC** and log into your character
-
-### If It Doesn't Work
-- Make sure WoW was **completely closed** before copying
-- Make sure you copied **both** files
-- You must log into the character in TBC at least once first to create the folders
-
-
 ## Features
 
-
+- **Easy Cast - Double-click fishing with automatic lure application**
+  - Double right-click to cast with fishing pole equipped
+  - Automatically applies selected lure when needed (no buff or buff expired)
 - **Comprehensive Tracking**: Records every fish caught with location, timestamp, and efficiency metrics
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click
@@ -165,6 +147,25 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
 ## Support
+
+## Transferring Data from Classic Era to TBC
+
+**Important**: WoW must be completely closed (not just logged out) before copying files.
+
+### Files to Copy
+- **Account-level** (shared settings): `_classic_era_\WTF\Account\[ACCOUNT]\SavedVariables\ClassicFishingCompanion.lua`
+- **Per-character** (fishing statistics): `_classic_era_\WTF\Account\[ACCOUNT]\[SERVER]\[CHARACTER]\SavedVariables\ClassicFishingCompanion.lua`
+
+### Steps
+
+1. **Close WoW completely** (Exit Game, not just log out)
+2. **Copy both files** from your `_classic_era_` folder to the same paths in your `_anniversary_` folder
+3. **Launch TBC** and log into your character
+
+### If It Doesn't Work
+- Make sure WoW was **completely closed** before copying
+- Make sure you copied **both** files
+- You must log into the character in TBC at least once first to create the folders
 
 
 Issues or suggestions? Check Troubleshooting first, then report bugs at:

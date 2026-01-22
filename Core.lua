@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.11"
+CFC.VERSION = "1.0.12"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -1346,67 +1346,85 @@ function CFC:LoadGearSet(setName)
     local notFoundCount = 0
     local alreadyEquippedCount = 0
 
-    -- Equip each item from the set
-    for slotID, itemLink in pairs(gearSet) do
-        -- Check if this item is already equipped in the correct slot
-        local currentItemLink = GetInventoryItemLink("player", slotID)
-        local targetItemID = tonumber(string.match(itemLink, "item:(%d+)"))
-        local currentItemID = currentItemLink and tonumber(string.match(currentItemLink, "item:(%d+)"))
+    -- Track used bag slots to handle duplicate items (e.g., two identical one-handed weapons)
+    local usedBagSlots = {}
 
-        if currentItemID == targetItemID then
-            -- Item is already equipped in the correct slot, skip it
-            alreadyEquippedCount = alreadyEquippedCount + 1
-            if self.debug then
-                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
-                print("|cff00ff00[CFC Debug]|r   Already equipped: " .. itemName .. " (slot " .. slotID .. ")")
-            end
-        else
-            -- Need to equip this item
-            local itemID = targetItemID
-            if itemID then
-                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
-                local bag, slot = self:FindItemInBags(itemID)
+    -- Define slot processing order - main hand before off-hand to handle dual-wield properly
+    local slotOrder = {
+        16, -- MAINHANDSLOT - process first for dual-wield
+        17, -- SECONDARYHANDSLOT - process second
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19  -- Other slots
+    }
 
-                if bag and slot then
-                    if self.debug then
-                        print("|cff00ff00[CFC Debug]|r   Equipping " .. itemName .. " (slot " .. slotID .. ") from bag " .. bag .. ", slot " .. slot)
-                    end
-                    ClearCursor()  -- Make sure cursor is clear before pickup
+    -- Equip each item from the set in defined order
+    for _, slotID in ipairs(slotOrder) do
+        local itemLink = gearSet[slotID]
+        if itemLink then
+            -- Check if this item is already equipped in the correct slot
+            local currentItemLink = GetInventoryItemLink("player", slotID)
+            local targetItemID = tonumber(string.match(itemLink, "item:(%d+)"))
+            local currentItemID = currentItemLink and tonumber(string.match(currentItemLink, "item:(%d+)"))
 
-                    -- Use C_Container API if available (Classic Anniversary), otherwise use old API
-                    if C_Container and C_Container.PickupContainerItem then
-                        C_Container.PickupContainerItem(bag, slot)
-                        if self.debug then
-                            print("|cffff8800[CFC Debug]|r   Using C_Container.PickupContainerItem")
-                        end
-                    else
-                        PickupContainerItem(bag, slot)
-                        if self.debug then
-                            print("|cffff8800[CFC Debug]|r   Using legacy PickupContainerItem")
-                        end
-                    end
-
-                    -- Validate that item was picked up
-                    local cursorType = GetCursorInfo()
-                    if cursorType ~= "item" then
-                        print("|cffffff00Classic Fishing Companion:|r Could not pick up " .. itemName .. " - item may be locked")
-                        ClearCursor()
-                        notFoundCount = notFoundCount + 1
-                    else
-                        PickupInventoryItem(slotID)
-                        ClearCursor()  -- Clear cursor after swap
-                        swappedCount = swappedCount + 1
-                    end
-                else
-                    notFoundCount = notFoundCount + 1
-                    print("|cffffff00Classic Fishing Companion:|r Could not find " .. itemName .. " in your bags")
-                    if self.debug then
-                        print("|cffff0000[CFC Debug]|r   Item not in bags: " .. itemName .. " (ID: " .. itemID .. ")")
-                    end
+            if currentItemID == targetItemID then
+                -- Item is already equipped in the correct slot, skip it
+                alreadyEquippedCount = alreadyEquippedCount + 1
+                if self.debug then
+                    local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                    print("|cff00ff00[CFC Debug]|r   Already equipped: " .. itemName .. " (slot " .. slotID .. ")")
                 end
             else
-                if self.debug then
-                    print("|cffff0000[CFC Debug]|r   Could not extract item ID from: " .. itemLink)
+                -- Need to equip this item
+                local itemID = targetItemID
+                if itemID then
+                    local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                    local bag, slot = self:FindItemInBags(itemID, usedBagSlots)
+
+                    if bag and slot then
+                        -- Mark this bag slot as used so we don't pick the same item twice
+                        usedBagSlots[bag .. ":" .. slot] = true
+
+                        if self.debug then
+                            print("|cff00ff00[CFC Debug]|r   Equipping " .. itemName .. " (slot " .. slotID .. ") from bag " .. bag .. ", slot " .. slot)
+                        end
+                        ClearCursor()  -- Make sure cursor is clear before pickup
+
+                        -- Use C_Container API if available (Classic Anniversary), otherwise use old API
+                        if C_Container and C_Container.PickupContainerItem then
+                            C_Container.PickupContainerItem(bag, slot)
+                            if self.debug then
+                                print("|cffff8800[CFC Debug]|r   Using C_Container.PickupContainerItem")
+                            end
+                        else
+                            PickupContainerItem(bag, slot)
+                            if self.debug then
+                                print("|cffff8800[CFC Debug]|r   Using legacy PickupContainerItem")
+                            end
+                        end
+
+                        -- Validate that item was picked up
+                        local cursorType = GetCursorInfo()
+                        if cursorType ~= "item" then
+                            print("|cffffff00Classic Fishing Companion:|r Could not pick up " .. itemName .. " - item may be locked")
+                            ClearCursor()
+                            notFoundCount = notFoundCount + 1
+                            -- Remove from used slots since we didn't actually use it
+                            usedBagSlots[bag .. ":" .. slot] = nil
+                        else
+                            PickupInventoryItem(slotID)
+                            ClearCursor()  -- Clear cursor after swap
+                            swappedCount = swappedCount + 1
+                        end
+                    else
+                        notFoundCount = notFoundCount + 1
+                        print("|cffffff00Classic Fishing Companion:|r Could not find " .. itemName .. " in your bags")
+                        if self.debug then
+                            print("|cffff0000[CFC Debug]|r   Item not in bags: " .. itemName .. " (ID: " .. itemID .. ")")
+                        end
+                    end
+                else
+                    if self.debug then
+                        print("|cffff0000[CFC Debug]|r   Could not extract item ID from: " .. itemLink)
+                    end
                 end
             end
         end
@@ -1422,10 +1440,13 @@ function CFC:LoadGearSet(setName)
 end
 
 -- Find item in bags by item ID
-function CFC:FindItemInBags(itemID)
+-- Optional usedBagSlots table to skip already-used slots (for handling duplicate items like dual-wield)
+function CFC:FindItemInBags(itemID, usedBagSlots)
     if self.debug then
         print("|cffff8800[CFC Debug]|r Searching bags for item ID: " .. itemID)
     end
+
+    usedBagSlots = usedBagSlots or {}
 
     -- Determine which bag API to use with explicit checks
     local GetNumSlots, GetItemID
@@ -1468,15 +1489,19 @@ function CFC:FindItemInBags(itemID)
 
         if numSlots > 0 then
             for s = 1, numSlots do
-                local containerItemID = GetItemID(b, s)
-                if self.debug and containerItemID then
-                    print("|cffff8800[CFC Debug]|r     Bag " .. b .. " Slot " .. s .. ": Item " .. containerItemID)
-                end
-                if containerItemID and containerItemID == itemID then
-                    if self.debug then
-                        print("|cff00ff00[CFC Debug]|r   ✓ Found item " .. itemID .. " in bag " .. b .. ", slot " .. s)
+                local slotKey = b .. ":" .. s
+                -- Skip slots that have already been used (for handling duplicate items)
+                if not usedBagSlots[slotKey] then
+                    local containerItemID = GetItemID(b, s)
+                    if self.debug and containerItemID then
+                        print("|cffff8800[CFC Debug]|r     Bag " .. b .. " Slot " .. s .. ": Item " .. containerItemID)
                     end
-                    return b, s
+                    if containerItemID and containerItemID == itemID then
+                        if self.debug then
+                            print("|cff00ff00[CFC Debug]|r   ✓ Found item " .. itemID .. " in bag " .. b .. ", slot " .. s)
+                        end
+                        return b, s
+                    end
                 end
             end
         end

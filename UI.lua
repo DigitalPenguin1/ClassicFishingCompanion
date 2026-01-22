@@ -2529,6 +2529,19 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.12"] = {
+        features = {
+            "Easy Cast - Double right-click to cast and auto-apply lures!",
+            "No more macros needed - Easy Cast handles lure application automatically",
+            "Rare fish sound notification when catching rare fish",
+            "Settings tab reorganized into sections for easier navigation",
+            "Easy Cast status indicator on Lure tab",
+        },
+        fixes = {
+            "Fixed gear swapper not equipping both weapons when dual-wielding identical one-handed weapons",
+        },
+        tip = "TIP: Enable Easy Cast in Settings, then double right-click to cast!\nWith a lure selected, Easy Cast will auto-apply it when needed."
+    },
     ["1.0.11"] = {
         features = {
             "Easy Cast - Double right-click to cast and auto-apply lures!",

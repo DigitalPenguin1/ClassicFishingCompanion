@@ -2,10 +2,17 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.12] - 2026-01-21
+
+### Fixed
+- Fixed gear swapper not equipping both weapons when dual-wielding identical one-handed weapons
+  - Main hand is now always processed before off-hand
+  - Tracks used bag slots to prevent picking the same item twice
+
 ## [1.0.11] - 2026-01-19
 
 ### Added
-- **Easy Cast - One-click fishing with automatic lure application**
+- **Easy Cast - Double-click fishing with automatic lure application**
   - Double right-click to cast with fishing pole equipped
   - Automatically applies selected lure when needed (no buff or buff expired)
   - No more macros needed - Easy Cast handles everything

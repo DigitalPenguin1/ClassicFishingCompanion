@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.12"
+CFC.VERSION = "1.0.13"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -116,6 +116,7 @@ local defaults = {
             milestonesAnnounceEnabled = false,  -- Enable/disable milestone announcements (disabled by default)
             milestonesAnnounce = "GUILD",  -- Channel to announce milestones: SAY, PARTY, GUILD, EMOTE
             autoSwapOnHUD = false,  -- Auto-swap to fishing gear when showing HUD via minimap right-click
+            autoSwapCombatWeapons = false,  -- Auto-swap to combat weapons when entering combat while fishing (disabled by default)
             easyCast = false,  -- Double right-click to cast fishing
             rareFishSound = true,  -- Play sound when catching rare fish (enabled by default)
         },
@@ -262,6 +263,9 @@ function CFC:OnEnable()
     self.addonJustLoaded = true  -- Flag to prevent counting existing lures on first check after load/reload
     self.easyCastLootClosedTime = 0  -- Track when loot window closed for Easy Cast
     self.lastFishingCastTime = 0  -- Track when player last cast Fishing spell (for fallback detection)
+    self.autoSwappedCombatWeapons = false  -- Track if we auto-swapped to combat weapons during combat
+    self.isFishingChannelActive = false  -- Track if we're currently channeling fishing
+    self.combatStopBindingActive = false  -- Track if combat stop binding is set
 
     -- Create scanning tooltip for lure detection
     if not CFC_ScanTooltip then
@@ -282,8 +286,10 @@ function CFC:OnEnable()
     self:RegisterEvent("LOOT_OPENED", "OnLootOpened")
     self:RegisterEvent("LOOT_CLOSED", "OnLootClosed")
     self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", "OnSpellChannelStart")
+    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", "OnSpellChannelStop")
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStart")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+    self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "OnEquipmentChanged")
 
     -- Initialize Easy Cast system (double right-click to cast fishing)
     -- Called after event registration to ensure fishing detection works even if Easy Cast fails
@@ -803,22 +809,228 @@ function CFC:OnSpellChannelStart(event, unit, _, spellID)
     -- Get spell name from ID
     local spellName = GetSpellInfo(spellID)
 
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r OnSpellChannelStart: unit=" .. tostring(unit) .. " spellID=" .. tostring(spellID) .. " spellName=" .. tostring(spellName))
+    end
+
     -- Check if it's the Fishing spell (works across locales by checking spell ID or name)
     -- Fishing spell ID is 7620 in Classic, but name check is more reliable
     if spellName and string.lower(spellName) == "fishing" then
         self.lastFishingCastTime = GetTime()
+        self.isFishingChannelActive = true
+
         if self.debug then
-            print("|cffff8800[CFC Debug]|r Fishing spell cast detected")
+            print("|cffff8800[CFC Debug]|r Fishing started - isFishingChannelActive = true")
         end
     end
 end
 
--- Handle entering combat (reset fishing cast time since combat interrupts fishing)
-function CFC:OnCombatStart()
-    -- Reset fishing cast time - combat interrupts fishing, so any loot after this is mob loot
-    self.lastFishingCastTime = 0
+-- Handle spell channel stop
+function CFC:OnSpellChannelStop(event, unit, _, spellID)
+    if unit ~= "player" then return end
+
     if self.debug then
-        print("|cffff8800[CFC Debug]|r Combat started - fishing cast time reset")
+        print("|cffff8800[CFC Debug]|r OnSpellChannelStop")
+    end
+
+    -- Mark fishing as no longer active
+    self.isFishingChannelActive = false
+end
+
+-- Create the combat weapon swap button (must be created before combat)
+function CFC:CreateCombatSwapButton()
+    if self.combatSwapButton then
+        return self.combatSwapButton
+    end
+
+    local btn = CreateFrame("Button", "CFCCombatSwapButton", UIParent, "SecureActionButtonTemplate,BackdropTemplate")
+    btn:SetSize(220, 50)
+    btn:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+    btn:SetFrameStrata("DIALOG")
+    btn:SetFrameLevel(100)
+    btn:SetAttribute("type", "macro")
+    btn:SetAttribute("macrotext", "")  -- Set by UpdateCombatSwapMacro
+    btn:EnableMouse(true)
+    btn:RegisterForClicks("AnyUp", "AnyDown")
+
+    -- Visual styling
+    btn:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    btn:SetBackdropColor(0.8, 0.1, 0.1, 0.95)
+
+    -- Text
+    local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    text:SetPoint("CENTER", 0, 0)
+    text:SetText("|cffFF0000COMBAT! Click to Swap|r")
+    btn.text = text
+
+    -- Highlight
+    btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+
+    -- Track when clicked and hide button
+    btn:SetScript("PostClick", function()
+        if CFC.debug then
+            print("|cff00ff00[CFC Debug]|r Combat swap button clicked!")
+        end
+        CFC.autoSwappedCombatWeapons = true
+        -- Can't Hide() during combat, but can make invisible
+        btn:SetAlpha(0)
+    end)
+
+    btn:Hide()
+    self.combatSwapButton = btn
+
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Combat swap button created")
+    end
+
+    return btn
+end
+
+-- Update the combat swap button macro with combat weapon names
+-- MUST be called outside of combat (e.g., when entering fishing mode)
+function CFC:UpdateCombatSwapMacro()
+    if InCombatLockdown() then
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Cannot update combat swap macro during combat!")
+        end
+        return false
+    end
+
+    local btn = self:CreateCombatSwapButton()
+
+    if not self.db or not self.db.profile.gearSets or not self.db.profile.gearSets.combat then
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r No combat gear saved for swap macro")
+        end
+        return false
+    end
+
+    local combatGear = self.db.profile.gearSets.combat
+    local macroLines = {"/stopcasting"}  -- Always stop fishing first
+
+    -- Main hand (slot 16)
+    if combatGear[16] then
+        local itemName = string.match(combatGear[16], "%[(.-)%]")
+        if itemName then
+            table.insert(macroLines, "/equip " .. itemName)
+            if self.debug then
+                print("|cff00ff00[CFC Debug]|r Combat swap macro - Main hand: " .. itemName)
+            end
+        end
+    end
+
+    -- Off-hand (slot 17)
+    if combatGear[17] then
+        local itemName = string.match(combatGear[17], "%[(.-)%]")
+        if itemName then
+            table.insert(macroLines, "/equipslot 17 " .. itemName)
+            if self.debug then
+                print("|cff00ff00[CFC Debug]|r Combat swap macro - Off-hand: " .. itemName)
+            end
+        end
+    end
+
+    local macroText = table.concat(macroLines, "\n")
+    btn:SetAttribute("macrotext", macroText)
+
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Combat swap macro updated:")
+        print(macroText)
+    end
+
+    return true
+end
+
+-- Show the combat swap button
+function CFC:ShowCombatSwapButton()
+    if self.combatSwapButton then
+        self.combatSwapButton:SetAlpha(1)  -- Reset alpha in case it was hidden
+        self.combatSwapButton:Show()
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Combat swap button shown")
+        end
+    end
+end
+
+-- Handle entering combat
+function CFC:OnCombatStart()
+    self.lastFishingCastTime = 0
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r === OnCombatStart ===")
+        print("|cffff8800[CFC Debug]|r   currentMode = " .. tostring(self.db and self.db.profile.gearSets and self.db.profile.gearSets.currentMode))
+        print("|cffff8800[CFC Debug]|r   isFishingChannelActive = " .. tostring(self.isFishingChannelActive))
+    end
+
+    -- Auto-swap to combat weapons if enabled and in fishing mode
+    if self.db and self.db.profile.settings.autoSwapCombatWeapons then
+        local currentMode = self.db.profile.gearSets and self.db.profile.gearSets.currentMode
+        if currentMode == "fishing" then
+            if self.isFishingChannelActive then
+                -- Currently fishing - show button to stop cast and swap
+                self:ShowCombatSwapButton()
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Currently fishing - showing swap button")
+                end
+            else
+                -- Not fishing - try to swap immediately (before combat lockdown kicks in)
+                if self:SwapWeaponsOnly("combat") then
+                    self.autoSwappedCombatWeapons = true
+                    print("|cff00ff00Classic Fishing Companion:|r Swapped to combat weapons!")
+                else
+                    -- Swap failed, show button as fallback
+                    self:ShowCombatSwapButton()
+                end
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Not fishing - attempted immediate swap")
+                end
+            end
+        end
+    end
+end
+
+-- Create secure button for combat stop casting (hidden, used for override binding)
+function CFC:CreateCombatStopButton()
+    if not self.combatStopButton then
+        local btn = CreateFrame("Button", "CFCCombatStopButton", UIParent, "SecureActionButtonTemplate")
+        btn:SetSize(1, 1)
+        btn:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        btn:SetAttribute("type", "macro")
+        btn:SetAttribute("macrotext", "/stopcasting")
+        btn:Hide()
+        self.combatStopButton = btn
+    end
+    return self.combatStopButton
+end
+
+-- Set up override binding to stop casting on next left-click (used to attack)
+function CFC:SetupCombatStopBinding()
+    local btn = self:CreateCombatStopButton()
+
+    -- Set override binding - next left-click will stop casting
+    -- Using BUTTON1 (left-click) since you'll left-click to attack anyway
+    SetOverrideBindingClick(btn, true, "BUTTON1", "CFCCombatStopButton")
+    self.combatStopBindingActive = true
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Combat stop binding set - next left-click will stop fishing")
+    end
+end
+
+-- Clear the combat stop binding
+function CFC:ClearCombatStopBinding()
+    if self.combatStopButton and self.combatStopBindingActive then
+        ClearOverrideBindings(self.combatStopButton)
+        self.combatStopBindingActive = false
+
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Combat stop binding cleared")
+        end
     end
 end
 
@@ -827,7 +1039,62 @@ function CFC:OnCombatEnd()
     -- Clear any Easy Cast bindings that might have been stuck during combat
     self:ClearEasyCastBinding()
     if self.debug then
-        print("|cffff8800[CFC Debug]|r Combat ended - Easy Cast bindings cleared")
+        print("|cffff8800[CFC Debug]|r Combat ended")
+    end
+
+    -- Hide the combat swap button (safe to do outside combat)
+    if self.combatSwapButton then
+        self.combatSwapButton:Hide()
+    end
+
+    -- Auto-swap back to fishing weapons if we swapped to combat weapons
+    if self.autoSwappedCombatWeapons then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Auto-swapping back to fishing weapons...")
+        end
+        if self:SwapWeaponsOnly("fishing") then
+            print("|cff00ff00Classic Fishing Companion:|r Combat ended - swapped back to fishing pole!")
+        end
+        self.autoSwappedCombatWeapons = false
+    end
+end
+
+-- Handle equipment changes (detect manual weapon swaps to keep currentMode in sync)
+function CFC:OnEquipmentChanged(event, slot)
+    -- Only care about main hand slot (16)
+    if slot ~= 16 then return end
+
+    -- Don't process if gear sets aren't configured
+    if not self.db or not self.db.profile or not self.db.profile.gearSets then return end
+
+    -- Check what's now in the main hand
+    local mainHandLink = GetInventoryItemLink("player", 16)
+    local isFishingPole = false
+
+    if mainHandLink then
+        local _, _, _, _, _, _, itemSubType = GetItemInfo(mainHandLink)
+        if itemSubType then
+            isFishingPole = string.find(string.lower(itemSubType), "fishing") ~= nil
+        end
+    end
+
+    local currentMode = self.db.profile.gearSets.currentMode or "combat"
+
+    -- Update mode if it's out of sync
+    if isFishingPole and currentMode ~= "fishing" then
+        self.db.profile.gearSets.currentMode = "fishing"
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Detected fishing pole equipped - mode set to 'fishing'")
+        end
+        -- Prepare combat swap button macro
+        if self.db.profile.settings.autoSwapCombatWeapons then
+            self:UpdateCombatSwapMacro()
+        end
+    elseif not isFishingPole and currentMode == "fishing" then
+        self.db.profile.gearSets.currentMode = "combat"
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Detected non-fishing weapon equipped - mode set to 'combat'")
+        end
     end
 end
 
@@ -1168,8 +1435,8 @@ function CFC:CheckMilestone(catchCount)
             -- Show raid warning style notification
             RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
 
-            -- Play a sound (use achievement sound)
-            PlaySound(SOUNDKIT.UI_PLAYER_LEVEL_UP or 888)
+            -- Play a sound (level up fanfare)
+            PlaySound(888)
 
             -- Send to chat channel if enabled
             if enabled and channel then
@@ -1432,11 +1699,100 @@ function CFC:LoadGearSet(setName)
 
     self.db.profile.gearSets.currentMode = setName
 
+    -- If entering fishing mode, prepare the combat swap button macro
+    if setName == "fishing" and self.db.profile.settings.autoSwapCombatWeapons then
+        self:UpdateCombatSwapMacro()
+    end
+
     if self.debug then
         print("|cffff8800[CFC Debug]|r Gear swap complete: " .. swappedCount .. " equipped, " .. alreadyEquippedCount .. " already equipped, " .. notFoundCount .. " not found")
     end
 
     return true
+end
+
+-- Swap only weapons (main hand and off-hand) to a gear set
+-- This can be done during combat since weapons are swappable in combat
+function CFC:SwapWeaponsOnly(setName)
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r === Swapping weapons to " .. setName .. " set ===")
+    end
+
+    if not self.db or not self.db.profile or not self.db.profile.gearSets then
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r No gear sets configured")
+        end
+        return false
+    end
+
+    local gearSet = self.db.profile.gearSets[setName]
+    if not gearSet then
+        if self.debug then
+            print("|cffff0000[CFC Debug]|r Gear set '" .. setName .. "' not found")
+        end
+        return false
+    end
+
+    local swappedCount = 0
+    local usedBagSlots = {}
+
+    -- Only swap weapon slots (16 = main hand, 17 = off-hand)
+    -- Process main hand first for dual-wield handling
+    local weaponSlots = {16, 17}
+
+    for _, slotID in ipairs(weaponSlots) do
+        local itemLink = gearSet[slotID]
+        if itemLink then
+            local currentItemLink = GetInventoryItemLink("player", slotID)
+            local targetItemID = tonumber(string.match(itemLink, "item:(%d+)"))
+            local currentItemID = currentItemLink and tonumber(string.match(currentItemLink, "item:(%d+)"))
+
+            if currentItemID ~= targetItemID then
+                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                local bag, slot = self:FindItemInBags(targetItemID, usedBagSlots)
+
+                if bag and slot then
+                    usedBagSlots[bag .. ":" .. slot] = true
+
+                    if self.debug then
+                        print("|cff00ff00[CFC Debug]|r   Equipping weapon: " .. itemName .. " to slot " .. slotID)
+                    end
+
+                    ClearCursor()
+                    if C_Container and C_Container.PickupContainerItem then
+                        C_Container.PickupContainerItem(bag, slot)
+                    else
+                        PickupContainerItem(bag, slot)
+                    end
+
+                    local cursorType = GetCursorInfo()
+                    if cursorType == "item" then
+                        PickupInventoryItem(slotID)
+                        ClearCursor()
+                        swappedCount = swappedCount + 1
+                    else
+                        ClearCursor()
+                        usedBagSlots[bag .. ":" .. slot] = nil
+                    end
+                else
+                    if self.debug then
+                        print("|cffff0000[CFC Debug]|r   Weapon not in bags: " .. itemName)
+                    end
+                end
+            else
+                if self.debug then
+                    local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
+                    print("|cff00ff00[CFC Debug]|r   Weapon already equipped: " .. itemName)
+                end
+            end
+        end
+    end
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Weapon swap complete: " .. swappedCount .. " weapons swapped")
+    end
+
+    return swappedCount > 0
 end
 
 -- Find item in bags by item ID
@@ -2377,6 +2733,12 @@ SlashCmdList["CFC"] = function(msg)
     elseif msg == "testsound" then
         PlaySound(CFC.CONSTANTS.RARE_FISH_SOUND, "Master")
         print("|cff00ff00Classic Fishing Companion:|r Playing rare fish sound (ID: " .. CFC.CONSTANTS.RARE_FISH_SOUND .. ")")
+    elseif msg == "testmilestone" then
+        local message = "Milestone reached: 1000 fish caught!"
+        print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
+        RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
+        PlaySound(888)
+        print("|cff00ff00Classic Fishing Companion:|r Testing milestone notification (sound ID: 888)")
     else
         if CFC.ToggleUI then
             CFC:ToggleUI()

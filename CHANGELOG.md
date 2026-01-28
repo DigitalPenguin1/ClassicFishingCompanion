@@ -2,6 +2,16 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.13] - 2026-01-27
+
+### Added
+- **Auto-Swap Combat Weapons** - Automatically swap to combat weapons when attacked while fishing!
+  - If not casting when combat starts, weapons swap instantly
+  - If actively fishing, a "COMBAT! Click to Swap" button appears
+  - When combat ends, automatically swaps back to your fishing pole
+  - Enable in Settings under the Easy Cast section
+  - Requires combat gear set to be saved (`/cfc savecombat`)
+
 ## [1.0.12] - 2026-01-21
 
 ### Fixed

@@ -12,6 +12,10 @@ A comprehensive fishing tracker addon for World of Warcraft Classic Era and TBC.
 - **Easy Cast - Double-click fishing with automatic lure application**
   - Double right-click to cast with fishing pole equipped
   - Automatically applies selected lure when needed (no buff or buff expired)
+- **Auto-Swap Combat Weapons** - Defend yourself when attacked while fishing!
+  - If not casting when combat starts, weapons swap instantly
+  - If actively fishing, a button appears to click to swap
+  - When combat ends, auto-swaps back to your fishing pole
 - **Comprehensive Tracking**: Records every fish caught with location, timestamp, and efficiency metrics
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click

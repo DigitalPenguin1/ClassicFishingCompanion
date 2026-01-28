@@ -2037,10 +2037,34 @@ function UI:CreateSettingsTab()
     frame.easyCastDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.easyCastDesc:SetText("Double right-click anywhere to cast your fishing line. If no lure is active and a lure is selected, it will apply the lure first. Only active when HUD is visible. Single right-click on the bobber still loots normally.")
 
+    -- Auto-Swap Combat Weapons Checkbox
+    frame.autoSwapCombatCheck = CreateFrame("CheckButton", "CFCAutoSwapCombatCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.autoSwapCombatCheck:SetPoint("TOPLEFT", frame.easyCastDesc, "BOTTOMLEFT", -25, -10)
+    frame.autoSwapCombatCheck.text = frame.autoSwapCombatCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.autoSwapCombatCheck.text:SetPoint("LEFT", frame.autoSwapCombatCheck, "RIGHT", 5, 0)
+    frame.autoSwapCombatCheck.text:SetText("Auto-Swap Combat Weapons")
+
+    frame.autoSwapCombatCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.autoSwapCombatWeapons = self:GetChecked()
+        if CFC.db.profile.settings.autoSwapCombatWeapons then
+            print("|cff00ff00Classic Fishing Companion:|r Auto-Swap Combat Weapons |cff00ff00enabled|r")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Auto-Swap Combat Weapons |cffff0000disabled|r")
+        end
+    end)
+
+    -- Auto-Swap Combat Weapons description
+    frame.autoSwapCombatDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.autoSwapCombatDesc:SetPoint("TOPLEFT", frame.autoSwapCombatCheck, "BOTTOMLEFT", 25, -5)
+    frame.autoSwapCombatDesc:SetJustifyH("LEFT")
+    frame.autoSwapCombatDesc:SetWidth(500)
+    frame.autoSwapCombatDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.autoSwapCombatDesc:SetText("When combat starts with fishing pole equipped: if not casting, auto-swaps to combat weapons. If actively casting, a button appears to click to swap. When combat ends, auto-swaps back to fishing pole. Requires combat gear set to be saved.")
+
     -- =============================================
     -- ADVANCED SECTION
     -- =============================================
-    frame.advancedHeader = CreateSectionHeader("Advanced", frame.easyCastDesc, -25)
+    frame.advancedHeader = CreateSectionHeader("Advanced", frame.autoSwapCombatDesc, -25)
 
     -- Debug Mode Checkbox
     frame.debugCheck = CreateFrame("CheckButton", "CFCDebugCheck", frame.scrollChild, "UICheckButtonTemplate")
@@ -2276,6 +2300,9 @@ function UI:UpdateSettings()
 
     -- Update easy cast checkbox
     frame.easyCastCheck:SetChecked(CFC.db.profile.settings.easyCast)
+
+    -- Update auto-swap combat weapons checkbox
+    frame.autoSwapCombatCheck:SetChecked(CFC.db.profile.settings.autoSwapCombatWeapons)
 
     -- Update backup checkbox
     frame.autoBackupCheck:SetChecked(CFC.db.profile.backup.enabled)
@@ -2529,6 +2556,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.13"] = {
+        features = {
+            "Auto-Swap Combat Weapons - Automatically swap to combat weapons when attacked!",
+            "If not casting when combat starts, weapons swap instantly",
+            "If actively fishing, a button appears to click to swap",
+            "When combat ends, auto-swaps back to your fishing pole",
+        },
+        fixes = {},
+        tip = "TIP: Enable 'Auto-Swap Combat Weapons' in Settings!\nSave your combat gear first with /cfc savecombat, then fish safely knowing you can defend yourself."
+    },
     ["1.0.12"] = {
         features = {
             "Easy Cast - Double right-click to cast and auto-apply lures!",

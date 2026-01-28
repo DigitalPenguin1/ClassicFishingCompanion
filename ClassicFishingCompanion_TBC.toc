@@ -2,7 +2,7 @@
 ## Title: Classic Fishing Companion (TBC)
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk
-## Version: 1.0.12
+## Version: 1.0.13
 ## SavedVariables: ClassicFishingCompanionDB
 ## SavedVariablesPerCharacter: ClassicFishingCompanionCharDB
 

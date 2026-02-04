@@ -2,6 +2,20 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.14] - 2026-02-03
+
+### Added
+- **Zones Tab** - Redesigned History tab into a zone-based collapsible view
+  - Click any zone to expand and see all fish caught there with icons and counts
+  - Zone headers show total fish, unique species, and % of total catches
+  - Fish entries show catch count and % of zone catches
+  - Zone tooltip: first/last visit dates, top fish, and best fishing hour
+  - Fish tooltip: total caught, caught in zone, first/last date, best hour, top 5 locations
+  - Only fish are shown (chests, lockboxes, gear, etc. are filtered out)
+- **Best Hour statistics** on all fish tooltips across Zones and Catch List tabs
+  - Shows the hour of day when you've caught the most of each fish
+  - Helps identify AM vs PM fish spawns
+
 ## [1.0.13] - 2026-01-27
 
 ### Added

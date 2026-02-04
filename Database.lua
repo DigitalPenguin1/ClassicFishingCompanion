@@ -95,6 +95,162 @@ function CFC.Database:GetZoneList()
     return zones
 end
 
+-- Get zone-based fish summary (for Zones tab)
+-- Returns zones sorted by total fish caught, each with a sorted fish list
+-- Only includes fish items (no chests, lockboxes, gear, etc.)
+function CFC.Database:GetZoneFishSummary()
+    local zoneMap = {}
+
+    -- Fish detection keywords (same logic as Catch List tab)
+    local fishKeywords = {
+        "fish", "salmon", "trout", "bass", "catfish", "snapper",
+        "rockscale", "cod", "tuna", "mahi", "grouper", "sunfish",
+        "perch", "carp", "eel", "mackerel", "herring", "squid",
+        "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
+        "redgill", "whitescale", "bluegill", "stonescale", "yellowtail"
+    }
+
+    local miscKeywords = {
+        "lockbox", "chest", "wreckage", "debris", "crate", "case",
+        "strongbox", "footlocker", "trunk", "coffer", "shoulders",
+        "helm", "gauntlets", "boots", "belt", "cloak", "ring",
+        "trinket", "necklace", "amulet", "sword", "axe", "mace",
+        "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
+        "gem", "pearl", "note", "letter", "ore", "bar", "crystal",
+        "essence", "shard", "gloves", "leggings", "bracers"
+    }
+
+    -- Helper: determine if an item is a fish
+    local function IsFishItem(itemName)
+        local nameLower = string.lower(itemName)
+        local isFish = false
+
+        -- Check fish keywords
+        for _, keyword in ipairs(fishKeywords) do
+            if string.find(nameLower, keyword) then
+                isFish = true
+                break
+            end
+        end
+
+        -- Check item type if not matched by name
+        if not isFish then
+            local fishData = CFC.db.profile.fishData[itemName]
+            local itemType = fishData and fishData.itemType
+            local itemSubType = fishData and fishData.itemSubType
+
+            if not itemType then
+                local _, _, _, _, _, iType, iSubType = GetItemInfo(itemName)
+                itemType = iType
+                itemSubType = iSubType
+            end
+
+            if itemType and itemSubType then
+                local typeLower = string.lower(itemType)
+                local subTypeLower = string.lower(itemSubType)
+                if typeLower == "consumable" and
+                   (string.find(subTypeLower, "food") or string.find(subTypeLower, "drink")) and
+                   not string.find(subTypeLower, "potion") and
+                   not string.find(subTypeLower, "elixir") and
+                   not string.find(nameLower, "potion") and
+                   not string.find(nameLower, "elixir") and
+                   not string.find(nameLower, "scroll") then
+                    isFish = true
+                end
+            end
+        end
+
+        -- Override: misc keywords (unless name contains "fish")
+        if isFish and not string.find(string.lower(itemName), "fish") then
+            for _, keyword in ipairs(miscKeywords) do
+                if string.find(string.lower(itemName), keyword) then
+                    isFish = false
+                    break
+                end
+            end
+        end
+
+        return isFish
+    end
+
+    -- Iterate all catches once, grouping by zone
+    for _, catch in ipairs(CFC.db.profile.catches) do
+        local itemName = catch.itemName or "Unknown"
+        local zone = catch.zone or "Unknown Zone"
+        local timestamp = catch.timestamp or 0
+
+        -- Only include fish items
+        if IsFishItem(itemName) then
+            -- Initialize zone entry
+            if not zoneMap[zone] then
+                zoneMap[zone] = {
+                    name = zone,
+                    totalCatches = 0,
+                    fishMap = {},
+                    firstVisit = timestamp,
+                    lastVisit = timestamp,
+                }
+            end
+
+            local zoneData = zoneMap[zone]
+            zoneData.totalCatches = zoneData.totalCatches + 1
+
+            -- Track first/last visit
+            if timestamp > 0 then
+                if timestamp < zoneData.firstVisit or zoneData.firstVisit == 0 then
+                    zoneData.firstVisit = timestamp
+                end
+                if timestamp > zoneData.lastVisit then
+                    zoneData.lastVisit = timestamp
+                end
+            end
+
+            -- Track fish within this zone
+            if not zoneData.fishMap[itemName] then
+                zoneData.fishMap[itemName] = {
+                    name = itemName,
+                    count = 0,
+                    firstCatch = timestamp,
+                    lastCatch = timestamp,
+                }
+            end
+
+            local fishEntry = zoneData.fishMap[itemName]
+            fishEntry.count = fishEntry.count + 1
+            if timestamp > 0 then
+                if timestamp < fishEntry.firstCatch or fishEntry.firstCatch == 0 then
+                    fishEntry.firstCatch = timestamp
+                end
+                if timestamp > fishEntry.lastCatch then
+                    fishEntry.lastCatch = timestamp
+                end
+            end
+        end
+    end
+
+    -- Convert to sorted arrays
+    local zones = {}
+    for _, zoneData in pairs(zoneMap) do
+        -- Convert fishMap to sorted fishList
+        local fishList = {}
+        for _, fishEntry in pairs(zoneData.fishMap) do
+            table.insert(fishList, fishEntry)
+        end
+        table.sort(fishList, function(a, b) return a.count > b.count end)
+
+        zoneData.fishList = fishList
+        zoneData.uniqueFish = #fishList
+        zoneData.fishMap = nil  -- Clean up temporary map
+
+        table.insert(zones, zoneData)
+    end
+
+    -- Sort zones by total catches (descending)
+    table.sort(zones, function(a, b) return a.totalCatches > b.totalCatches end)
+
+    return zones
+end
+
 -- Get session statistics
 function CFC.Database:GetSessionStats()
     local sessionTime = time() - CFC.db.profile.statistics.sessionStartTime

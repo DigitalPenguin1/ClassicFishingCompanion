@@ -9,6 +9,7 @@ local UI = CFC.UI
 -- UI State
 local mainFrame = nil
 local currentTab = "overview"
+local historyExpandedZones = {}
 
 -- Initialize UI
 function CFC:InitializeUI()
@@ -66,7 +67,7 @@ function UI:CreateTabs()
     local tabs = {
         { name = "overview", label = "Overview" },
         { name = "fishlist", label = "Catch List" },
-        { name = "history", label = "History" },
+        { name = "history", label = "Zones" },
         { name = "stats", label = "Statistics" },
         { name = "gearsets", label = "Gear Sets" },
         { name = "lures", label = "Lure" },
@@ -491,6 +492,35 @@ function UI:UpdateFishList()
                     GameTooltip:AddDoubleLine("Last Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.lastCatch) .. "|r", 1, 1, 1)
                 end
 
+                -- Best hour of day for this item
+                local hourCounts = {}
+                for h = 0, 23 do hourCounts[h] = 0 end
+                local catchList = CFC.Database:GetCatchesByFish(self.fishName)
+                for _, c in ipairs(catchList) do
+                    if c.timestamp then
+                        local hour = tonumber(date("%H", c.timestamp))
+                        if hour then
+                            hourCounts[hour] = hourCounts[hour] + 1
+                        end
+                    end
+                end
+                local bestHour, bestHourCount = 0, 0
+                for h = 0, 23 do
+                    if hourCounts[h] > bestHourCount then
+                        bestHourCount = hourCounts[h]
+                        bestHour = h
+                    end
+                end
+                if bestHourCount > 0 then
+                    local dh = bestHour
+                    local ap = "AM"
+                    if bestHour == 0 then dh = 12
+                    elseif bestHour == 12 then ap = "PM"
+                    elseif bestHour > 12 then dh = bestHour - 12; ap = "PM"
+                    end
+                    GameTooltip:AddDoubleLine("Best Hour:", "|cff88bbff" .. dh .. " " .. ap .. " (" .. bestHourCount .. " caught)|r", 1, 1, 1)
+                end
+
                 -- Add locations
                 if fishData.locations and next(fishData.locations) then
                     GameTooltip:AddLine(" ")
@@ -743,6 +773,35 @@ function UI:UpdateFishList()
                     GameTooltip:AddDoubleLine("Last Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.lastCatch) .. "|r", 1, 1, 1)
                 end
 
+                -- Best hour of day for this item
+                local hourCounts = {}
+                for h = 0, 23 do hourCounts[h] = 0 end
+                local catchList = CFC.Database:GetCatchesByFish(self.fishName)
+                for _, c in ipairs(catchList) do
+                    if c.timestamp then
+                        local hour = tonumber(date("%H", c.timestamp))
+                        if hour then
+                            hourCounts[hour] = hourCounts[hour] + 1
+                        end
+                    end
+                end
+                local bestHour, bestHourCount = 0, 0
+                for h = 0, 23 do
+                    if hourCounts[h] > bestHourCount then
+                        bestHourCount = hourCounts[h]
+                        bestHour = h
+                    end
+                end
+                if bestHourCount > 0 then
+                    local dh = bestHour
+                    local ap = "AM"
+                    if bestHour == 0 then dh = 12
+                    elseif bestHour == 12 then ap = "PM"
+                    elseif bestHour > 12 then dh = bestHour - 12; ap = "PM"
+                    end
+                    GameTooltip:AddDoubleLine("Best Hour:", "|cff88bbff" .. dh .. " " .. ap .. " (" .. bestHourCount .. " caught)|r", 1, 1, 1)
+                end
+
                 -- Add locations
                 if fishData.locations and next(fishData.locations) then
                     GameTooltip:AddLine(" ")
@@ -912,13 +971,13 @@ function UI:UpdateFishList()
     frame.scrollChild:SetHeight(math.abs(yOffset))
 end
 
--- Create History Tab
+-- Create Zones Tab (formerly History)
 function UI:CreateHistoryTab()
     local frame = CreateFrame("Frame", nil, mainFrame.content)
     frame:SetAllPoints()
     frame:Hide()
 
-    -- Scroll frame for history
+    -- Scroll frame
     frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
     frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
@@ -927,43 +986,348 @@ function UI:CreateHistoryTab()
     frame.scrollChild:SetSize(550, 1)
     frame.scrollFrame:SetScrollChild(frame.scrollChild)
 
-    frame.historyText = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.historyText:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, -10)
-    frame.historyText:SetJustifyH("LEFT")
-    frame.historyText:SetWidth(530)
+    -- Empty state text
+    frame.emptyText = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.emptyText:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, -10)
+    frame.emptyText:SetJustifyH("LEFT")
+    frame.emptyText:SetWidth(530)
+    frame.emptyText:SetText("No fish caught yet.")
+    frame.emptyText:Hide()
+
+    -- Frame pools for zone headers and fish entries
+    frame.zoneHeaders = {}
+    frame.fishEntries = {}
 
     mainFrame.historyFrame = frame
 end
 
--- Update History Tab
-function UI:UpdateHistory()
-    local frame = mainFrame.historyFrame
-    local catches = CFC.Database:GetRecentCatches(50)
+-- Helper: Get or create a zone header frame
+function UI:GetZoneHeader(parent, index)
+    local frame = parent.zoneHeaders[index]
+    if frame then return frame end
 
-    local text = ""
+    frame = CreateFrame("Button", nil, parent.scrollChild)
+    frame:SetSize(540, 30)
 
-    for _, catch in ipairs(catches) do
-        local itemName = catch.itemName or "Unknown"
-        local coloredName = CFC:GetColoredItemName(itemName)
-        local location = catch.zone or "Unknown Zone"
-        local date = catch.date or "Unknown Date"
-        if catch.subzone and catch.subzone ~= "" then
-            location = location .. " - " .. catch.subzone
+    -- Background
+    frame.bg = frame:CreateTexture(nil, "BACKGROUND")
+    frame.bg:SetAllPoints()
+    frame.bg:SetColorTexture(0.15, 0.15, 0.15, 0.6)
+
+    -- Expand/collapse indicator
+    frame.indicator = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.indicator:SetPoint("LEFT", frame, "LEFT", 8, 0)
+    frame.indicator:SetWidth(16)
+    frame.indicator:SetText("|cffffff00+|r")
+
+    -- Zone name (gold)
+    frame.zoneName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.zoneName:SetPoint("LEFT", frame.indicator, "RIGHT", 6, 0)
+    frame.zoneName:SetJustifyH("LEFT")
+    frame.zoneName:SetWidth(320)
+
+    -- Stats on right (gray)
+    frame.stats = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.stats:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
+    frame.stats:SetJustifyH("RIGHT")
+
+    -- Separator line below
+    frame.separator = frame:CreateTexture(nil, "ARTWORK")
+    frame.separator:SetSize(540, 1)
+    frame.separator:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+    frame.separator:SetColorTexture(0.3, 0.3, 0.3, 0.8)
+
+    -- Highlight on hover
+    frame:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+
+    -- Tooltip
+    frame:SetScript("OnEnter", function(self)
+        if not self.zoneData then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("|cffffff00" .. self.zoneData.name .. "|r")
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine("Total Fish Caught:", "|cff00ff00" .. self.zoneData.totalCatches .. "|r", 1, 1, 1)
+        GameTooltip:AddDoubleLine("Unique Species:", "|cff00ff00" .. self.zoneData.uniqueFish .. "|r", 1, 1, 1)
+        if self.zoneData.firstVisit and self.zoneData.firstVisit > 0 then
+            GameTooltip:AddDoubleLine("First Visit:", "|cffaaaaaa" .. date("%m/%d/%Y", self.zoneData.firstVisit) .. "|r", 1, 1, 1)
+        end
+        if self.zoneData.lastVisit and self.zoneData.lastVisit > 0 then
+            GameTooltip:AddDoubleLine("Last Visit:", "|cffaaaaaa" .. date("%m/%d/%Y", self.zoneData.lastVisit) .. "|r", 1, 1, 1)
         end
 
-        text = text .. "|cffaaaaaa" .. date .. "|r\n"
-        text = text .. "  " .. coloredName .. " in " .. location .. "\n\n"
+        -- Top fish in this zone
+        if self.zoneData.fishList and #self.zoneData.fishList > 0 then
+            local topFish = self.zoneData.fishList[1]
+            local coloredName = CFC:GetColoredItemName(topFish.name)
+            GameTooltip:AddDoubleLine("Top Fish:", coloredName .. " |cff00ff00(" .. topFish.count .. ")|r", 1, 1, 1)
+        end
+
+        -- Best hour for this zone
+        local zoneCatches = CFC.Database:GetCatchesByZone(self.zoneData.name)
+        local hourCounts = {}
+        for h = 0, 23 do hourCounts[h] = 0 end
+        for _, catch in ipairs(zoneCatches) do
+            if catch.timestamp then
+                local hour = tonumber(date("%H", catch.timestamp))
+                if hour then
+                    hourCounts[hour] = hourCounts[hour] + 1
+                end
+            end
+        end
+        local bestHour, bestCount = 0, 0
+        for h = 0, 23 do
+            if hourCounts[h] > bestCount then
+                bestCount = hourCounts[h]
+                bestHour = h
+            end
+        end
+        if bestCount > 0 then
+            local dh = bestHour
+            local ap = "AM"
+            if bestHour == 0 then dh = 12
+            elseif bestHour == 12 then ap = "PM"
+            elseif bestHour > 12 then dh = bestHour - 12; ap = "PM"
+            end
+            GameTooltip:AddDoubleLine("Best Hour:", "|cff88bbff" .. dh .. " " .. ap .. " (" .. bestCount .. " caught)|r", 1, 1, 1)
+        end
+
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    parent.zoneHeaders[index] = frame
+    return frame
+end
+
+-- Helper: Get or create a fish entry frame
+function UI:GetFishEntry(parent, index)
+    local entry = parent.fishEntries[index]
+    if entry then return entry end
+
+    entry = CreateFrame("Frame", nil, parent.scrollChild)
+    entry:SetSize(520, 28)
+
+    -- Subtle background
+    entry.bg = entry:CreateTexture(nil, "BACKGROUND")
+    entry.bg:SetAllPoints()
+    entry.bg:SetColorTexture(0.08, 0.08, 0.08, 0.4)
+
+    -- Fish icon
+    entry.icon = entry:CreateTexture(nil, "ARTWORK")
+    entry.icon:SetSize(24, 24)
+    entry.icon:SetPoint("LEFT", entry, "LEFT", 10, 0)
+
+    -- Fish name (color-coded by rarity)
+    entry.name = entry:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    entry.name:SetPoint("LEFT", entry.icon, "RIGHT", 8, 0)
+    entry.name:SetJustifyH("LEFT")
+    entry.name:SetWidth(280)
+
+    -- Catch count (green)
+    entry.count = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    entry.count:SetPoint("RIGHT", entry, "RIGHT", -10, 0)
+
+    -- Tooltip
+    entry:EnableMouse(true)
+    entry:SetScript("OnEnter", function(self)
+        if not self.fishName then return end
+
+        local fishData = CFC.db.profile.fishData[self.fishName]
+        if not fishData then return end
+
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+        -- Show item tooltip if available
+        local itemName, itemLink = GetItemInfo(self.fishName)
+        if itemLink then
+            GameTooltip:SetHyperlink(itemLink)
+        else
+            GameTooltip:SetText(self.fishName, 1, 1, 1)
+        end
+
+        -- Catch statistics
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("|cffffff00Catch Statistics:|r")
+        GameTooltip:AddDoubleLine("Total Caught:", "|cff00ff00" .. fishData.count .. "|r", 1, 1, 1)
+
+        if self.zoneCatchCount then
+            GameTooltip:AddDoubleLine("Caught Here:", "|cff00ff00" .. self.zoneCatchCount .. "|r", 1, 1, 1)
+        end
+
+        if fishData.firstCatch then
+            GameTooltip:AddDoubleLine("First Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.firstCatch) .. "|r", 1, 1, 1)
+        end
+
+        if fishData.lastCatch then
+            GameTooltip:AddDoubleLine("Last Caught:", "|cffaaaaaa" .. date("%m/%d/%Y", fishData.lastCatch) .. "|r", 1, 1, 1)
+        end
+
+        -- Best hour of day for this fish
+        local hourCounts = {}
+        for h = 0, 23 do hourCounts[h] = 0 end
+        local catches = CFC.Database:GetCatchesByFish(self.fishName)
+        for _, catch in ipairs(catches) do
+            if catch.timestamp then
+                local hour = tonumber(date("%H", catch.timestamp))
+                if hour then
+                    hourCounts[hour] = hourCounts[hour] + 1
+                end
+            end
+        end
+        local bestHour, bestCount = 0, 0
+        for h = 0, 23 do
+            if hourCounts[h] > bestCount then
+                bestCount = hourCounts[h]
+                bestHour = h
+            end
+        end
+        if bestCount > 0 then
+            local displayHour = bestHour
+            local ampm = "AM"
+            if bestHour == 0 then displayHour = 12
+            elseif bestHour == 12 then ampm = "PM"
+            elseif bestHour > 12 then displayHour = bestHour - 12; ampm = "PM"
+            end
+            GameTooltip:AddDoubleLine("Best Hour:", "|cff88bbff" .. displayHour .. " " .. ampm .. " (" .. bestCount .. " caught)|r", 1, 1, 1)
+        end
+
+        -- Top locations
+        if fishData.locations and next(fishData.locations) then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("|cffffff00Top Locations:|r")
+
+            local locationList = {}
+            for _, locData in pairs(fishData.locations) do
+                table.insert(locationList, locData)
+            end
+            table.sort(locationList, function(a, b) return a.count > b.count end)
+
+            for i, locData in ipairs(locationList) do
+                if i > 5 then break end
+                local location = locData.zone
+                if locData.subzone and locData.subzone ~= "" then
+                    location = locData.zone .. " - " .. locData.subzone
+                end
+                GameTooltip:AddDoubleLine("  " .. location, "|cff00ff00" .. locData.count .. "|r", 0.8, 0.8, 0.8)
+            end
+        end
+
+        GameTooltip:Show()
+    end)
+
+    entry:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    parent.fishEntries[index] = entry
+    return entry
+end
+
+-- Helper: Get icon texture for a fish item
+function UI:GetFishIcon(fishName)
+    -- Try cached icon first
+    if CFC.db.profile.fishData[fishName] and CFC.db.profile.fishData[fishName].icon then
+        return CFC.db.profile.fishData[fishName].icon
     end
 
-    if text == "" then
-        text = "No catches recorded yet."
+    -- Try GetItemInfo
+    local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(fishName)
+    if texture then
+        if CFC.db.profile.fishData[fishName] then
+            CFC.db.profile.fishData[fishName].icon = texture
+        end
+        return texture
     end
 
-    frame.historyText:SetText(text)
+    return "Interface\\Icons\\INV_Misc_QuestionMark"
+end
 
-    -- Update scroll height
-    local _, textHeight = frame.historyText:GetFont()
-    frame.scrollChild:SetHeight(math.max(350, #catches * 50))
+-- Update Zones Tab (formerly History)
+function UI:UpdateHistory()
+    local frame = mainFrame.historyFrame
+    local zones = CFC.Database:GetZoneFishSummary()
+
+    -- Hide all existing elements
+    for _, header in ipairs(frame.zoneHeaders) do
+        header:Hide()
+    end
+    for _, entry in ipairs(frame.fishEntries) do
+        entry:Hide()
+    end
+
+    -- Empty state
+    if #zones == 0 then
+        frame.emptyText:Show()
+        frame.scrollChild:SetHeight(350)
+        return
+    end
+    frame.emptyText:Hide()
+
+    -- Calculate grand total for zone percentages
+    local grandTotal = 0
+    for _, zoneData in ipairs(zones) do
+        grandTotal = grandTotal + zoneData.totalCatches
+    end
+
+    local yOffset = -5
+    local headerIndex = 1
+    local entryIndex = 1
+
+    for _, zoneData in ipairs(zones) do
+        -- Create/reuse zone header
+        local header = self:GetZoneHeader(frame, headerIndex)
+        header:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 5, yOffset)
+        header.zoneData = zoneData
+
+        local isExpanded = historyExpandedZones[zoneData.name]
+        header.indicator:SetText(isExpanded and "|cffffff00-|r" or "|cffffff00+|r")
+        header.zoneName:SetText("|cffffd700" .. zoneData.name .. "|r")
+
+        -- Zone stats with % of total catches
+        local zonePct = grandTotal > 0 and string.format("%.0f%%", (zoneData.totalCatches / grandTotal) * 100) or "0%"
+        header.stats:SetText("|cffaaaaaa" .. zoneData.totalCatches .. " fish, " .. zoneData.uniqueFish .. " unique |cff88bbff(" .. zonePct .. ")|r")
+
+        -- Click to toggle expand/collapse
+        header:SetScript("OnClick", function()
+            historyExpandedZones[zoneData.name] = not historyExpandedZones[zoneData.name]
+            UI:UpdateHistory()
+        end)
+
+        header:Show()
+        headerIndex = headerIndex + 1
+        yOffset = yOffset - 32
+
+        -- Show fish entries if expanded
+        if isExpanded then
+            for _, fishInfo in ipairs(zoneData.fishList) do
+                local entry = self:GetFishEntry(frame, entryIndex)
+                entry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 25, yOffset)
+                entry.fishName = fishInfo.name
+                entry.zoneCatchCount = fishInfo.count
+
+                -- Icon
+                local iconTexture = self:GetFishIcon(fishInfo.name)
+                entry.icon:SetTexture(iconTexture)
+                entry.icon:Show()
+
+                -- Color-coded name
+                local coloredName = CFC:GetColoredItemName(fishInfo.name)
+                entry.name:SetText(coloredName)
+
+                -- Count with % of zone catches
+                local fishPct = zoneData.totalCatches > 0 and string.format("%.0f%%", (fishInfo.count / zoneData.totalCatches) * 100) or "0%"
+                entry.count:SetText("|cff00ff00" .. fishInfo.count .. "|r caught |cffaaaaaa(" .. fishPct .. ")|r")
+
+                entry:Show()
+                entryIndex = entryIndex + 1
+                yOffset = yOffset - 30
+            end
+        end
+    end
+
+    frame.scrollChild:SetHeight(math.abs(yOffset) + 10)
 end
 
 -- Create a horizontal bar for graphs
@@ -2341,7 +2705,6 @@ function CFC:ToggleUI()
         mainFrame:Hide()
     else
         mainFrame:Show()
-        UI:ShowTab(currentTab)
 
         -- Show "What's New" dialog on first UI open after version update
         if CFC.db and CFC.db.profile then
@@ -2352,6 +2715,8 @@ function CFC:ToggleUI()
                 end)
             end
         end
+
+        UI:ShowTab(currentTab)
     end
 end
 
@@ -2556,6 +2921,17 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.14"] = {
+        features = {
+            "Zones Tab - Redesigned History into a zone-based collapsible view!",
+            "Click any zone to see all fish caught there with icons and counts",
+            "Zone stats: total fish, unique species, %% of total catches",
+            "Fish stats: catch count, %% of zone catches, best hour of day",
+            "Best Hour tooltip on all fish across Zones and Catch List tabs",
+        },
+        fixes = {},
+        tip = "TIP: Click on a zone header to expand it and see your fish!\nBest Hour helps identify AM vs PM fish spawns."
+    },
     ["1.0.13"] = {
         features = {
             "Auto-Swap Combat Weapons - Automatically swap to combat weapons when attacked!",

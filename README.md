@@ -1,7 +1,7 @@
 # Classic Fishing Companion
 
 
-A comprehensive fishing tracker addon for World of Warcraft Classic Era and TBC. Track catches, monitor efficiency, view detailed statistics, and display real-time stats with an on-screen HUD.
+A comprehensive fishing companion addon for World of Warcraft Classic Era and TBC. Features Easy Cast (double-click fishing with auto-lure), auto-swap combat weapons when attacked, gear set management, real-time Stats HUD, zone-based catch tracking with best hour statistics, detailed statistics, lure manager with missing lure warnings, rare fish sound alerts, milestone notifications, and automatic backups.
 
 
 **Update 1/15/26** - Full TBC support released in v1.0.9! The addon now works seamlessly in both Classic Era and TBC with automatic version detection.
@@ -20,8 +20,9 @@ A comprehensive fishing tracker addon for World of Warcraft Classic Era and TBC.
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click
 - **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button (Classic Era) or create a macro for application (TBC - due to API restrictions)
-- **Detailed Statistics**: Catch list with fish/miscellaneous separation, catch history, top catches, zone productivity, skill progression, and buff/pole usage
-- **Rich Tooltips**: Hover over catches to see detailed statistics and location data
+- **Zones Tab**: Collapsible zone-based view showing all fish caught per zone with icons, counts, percentages, best fishing hour, and top fish
+- **Detailed Statistics**: Catch list with fish/miscellaneous separation, top catches, zone productivity, skill progression, and buff/pole usage
+- **Rich Tooltips**: Hover over catches to see detailed statistics, best hour of day, and location data
 - **Per-Character Mode**: Optional per-character statistics tracking with account data copy option
 - **Missing Lure Warnings**: Configurable on-screen alerts (30, 60, or 90 seconds) when fishing without a lure
 - **Automatic Backup System**: Internal backups every 24 hours (stored in SavedVariables: `WTF\Account\[ACCOUNT_NAME]\[RandomNumberString]\SavedVariables\ClassicFishingCompanion.lua.bak`)
@@ -65,8 +66,8 @@ Current session and lifetime stats at a glance with the recent catches list.
 All unique catches separated into Fish and Miscellaneous sections, sorted by count. Hover over items for detailed statistics, locations, and catch dates.
 
 
-### History
-Log of your last 50 catches with date/time and location.
+### Zones
+Zone-based collapsible view of all fish caught. Click a zone to expand and see every fish species caught there with icons, catch counts, and percentages. Zone tooltips show first/last visit, top fish, and best fishing hour. Fish tooltips show total caught, caught in zone, best hour, and top locations.
 
 
 ### Statistics
@@ -147,7 +148,7 @@ Lightweight design with minimal impact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-**Latest (v1.0.9)**: Full TBC support with macro-based lure system, dynamic HUD lure icons, and all v1.0.8 features working in both Classic Era and TBC.
+**Latest (v1.0.14)**: New Zones tab with collapsible zone-based fish tracking, best hour statistics, and percentage breakdowns.
 
 
 ## Support

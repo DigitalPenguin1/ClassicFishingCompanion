@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.13"
+CFC.VERSION = "1.0.14"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {

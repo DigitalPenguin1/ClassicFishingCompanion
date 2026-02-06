@@ -2,6 +2,9 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.15] - 2026-02-05
+- Bug Fixes for TBC.
+
 ## [1.0.14] - 2026-02-03
 
 ### Added

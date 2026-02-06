@@ -107,7 +107,8 @@ function CFC.Database:GetZoneFishSummary()
         "rockscale", "cod", "tuna", "mahi", "grouper", "sunfish",
         "perch", "carp", "eel", "mackerel", "herring", "squid",
         "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
-        "redgill", "whitescale", "bluegill", "stonescale", "yellowtail"
+        "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
+        "crawdad", "darter", "feltail", "crocolisk"
     }
 
     local miscKeywords = {
@@ -116,7 +117,7 @@ function CFC.Database:GetZoneFishSummary()
         "helm", "gauntlets", "boots", "belt", "cloak", "ring",
         "trinket", "necklace", "amulet", "sword", "axe", "mace",
         "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
-        "gem", "pearl", "note", "letter", "ore", "bar", "crystal",
+        "gem", "pearl", "note", "letter", "ore", "crystal",
         "essence", "shard", "gloves", "leggings", "bracers"
     }
 

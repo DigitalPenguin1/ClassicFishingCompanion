@@ -3,10 +3,6 @@
 
 A comprehensive fishing companion addon for World of Warcraft Classic Era and TBC. Features Easy Cast (double-click fishing with auto-lure), auto-swap combat weapons when attacked, gear set management, real-time Stats HUD, zone-based catch tracking with best hour statistics, detailed statistics, lure manager with missing lure warnings, rare fish sound alerts, milestone notifications, and automatic backups.
 
-
-**Update 1/15/26** - Full TBC support released in v1.0.9! The addon now works seamlessly in both Classic Era and TBC with automatic version detection.
-
-
 ## Features
 
 - **Easy Cast - Double-click fishing with automatic lure application**
@@ -19,7 +15,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Comprehensive Tracking**: Records every fish caught with location, timestamp, and efficiency metrics
 - **Stats HUD**: Draggable on-screen display showing session/total catches, fish/hour, skill level, and active lure with color-coded timer
 - **Gear Sets**: Save and swap between fishing and combat equipment with one click
-- **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button (Classic Era) or create a macro for application (TBC - due to API restrictions)
+- **Lure Manager**: Select your preferred lure and apply it instantly with the HUD button
 - **Zones Tab**: Collapsible zone-based view showing all fish caught per zone with icons, counts, percentages, best fishing hour, and top fish
 - **Detailed Statistics**: Catch list with fish/miscellaneous separation, top catches, zone productivity, skill progression, and buff/pole usage
 - **Rich Tooltips**: Hover over catches to see detailed statistics, best hour of day, and location data

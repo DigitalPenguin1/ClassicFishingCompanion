@@ -2,6 +2,21 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.16] - 2026-02-09
+
+### Added
+- **Keybinding Support** - Bind keys to Toggle Fishing HUD and Toggle Fishing UI
+  - Custom "Classic Fishing Companion" section in WoW Key Bindings menu
+  - Toggle HUD keybind includes auto-swap gear if enabled
+- **`/cfc hud` command** - Toggle the Stats HUD from chat (includes gear swap if enabled)
+- **TBC Fish Detection** - Added keywords for TBC fish: crawdad, darter, feltail, crocolisk
+- **Nat Pagle Quest Fish Detection** - Added keywords: ahi, striker, sailfin
+- **Addon Icon** - Fishing icon now shows in TBC addon list
+
+### Fixed
+- Fixed Barbed Gill Trout showing as misc instead of fish ("bar" in miscKeywords matched "Barbed")
+- Fixed What's New dialog crash from unescaped %% in SetFormattedText
+
 ## [1.0.15] - 2026-02-05
 - Bug Fixes for TBC.
 

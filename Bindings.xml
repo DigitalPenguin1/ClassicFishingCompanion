@@ -1,0 +1,8 @@
+<Bindings>
+  <Binding name="CFC_TOGGLE_HUD" Category="BINDING_HEADER_CFC">
+    SlashCmdList["CFC"]("hud")
+  </Binding>
+  <Binding name="CFC_TOGGLE_UI" Category="BINDING_HEADER_CFC">
+    SlashCmdList["CFC"]("")
+  </Binding>
+</Bindings>

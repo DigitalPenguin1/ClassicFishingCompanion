@@ -24,6 +24,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Automatic Backup System**: Internal backups every 24 hours (stored in SavedVariables: `WTF\Account\[ACCOUNT_NAME]\[RandomNumberString]\SavedVariables\ClassicFishingCompanion.lua.bak`)
   - Export reminder shown every 7 days of play time, export reminders every 7 days, one-click restore
 - **Minimap Button**: Quick access to UI (left-click), HUD toggle (right-click), and session stats (hover)
+- **Keybinding Support**: Bind keys to Toggle HUD and Toggle UI via WoW Key Bindings menu
 - **Customizable Settings**: Toggle features, lock HUD position, enable debug mode, and more
 
 
@@ -49,6 +50,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - `/cfc savefishing` - Save current gear as fishing set
 - `/cfc savecombat` - Save current gear as a combat set
 - `/cfc swap` - Swap between fishing and combat gear
+- `/cfc hud` - Toggle Stats HUD (includes gear swap if enabled)
 
 
 ## Interface Tabs
@@ -144,7 +146,7 @@ Lightweight design with minimal impact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-**Latest (v1.0.14)**: New Zones tab with collapsible zone-based fish tracking, best hour statistics, and percentage breakdowns.
+**Latest (v1.0.16)**: Keybinding support, /cfc hud command, TBC fish detection fixes, addon icon.
 
 
 ## Support

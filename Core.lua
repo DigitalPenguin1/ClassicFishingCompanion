@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.15"
+CFC.VERSION = "1.0.16"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -2739,6 +2739,35 @@ SlashCmdList["CFC"] = function(msg)
         RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
         PlaySound(888)
         print("|cff00ff00Classic Fishing Companion:|r Testing milestone notification (sound ID: 888)")
+    elseif msg == "hud" then
+        if CFC.HUD and CFC.HUD.ToggleShow then
+            -- Auto-swap gear if enabled
+            if CFC.db.profile.settings.autoSwapOnHUD then
+                local gearSets = CFC.db.profile.gearSets
+                local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
+                local hasCombatGear = gearSets and gearSets.combat and next(gearSets.combat)
+
+                if hasFishingGear and hasCombatGear then
+                    local hudCurrentlyShown = CFC.db.profile.hud.show
+                    local currentMode = gearSets.currentMode or "combat"
+
+                    if hudCurrentlyShown then
+                        if currentMode ~= "combat" and CFC.SwapGear then
+                            CFC:SwapGear()
+                        end
+                    else
+                        if currentMode ~= "fishing" and CFC.SwapGear then
+                            CFC:SwapGear()
+                        end
+                    end
+                else
+                    print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
+                end
+            end
+            CFC.HUD:ToggleShow()
+        else
+            print("|cff00ff00Classic Fishing Companion:|r HUD module not loaded.")
+        end
     else
         if CFC.ToggleUI then
             CFC:ToggleUI()

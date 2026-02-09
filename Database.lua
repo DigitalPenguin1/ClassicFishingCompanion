@@ -108,7 +108,8 @@ function CFC.Database:GetZoneFishSummary()
         "perch", "carp", "eel", "mackerel", "herring", "squid",
         "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
         "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
-        "crawdad", "darter", "feltail", "crocolisk"
+        "crawdad", "darter", "feltail", "crocolisk",
+        "ahi", "striker", "sailfin"
     }
 
     local miscKeywords = {

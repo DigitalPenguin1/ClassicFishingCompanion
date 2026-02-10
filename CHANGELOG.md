@@ -2,6 +2,11 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.17] - 2026-02-10
+
+### Improved
+- Reduced debug output noise for cleaner logging, Updated minimap icon to match curseforge page logo. 
+
 ## [1.0.16] - 2026-02-09
 
 ### Added

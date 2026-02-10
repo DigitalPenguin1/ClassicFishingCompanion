@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.16"
+CFC.VERSION = "1.0.17"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -1635,10 +1635,6 @@ function CFC:LoadGearSet(setName)
             if currentItemID == targetItemID then
                 -- Item is already equipped in the correct slot, skip it
                 alreadyEquippedCount = alreadyEquippedCount + 1
-                if self.debug then
-                    local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
-                    print("|cff00ff00[CFC Debug]|r   Already equipped: " .. itemName .. " (slot " .. slotID .. ")")
-                end
             else
                 -- Need to equip this item
                 local itemID = targetItemID
@@ -2293,10 +2289,6 @@ function CFC:HasGearSets()
     local hasCombat = combat and next(combat)
     local hasGearSets = hasFishing and hasCombat
 
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r HasGearSets: fishing=" .. tostring(hasFishing) .. ", combat=" .. tostring(hasCombat) .. ", result=" .. tostring(hasGearSets))
-    end
-
     return hasGearSets
 end
 
@@ -2310,11 +2302,6 @@ function CFC:GetCurrentGearMode()
     end
 
     local mode = self.db.profile.gearSets.currentMode or "combat"
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r GetCurrentGearMode: " .. mode)
-    end
-
     return mode
 end
 

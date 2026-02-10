@@ -2940,19 +2940,15 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
-    ["1.0.16"] = {
+    ["1.0.17"] = {
         features = {
             "Keybinding Support - Bind keys to Toggle HUD and Toggle UI!",
             "/cfc hud command - Toggle Stats HUD from chat",
             "TBC fish detection - Crawdad, Darter, Feltail, Crocolisk now tracked",
             "Nat Pagle quest fish detection - Ahi, Striker, Sailfin now tracked",
-            "Addon icon in TBC addon list",
         },
-        fixes = {
-            "Fixed Barbed Gill Trout showing as misc instead of fish",
-            "Fixed What's New dialog crash from %% in text",
-        },
-        tip = "TIP: Open Key Bindings (Escape > Key Bindings) and scroll to\nClassic Fishing Companion to set your hotkeys!"
+        fixes = {},
+        tip = "TIP: Open Key Bindings (Escape > Options > KeyBindings) and scroll to\nClassic Fishing Companion to set your hotkeys!"
     },
     ["1.0.14"] = {
         features = {

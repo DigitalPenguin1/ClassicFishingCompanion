@@ -26,12 +26,18 @@ function CFC:InitializeMinimap()
     minimapButton:RegisterForDrag("LeftButton")
     minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- Button background (use a fish icon)
+    -- Black background behind icon
+    minimapButton.bg = minimapButton:CreateTexture(nil, "BACKGROUND")
+    minimapButton.bg:SetSize(20, 20)
+    minimapButton.bg:SetPoint("CENTER", 0, 0)
+    minimapButton.bg:SetColorTexture(0, 0, 0, 1)
+
+    -- Button icon (custom addon icon)
     minimapButton.icon = minimapButton:CreateTexture(nil, "ARTWORK")
-    minimapButton.icon:SetSize(18, 18)
-    minimapButton.icon:SetPoint("CENTER", 1, 1)
-    minimapButton.icon:SetTexture("Interface\\Icons\\Trade_Fishing")
-    minimapButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    minimapButton.icon:SetSize(20, 20)
+    minimapButton.icon:SetPoint("CENTER", 0, 0)
+    minimapButton.icon:SetTexture("Interface\\AddOns\\ClassicFishingCompanion\\Textures\\icon")
+    minimapButton.icon:SetTexCoord(0, 1, 0, 1)
 
     -- Button border
     minimapButton.border = minimapButton:CreateTexture(nil, "OVERLAY")

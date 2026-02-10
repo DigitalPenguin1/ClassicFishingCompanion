@@ -500,15 +500,6 @@ function HUDModule:GetCurrentFishingBuff()
     -- Check for weapon enchant first (lures)
     local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantId = GetWeaponEnchantInfo()
 
-    -- DEBUG: Show enchant info
-    if CFC.debug then
-        print("|cff00ffff[CFC Debug - HUD.lua]|r GetWeaponEnchantInfo():")
-        print("|cff00ffff[CFC Debug - HUD.lua]|r   hasMainHandEnchant: " .. tostring(hasMainHandEnchant))
-        if hasMainHandEnchant then
-            print("|cff00ffff[CFC Debug - HUD.lua]|r   mainHandExpiration: " .. tostring(mainHandExpiration))
-        end
-    end
-
     if hasMainHandEnchant then
         -- Try to detect lure from tooltip
         local fishingBonus = nil
@@ -528,45 +519,19 @@ function HUDModule:GetCurrentFishingBuff()
         -- In Classic WoW, tooltip must be shown to populate lines
         buffScanTooltip:Show()
 
-        -- DEBUG: Show all tooltip lines
-        if CFC.debug then
-            print("|cff00ffff[CFC Debug - HUD.lua]|r Scanning fishing pole tooltip...")
-            print("|cff00ffff[CFC Debug - HUD.lua]|r NumLines: " .. buffScanTooltip:NumLines())
-        end
-
         for i = 1, buffScanTooltip:NumLines() do
             local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
             if line then
                 local text = line:GetText()
-
-                -- DEBUG: Show each line
-                if CFC.debug and text then
-                    print("|cff00ffff[CFC Debug - HUD.lua]|r Line " .. i .. ": " .. text)
-                end
-
                 if text then
                     -- TBC format: "Fishing Lure (+25 Fishing Skill) (10 min)"
                     -- Match "Lure" followed by "(+number"
                     local bonus = string.match(text, "Lure.*%(%+(%d+)")
                     if bonus then
                         fishingBonus = tonumber(bonus)
-
-                        -- DEBUG: Show what was found
-                        if CFC.debug then
-                            print("|cff00ffff[CFC Debug - HUD.lua]|r FOUND bonus: " .. bonus)
-                        end
                         break
                     end
                 end
-            end
-        end
-
-        -- DEBUG: Show final result
-        if CFC.debug then
-            if fishingBonus then
-                print("|cff00ffff[CFC Debug - HUD.lua]|r Final fishingBonus: " .. fishingBonus)
-            else
-                print("|cff00ffff[CFC Debug - HUD.lua]|r No fishing bonus detected!")
             end
         end
 

@@ -5,4 +5,7 @@
   <Binding name="CFC_TOGGLE_UI" Category="BINDING_HEADER_CFC">
     SlashCmdList["CFC"]("")
   </Binding>
+  <Binding name="CFC_RELEASE_FISH" Category="BINDING_HEADER_CFC">
+    CFC:ReleaseFishKeybind()
+  </Binding>
 </Bindings>

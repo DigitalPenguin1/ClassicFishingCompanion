@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.17"
+CFC.VERSION = "1.0.18"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -119,10 +119,14 @@ local defaults = {
             autoSwapCombatWeapons = false,  -- Auto-swap to combat weapons when entering combat while fishing (disabled by default)
             easyCast = false,  -- Double right-click to cast fishing
             rareFishSound = true,  -- Play sound when catching rare fish (enabled by default)
+            minimalHUD = false,  -- Minimal HUD mode: no border, more translucent background (disabled by default)
+            hudShowLureButton = true,  -- Show lure button on HUD (enabled by default)
+            hudShowSwapButton = true,  -- Show gear swap button on HUD (enabled by default)
         },
         hud = {
             show = true,  -- Show stats HUD by default
             locked = false,  -- HUD is unlocked by default (can be dragged)
+            scale = 1.0,  -- HUD scale factor (0.75 to 1.5)
             point = "CENTER",
             relativeTo = "UIParent",
             relativePoint = "CENTER",
@@ -154,6 +158,8 @@ local defaults = {
             lastExportReminder = 0,  -- Timestamp of last export reminder (total play time in seconds)
             data = nil,  -- Backup snapshot of fishing data
         },
+        goals = {},        -- Active fishing goals: { fishName, targetCount, sessionCatches }
+        releaseList = {},  -- Catch & Release: { ["Fish Name"] = true }
     }
 }
 
@@ -240,6 +246,13 @@ function CFC:OnInitialize()
     -- Reset session statistics on login
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
+
+    -- Reset goal session progress
+    if self.db.profile.goals then
+        for _, goal in ipairs(self.db.profile.goals) do
+            goal.sessionCatches = 0
+        end
+    end
 
     print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
     print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
@@ -761,8 +774,10 @@ function CFC:OnLootOpened()
             print("|cffff8800[CFC Debug]|r  hasDeadTarget: " .. tostring(hasDeadTarget))
         end
 
-        if itemName and isFishingPole and not hasDeadTarget then
-            -- We have fishing pole equipped and no dead target = successful fishing cast
+        local recentlyCastFishing = (GetTime() - self.lastFishingCastTime) < 30
+
+        if itemName and isFishingPole and not hasDeadTarget and recentlyCastFishing then
+            -- We have fishing pole equipped, no dead target, and recently cast Fishing
             self.lastLootWasFishing = true
             self.isFishing = true
             self.lastSpellTime = time()
@@ -778,6 +793,8 @@ function CFC:OnLootOpened()
             print("|cffff8800[CFC Debug]|r Loot opened with non-fishing-pole equipped: " .. itemName)
         elseif self.debug and itemName and isFishingPole and hasDeadTarget then
             print("|cffff8800[CFC Debug]|r Loot opened with pole equipped but has dead target (combat loot)")
+        elseif self.debug and itemName and isFishingPole and not recentlyCastFishing then
+            print("|cffff8800[CFC Debug]|r Loot opened with pole equipped but no recent Fishing cast (ground loot?)")
         end
     end
 
@@ -1218,7 +1235,21 @@ function CFC:OnLootReceived(event, message)
 end
 
 -- Record a fish catch
+-- Items to never track as catches
+local ignoredCatches = { "glowcap", "nutriment" }
+
 function CFC:RecordFishCatch(itemName, itemLink)
+    -- Skip ignored items entirely
+    local nameLower = string.lower(itemName)
+    for _, keyword in ipairs(ignoredCatches) do
+        if string.find(nameLower, keyword) then
+            if self.debug then
+                print("|cffff8800[CFC Debug]|r Skipping ignored item: " .. itemName)
+            end
+            return
+        end
+    end
+
     local timestamp = time()
     local zone = GetRealZoneText() or "Unknown"
     local subzone = GetSubZoneText() or ""
@@ -1339,6 +1370,12 @@ function CFC:RecordFishCatch(itemName, itemLink)
 
     -- Check for milestone notifications
     self:CheckMilestone(self.db.profile.statistics.totalCatches)
+
+    -- Check goal progress
+    self:CheckGoalProgress(itemName)
+
+    -- Check catch and release
+    self:CheckCatchAndRelease(itemName)
 
     -- Update UI if open
     if CFC.UpdateUI then
@@ -1462,6 +1499,85 @@ function CFC:CheckMilestone(catchCount)
         end
     end
     return false
+end
+
+-- Check if a catch contributes to active goals
+function CFC:CheckGoalProgress(fishName)
+    if not self.db.profile.goals then return end
+
+    for _, goal in ipairs(self.db.profile.goals) do
+        if goal.fishName == fishName then
+            goal.sessionCatches = (goal.sessionCatches or 0) + 1
+
+            if goal.sessionCatches == goal.targetCount then
+                local message = "Goal completed: " .. goal.targetCount .. " " .. fishName .. "!"
+                print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
+                RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
+                PlaySound(888)
+            end
+
+            break
+        end
+    end
+end
+
+-- Auto-delete fish on the release list
+-- Catch and Release: track pending fish for keybind deletion
+CFC.pendingRelease = nil
+
+function CFC:CheckCatchAndRelease(fishName)
+    if not self.db.profile.releaseList or not self.db.profile.releaseList[fishName] then return end
+
+    -- Store for keybind pickup+delete
+    self.pendingRelease = fishName
+
+    -- Notify the user
+    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Caught " .. fishName .. " (on release list) - press your |cffffff00Release Fish|r keybind to delete it.")
+end
+
+-- Called by the keybind (hardware event) - picks up and deletes the fish
+function CFC:ReleaseFishKeybind()
+    local fishName = self.pendingRelease
+    if not fishName then
+        print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " No fish pending release.")
+        return
+    end
+
+    local GetNumSlots, GetItemLink, PickupItem
+
+    if C_Container and type(C_Container.GetContainerNumSlots) == "function" then
+        GetNumSlots = C_Container.GetContainerNumSlots
+        GetItemLink = C_Container.GetContainerItemLink
+        PickupItem = C_Container.PickupContainerItem
+    elseif _G.GetContainerNumSlots then
+        GetNumSlots = _G.GetContainerNumSlots
+        GetItemLink = _G.GetContainerItemLink
+        PickupItem = _G.PickupContainerItem
+    else
+        return
+    end
+
+    for bag = 0, 4 do
+        local numSlots = GetNumSlots(bag)
+        for slot = 1, numSlots do
+            local link = GetItemLink(bag, slot)
+            if link then
+                local name = GetItemInfo(link)
+                if name == fishName then
+                    ClearCursor()
+                    PickupItem(bag, slot)
+                    DeleteCursorItem()
+                    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Released: " .. fishName)
+                    self.pendingRelease = nil
+                    return
+                end
+            end
+        end
+    end
+
+    -- Fish not found (maybe already deleted or used)
+    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. fishName .. " not found in bags.")
+    self.pendingRelease = nil
 end
 
 -- ========================================

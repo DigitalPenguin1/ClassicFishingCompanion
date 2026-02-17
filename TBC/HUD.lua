@@ -68,7 +68,7 @@ function CFC:InitializeHUD()
 
     -- Create main HUD frame
     hudFrame = CreateFrame("Frame", "CFCHUDFrame", UIParent)
-    hudFrame:SetSize(200, 155)  -- Compact height for gear swap button
+    hudFrame:SetSize(200, 140)  -- Height will be adjusted by ApplyButtonVisibility
     hudFrame:SetFrameStrata("MEDIUM")
     hudFrame:SetFrameLevel(10)
     hudFrame:SetMovable(true)
@@ -76,29 +76,35 @@ function CFC:InitializeHUD()
     hudFrame:RegisterForDrag("LeftButton")
     hudFrame:SetClampedToScreen(true)
 
-    -- Background
-    hudFrame.bg = hudFrame:CreateTexture(nil, "BACKGROUND")
-    hudFrame.bg:SetAllPoints()
-    hudFrame.bg:SetColorTexture(0, 0, 0, 0.7)
+    -- Minimal mode background (hidden by default)
+    hudFrame.minimalBg = hudFrame:CreateTexture(nil, "BACKGROUND")
+    hudFrame.minimalBg:SetAllPoints()
+    hudFrame.minimalBg:SetColorTexture(0, 0, 0, 0.25)
+    hudFrame.minimalBg:Hide()
 
-    -- Border
+    -- Background and Border combined
     hudFrame.border = CreateFrame("Frame", nil, hudFrame, "BackdropTemplate")
-    hudFrame.border:SetAllPoints()
+    hudFrame.border:SetPoint("TOPLEFT", hudFrame, "TOPLEFT", -3, 3)
+    hudFrame.border:SetPoint("BOTTOMRIGHT", hudFrame, "BOTTOMRIGHT", 3, -3)
+    hudFrame.border:SetFrameLevel(hudFrame:GetFrameLevel() - 1)
     hudFrame.border:SetBackdrop({
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
+    hudFrame.border:SetBackdropColor(0, 0, 0, 0.35)
+    hudFrame.border:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 
     -- Title
     hudFrame.title = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    hudFrame.title:SetPoint("TOP", hudFrame, "TOP", 0, -8)
+    hudFrame.title:SetPoint("TOP", hudFrame, "TOP", 0, -4)
     hudFrame.title:SetText("Fishing Stats")
     hudFrame.title:SetTextColor(0.4, 0.8, 1)
 
     -- Session catches
     hudFrame.sessionText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hudFrame.sessionText:SetPoint("TOPLEFT", hudFrame, "TOPLEFT", 10, -25)
+    hudFrame.sessionText:SetPoint("TOPLEFT", hudFrame, "TOPLEFT", 10, -18)
     hudFrame.sessionText:SetJustifyH("LEFT")
 
     -- Total catches
@@ -127,6 +133,27 @@ function CFC:InitializeHUD()
     hudFrame.buffTimerText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hudFrame.buffTimerText:SetPoint("TOPLEFT", hudFrame.buffText, "BOTTOMLEFT", 0, -3)
     hudFrame.buffTimerText:SetJustifyH("LEFT")
+
+    -- Goals display (up to 3 goals on HUD)
+    hudFrame.goalsTitle = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hudFrame.goalsTitle:SetPoint("TOPLEFT", hudFrame.buffTimerText, "BOTTOMLEFT", 0, -4)
+    hudFrame.goalsTitle:SetJustifyH("LEFT")
+    hudFrame.goalsTitle:SetText("|cffffd700Goals:|r")
+    hudFrame.goalsTitle:Hide()
+
+    hudFrame.goalTexts = {}
+    for i = 1, 3 do
+        local goalText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        if i == 1 then
+            goalText:SetPoint("TOPLEFT", hudFrame.goalsTitle, "BOTTOMLEFT", 2, -2)
+        else
+            goalText:SetPoint("TOPLEFT", hudFrame.goalTexts[i - 1], "BOTTOMLEFT", 0, -1)
+        end
+        goalText:SetJustifyH("LEFT")
+        goalText:SetWidth(180)
+        goalText:Hide()
+        hudFrame.goalTexts[i] = goalText
+    end
 
     -- Lock/unlock button
     hudFrame.lockIcon = CreateFrame("Button", nil, hudFrame)
@@ -211,7 +238,7 @@ function CFC:InitializeHUD()
     -- Gear swap button
     hudFrame.gearSwapButton = CreateFrame("Button", nil, hudFrame, "UIPanelButtonTemplate")
     hudFrame.gearSwapButton:SetSize(88, 22)
-    hudFrame.gearSwapButton:SetPoint("BOTTOMRIGHT", hudFrame, "BOTTOMRIGHT", -10, 5)
+    hudFrame.gearSwapButton:SetPoint("LEFT", hudFrame.applyLureButton, "RIGHT", 4, 0)
     hudFrame.gearSwapButton:SetText("Swap Gear")
 
     -- Set button font
@@ -295,6 +322,11 @@ function CFC:InitializeHUD()
     else
         hudFrame:Hide()
     end
+
+    -- Apply appearance settings
+    HUDModule:ApplyMinimalMode()
+    HUDModule:ApplyScale()
+    HUDModule:ApplyButtonVisibility()
 
     -- Store reference
     CFC.hudFrame = hudFrame
@@ -396,6 +428,41 @@ function HUDModule:Update()
         hudFrame.buffTimerText:SetText("")
     end
 
+    -- Update goals display
+    local goalCount = 0
+    if CFC.db.profile.goals and #CFC.db.profile.goals > 0 then
+        for i, goal in ipairs(CFC.db.profile.goals) do
+            if i > 3 then break end
+            local current = math.min(goal.sessionCatches or 0, goal.targetCount)
+            local icon = ""
+            if CFC.db.profile.fishData and CFC.db.profile.fishData[goal.fishName] and CFC.db.profile.fishData[goal.fishName].icon then
+                icon = "|T" .. CFC.db.profile.fishData[goal.fishName].icon .. ":12|t "
+            end
+
+            local text = icon .. goal.fishName .. ": " .. current .. "/" .. goal.targetCount
+            if current >= goal.targetCount then
+                text = "|cff00ff00" .. text .. "|r"
+            elseif current / goal.targetCount >= 0.75 then
+                text = "|cffffff00" .. text .. "|r"
+            end
+
+            hudFrame.goalTexts[i]:SetText(text)
+            hudFrame.goalTexts[i]:Show()
+            goalCount = goalCount + 1
+        end
+    end
+
+    -- Hide unused goal slots
+    for i = goalCount + 1, 3 do
+        hudFrame.goalTexts[i]:Hide()
+    end
+
+    if goalCount > 0 then
+        hudFrame.goalsTitle:Show()
+    else
+        hudFrame.goalsTitle:Hide()
+    end
+
     -- Update gear swap button
     if hudFrame.gearSwapButton then
         local currentMode = CFC:GetCurrentGearMode()
@@ -407,6 +474,19 @@ function HUDModule:Update()
             hudFrame.gearSwapButton:SetText("|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:16|t Setup")
         end
     end
+
+    -- Recalculate HUD height based on goals + buttons
+    local showLure = CFC.db.profile.settings.hudShowLureButton
+    local showSwap = CFC.db.profile.settings.hudShowSwapButton
+    local anyButtons = showLure or showSwap
+    local baseHeight = anyButtons and 140 or 110
+
+    local goalHeight = 0
+    if goalCount > 0 then
+        goalHeight = 14 + (goalCount * 13)
+    end
+
+    hudFrame:SetHeight(baseHeight + goalHeight)
 end
 
 -- Update lure button with selected lure icon
@@ -635,6 +715,71 @@ function HUDModule:ToggleLock()
     else
         print("|cff00ff00Classic Fishing Companion:|r Stats HUD unlocked. Drag to move.")
     end
+end
+
+-- Apply minimal mode (no border, translucent background)
+function HUDModule:ApplyMinimalMode()
+    if not hudFrame or not CFC.db then
+        return
+    end
+
+    if CFC.db.profile.settings.minimalHUD then
+        hudFrame.border:Hide()
+        hudFrame.minimalBg:Show()
+    else
+        hudFrame.border:Show()
+        hudFrame.minimalBg:Hide()
+    end
+end
+
+-- Apply HUD scale
+function HUDModule:ApplyScale()
+    if not hudFrame or not CFC.db then
+        return
+    end
+
+    local scale = CFC.db.profile.hud.scale or 1.0
+    hudFrame:SetScale(scale)
+end
+
+-- Apply button visibility and resize HUD accordingly
+function HUDModule:ApplyButtonVisibility()
+    if not hudFrame or not CFC.db then
+        return
+    end
+
+    local showLure = CFC.db.profile.settings.hudShowLureButton
+    local showSwap = CFC.db.profile.settings.hudShowSwapButton
+    local anyButtons = showLure or showSwap
+
+    if hudFrame.applyLureButton then
+        if showLure then
+            hudFrame.applyLureButton:Show()
+        else
+            hudFrame.applyLureButton:Hide()
+        end
+    end
+
+    if hudFrame.gearSwapButton then
+        if showSwap then
+            hudFrame.gearSwapButton:Show()
+        else
+            hudFrame.gearSwapButton:Hide()
+        end
+    end
+
+    -- Calculate goal height
+    local goalHeight = 0
+    if CFC.db.profile.goals then
+        local activeGoals = math.min(#CFC.db.profile.goals, 3)
+        if activeGoals > 0 then
+            goalHeight = 14 + (activeGoals * 13)  -- title + entries
+        end
+    end
+
+    -- Resize HUD based on button visibility and goals
+    local baseHeight = anyButtons and 140 or 110
+    hudFrame:SetHeight(baseHeight + goalHeight)
 end
 
 -- Update lock state visual

@@ -11,19 +11,37 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Gear Sets** - Save and swap between fishing and combat equipment
 - **Lure Manager** - Select and apply lures from the HUD
 - **Catch List & Statistics** - Detailed tracking with fish/misc separation, top catches, and zone productivity
+- **Fishing Goals** - Set session-based catch goals for specific fish with progress bars and HUD tracking
+- **Catch & Release** - Mark fish for deletion via keybind to keep your bags clean while fishing
 - **Rare Fish Alerts** - Sound notification when you catch a rare fish
 - **Milestone Notifications** - Celebrate catch milestones
 - **Missing Lure Warnings** - On-screen alerts when fishing without a lure
 - **Automatic Backups** - Internal backups every 24 hours with one-click restore
 - **Per-Character Mode** - Optional per-character stats with account data copy
-- **Keybinding Support** - Bind keys via Escape > Options > KeyBindings
+- **Keybinding Support** - Bind keys via ESC > Settings > Key Bindings
 - **Minimap Button** - Left-click UI, right-click HUD, hover for stats
+
+## What's New in v1.0.18
+
+- **Goals Tab** - Set catch goals for specific fish. Pick a fish from the dropdown, set a target count, and track progress with visual progress bars. Active goals display on the HUD with color-coded progress (yellow at 75%, green on completion). Goals are session-based and reset on login/reload.
+- **Catch & Release Tab** - Select fish you want to discard. When you catch a fish on your release list, press your Release Fish keybind to delete it from your bags. The catch still counts in your statistics.
+- **Improved Tab Layout** - Tabs now use two rows to fit all features cleanly.
+- **Smarter Fish Detection** - Dropdowns and catch lists better filter out non-fish items like junk and miscellaneous loot.
+- **HUD Improvements** - Dynamic height scaling based on active goals, fixed backdrop rendering.
 
 ## Quick Start
 
 1. Enable the addon
 2. Click the minimap button or type `/cfc` to open the UI
 3. Start fishing - all catches are tracked automatically
+
+## Tips
+
+- **Setting up Catch & Release**: ESC > Settings > Key Bindings > scroll to "Classic Fishing Companion" > bind a key to "Release Fish". Requires a full client restart after setting the keybind.
+- **Goals on the HUD**: Add goals in the Goals tab — up to 3 will display on the HUD automatically. They reset each session so you can set fresh targets every time you fish.
+- **Lure auto-apply**: Enable Easy Cast in Settings and the addon will automatically apply your selected lure when it expires.
+- **Quick gear swap**: Save your fishing and combat gear sets in the Gear Sets tab. The addon can auto-swap when you enter/leave combat.
+- **Minimap button**: Left-click opens the UI, right-click toggles the HUD, hover to see a quick stats summary.
 
 ## Commands
 
@@ -45,6 +63,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 | Stats HUD not showing | Right-click minimap button or `/cfc hud` |
 | UI not showing | Check addon is enabled, try `/reload` |
 | Data not saving | Exit WoW properly, check `WTF\Account\[NAME]\SavedVariables\` |
+| Release keybind not working | Requires full client restart after binding the key |
 
 **Debug tip**: Use `/cfc debug` to enable debug logging. To copy debug output from chat, install [Chat Copy Paste](https://www.curseforge.com/wow/addons/chat-copy-paste).
 

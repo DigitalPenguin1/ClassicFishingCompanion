@@ -119,7 +119,8 @@ function CFC.Database:GetZoneFishSummary()
         "trinket", "necklace", "amulet", "sword", "axe", "mace",
         "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
         "gem", "pearl", "note", "letter", "ore", "crystal",
-        "essence", "shard", "gloves", "leggings", "bracers"
+        "essence", "shard", "gloves", "leggings", "bracers",
+        "nutriment", "glowcap"
     }
 
     -- Helper: determine if an item is a fish

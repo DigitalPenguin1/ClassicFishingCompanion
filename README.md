@@ -21,14 +21,6 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Keybinding Support** - Bind keys via ESC > Settings > Key Bindings
 - **Minimap Button** - Left-click UI, right-click HUD, hover for stats
 
-## What's New in v1.0.18
-
-- **Goals Tab** - Set catch goals for specific fish. Pick a fish from the dropdown, set a target count, and track progress with visual progress bars. Active goals display on the HUD with color-coded progress (yellow at 75%, green on completion). Goals are session-based and reset on login/reload.
-- **Catch & Release Tab** - Select fish you want to discard. When you catch a fish on your release list, press your Release Fish keybind to delete it from your bags. The catch still counts in your statistics.
-- **Improved Tab Layout** - Tabs now use two rows to fit all features cleanly.
-- **Smarter Fish Detection** - Dropdowns and catch lists better filter out non-fish items like junk and miscellaneous loot.
-- **HUD Improvements** - Dynamic height scaling based on active goals, fixed backdrop rendering.
-
 ## Quick Start
 
 1. Enable the addon

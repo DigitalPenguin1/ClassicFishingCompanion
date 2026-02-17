@@ -2,7 +2,7 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [1.0.19] - 2026-02-17
+## [1.1.0] - 2026-02-17
 
 ### Fixed
 - Fixed Sharpened Fish Hook spell ID (was 3486, corrected to 34861) — lure will now properly detected on fishing pole

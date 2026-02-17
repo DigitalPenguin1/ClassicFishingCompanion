@@ -27,7 +27,7 @@ local lureNames = {
     [7307] = "Flesh Eating Worm",
     [6533] = "Aquadynamic Fish Attractor",
     [6811] = "Aquadynamic Fish Lens",
-    [3486] = "Sharpened Fish Hook",
+    [34861] = "Sharpened Fish Hook",
 }
 
 -- Lure ID to name with bonus (constant table)
@@ -38,7 +38,7 @@ local lureNamesWithBonus = {
     [7307] = "Flesh Eating Worm (+75)",
     [6533] = "Aquadynamic Fish Attractor (+100)",
     [6811] = "Aquadynamic Fish Lens (+50)",
-    [3486] = "Sharpened Fish Hook (+100)",
+    [34861] = "Sharpened Fish Hook (+100)",
 }
 
 -- Bonus amount to lure name mapping (constant table)
@@ -57,7 +57,7 @@ local lureIcons = {
     [7307] = "INV_Misc_MonsterTail_03",      -- Flesh Eating Worm
     [6533] = "INV_Misc_Food_26",             -- Aquadynamic Fish Attractor
     [6811] = "INV_Misc_Spyglass_01",         -- Aquadynamic Fish Lens
-    [3486] = "INV_Misc_Hook_01",             -- Sharpened Fish Hook
+    [34861] = "INV_Misc_Hook_01",             -- Sharpened Fish Hook
 }
 
 -- Initialize HUD

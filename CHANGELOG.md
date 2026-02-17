@@ -2,6 +2,37 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.0.19] - 2026-02-17
+
+### Fixed
+- Fixed Sharpened Fish Hook spell ID (was 3486, corrected to 34861) — lure will now properly detected on fishing pole
+
+## [1.0.18] - 2026-02-16
+
+### Added
+- **Goals Tab** - Set session-based catch goals for specific fish
+  - Pick a fish from the dropdown, set a target count, and track progress with visual progress bars
+  - Active goals display on the HUD with color-coded progress (yellow at 75%, green on completion)
+  - Goals reset each session (login/reload) so you can set fresh targets every time you fish
+  - Up to 3 goals shown on HUD simultaneously
+- **Catch & Release Tab** - Mark fish for deletion via keybind
+  - Select fish to add to your release list
+  - When you catch a fish on the list, press your Release Fish keybind to delete it from bags
+  - Catches still count in your statistics
+  - Keybind setup: ESC > Settings > Key Bindings > Classic Fishing Companion > Release Fish
+- **Release Fish keybind** in Key Bindings menu
+- **Two-row tab layout** to accommodate new Goals and Release tabs
+
+### Improved
+- Fish dropdowns in Goals and Release tabs sorted alphabetically
+- Smarter fish detection — non-fish items (Discarded Nutriment, Glowcap) filtered from catch lists and dropdowns
+- HUD dynamically scales height based on active goal count
+- Loot detection now requires a recent Fishing cast — looting ground objects with a pole equipped no longer creates false catches
+
+### Fixed
+- Fixed HUD backdrop rendering on top of text and buttons (frame level ordering)
+- Fixed non-fish items appearing in the Fish section of the catch list
+
 ## [1.0.17] - 2026-02-10
 
 ### Improved

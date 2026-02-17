@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.0.18"
+CFC.VERSION = "1.0.19"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -2340,7 +2340,7 @@ function CFC:UpdateLureMacro()
         [7307] = { name = "Flesh Eating Worm", icon = "INV_Misc_MonsterTail_03" },
         [6533] = { name = "Aquadynamic Fish Attractor", icon = "INV_Misc_Food_26" },
         [6811] = { name = "Aquadynamic Fish Lens", icon = "INV_Misc_Spyglass_01" },
-        [3486] = { name = "Sharpened Fish Hook", icon = "INV_Misc_Hook_01" },
+        [34861] = { name = "Sharpened Fish Hook", icon = "INV_Misc_Hook_01" },
     }
     local lure = lureData[selectedLureID]
     if not lure then

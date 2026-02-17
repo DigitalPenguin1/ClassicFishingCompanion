@@ -3615,6 +3615,13 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.0.19"] = {
+        features = {},
+        fixes = {
+            "Fixed Sharpened Fish Hook spell ID — lure now properly detected on fishing pole",
+        },
+        tip = "TIP: Using a Sharpened Fish Hook? The lure timer and bonus\nwill now display correctly on the HUD!"
+    },
     ["1.0.18"] = {
         features = {
             "Goals Tab - Set catch goals for specific fish with progress bars!",

@@ -41,7 +41,6 @@ body:
       description: Which client(s) should this apply to?
       options:
         - label: Classic Era
-        - label: Season of Discovery
         - label: TBC Classic
     validations:
       required: true

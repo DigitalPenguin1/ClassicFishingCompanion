@@ -587,22 +587,25 @@ function HUDModule:GetCurrentFishingBuff()
     local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantId = GetWeaponEnchantInfo()
 
     if hasMainHandEnchant then
-        -- Try to detect lure from tooltip
+        local expirationSeconds = math.floor(mainHandExpiration / 1000)
+
+        -- First: try direct enchant ID lookup (no tooltip scan needed, avoids tooltip flashing)
+        if mainHandEnchantId and CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId] then
+            return { name = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId], expirationSeconds = expirationSeconds }
+        end
+
+        -- Fallback: tooltip scan for unknown enchant IDs
         local fishingBonus = nil
 
-        -- Create tooltip once and reuse it
         if not buffScanTooltip then
             buffScanTooltip = CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
             buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
         end
 
-        -- Ensure tooltip is hidden before resetting
         buffScanTooltip:Hide()
         buffScanTooltip:ClearLines()
         buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
         buffScanTooltip:SetInventoryItem("player", 16)
-
-        -- In Classic WoW, tooltip must be shown to populate lines
         buffScanTooltip:Show()
 
         for i = 1, buffScanTooltip:NumLines() do
@@ -622,9 +625,7 @@ function HUDModule:GetCurrentFishingBuff()
         buffScanTooltip:Hide()
 
         if fishingBonus then
-            -- Map common bonuses to lure names
             local buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
-            local expirationSeconds = math.floor(mainHandExpiration / 1000)  -- Convert milliseconds to seconds
             return { name = buffName, expirationSeconds = expirationSeconds }
         end
     end

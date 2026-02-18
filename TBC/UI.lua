@@ -3615,6 +3615,26 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.2"] = {
+        features = {
+            "Goals Tab - Set catch goals for specific fish with progress bars!",
+            "Goals display on the HUD with color-coded progress (yellow at 75%%, green on completion)",
+            "Catch & Release Tab - Mark fish for deletion via keybind to keep bags clean",
+            "Two-row tab layout to fit all new features",
+            "Fish dropdowns now sorted alphabetically",
+            "Smarter fish detection - fewer non-fish items in lists",
+            "HUD dynamically scales height based on active goals",
+        },
+        fixes = {
+            "Fixed HUD backdrop rendering on top of content",
+            "Fixed non-fish items (Discarded Nutriment, Glowcap) appearing in fish lists",
+            "Fixed Sharpened Fish Hook ID and Easy Cast support",
+            "Fixed HUD showing wrong lure name for same-bonus lures",
+            "Fixed tooltip flashing when swapping to fishing gear",
+            "Added console warning when casting without a lure (shown max once per 10 min)",
+        },
+        tip = "TIP: Set up Catch & Release: ESC > Settings > Key Bindings > scroll to\nClassic Fishing Companion > bind a key to Release Fish.\nRequires a full client restart after setting the keybind."
+    },
     ["1.1.1"] = {
         features = {
             "Goals Tab - Set catch goals for specific fish with progress bars!",

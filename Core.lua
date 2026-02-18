@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.1"
+CFC.VERSION = "1.1.2"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -78,6 +78,7 @@ CFC.CONSTANTS = {
         [2606] = "Aquadynamic Fish Attractor", -- +100 fishing
         [2607] = "Flesh Eating Worm",      -- +75 fishing
         [2608] = "Aquadynamic Fish Lens",  -- +50 fishing (Engineering)
+        [34861] = "Sharpened Fish Hook",   -- +100 fishing (TBC)
     },
     -- Catch milestones for notifications
     MILESTONES = {
@@ -279,6 +280,7 @@ function CFC:OnEnable()
     self.autoSwappedCombatWeapons = false  -- Track if we auto-swapped to combat weapons during combat
     self.isFishingChannelActive = false  -- Track if we're currently channeling fishing
     self.combatStopBindingActive = false  -- Track if combat stop binding is set
+    self.lastNoLureWarningTime = 0  -- Track when we last warned about being out of lures
 
     -- Create scanning tooltip for lure detection
     if not CFC_ScanTooltip then
@@ -3247,6 +3249,12 @@ function CFC:ShouldApplyLure()
     -- Check if player has the selected lure in bags
     local lureCount = GetItemCount(selectedLureID)
     if lureCount == 0 then
+        local now = GetTime()
+        if now - (self.lastNoLureWarningTime or 0) >= 600 then
+            local lureName = EASYCAST_LURE_NAMES[selectedLureID] or "selected lure"
+            print("|cffff0000Classic Fishing Companion:|r Out of " .. lureName .. "! Casting without a lure.")
+            self.lastNoLureWarningTime = now
+        end
         return false  -- No lures in bags, just cast fishing
     end
 

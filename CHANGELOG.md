@@ -2,6 +2,12 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.2] - 2026-02-18
+
+### Fixed
+- Fixed tooltip flashing when swapping to fishing gear — lure detection now uses enchant ID lookup instead of tooltip scanning, eliminating the once-per-second tooltip refresh that caused flickering
+- Added console warning when Easy Cast cannot apply a lure because you're out of stock — shown at most once every 10 minutes to avoid spam
+
 ## [1.1.1] - 2026-02-17
 
 ### Fixed

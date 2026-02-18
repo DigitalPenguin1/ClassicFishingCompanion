@@ -1,3 +1,5 @@
+![Classic Fishing Companion Logo](https://github.com/user-attachments/assets/1ae995ee-54ed-44f4-a03d-21e591a4cd2a)
+
 # Welcome to Classic Fishing Companion
 
 **Classic Fishing Companion (CFC)** is a comprehensive fishing addon for **World of Warcraft Classic Era** and **TBC Classic**. It tracks your catches, manages your gear, auto-applies lures, and helps you fish smarter — all from a clean in-game UI.
@@ -38,7 +40,7 @@
 - [[Installation]]
 - [[Features]]
 - [[HUD]]
-- [[Easy Cast & Lures]]
+- [[Easy Cast and Lures]]
 - [[Gear Sets]]
 - [[Goals]]
 - [[Catch and Release]]

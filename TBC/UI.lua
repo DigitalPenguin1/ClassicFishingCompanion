@@ -2000,7 +2000,7 @@ function UI:CreateLuresTab()
         { name = "Bright Baubles", id = 6532, bonus = 75, icon = "INV_Misc_Gem_Variety_02" },
         { name = "Flesh Eating Worm", id = 7307, bonus = 75, icon = "INV_Misc_MonsterTail_03" },
         { name = "Aquadynamic Fish Attractor", id = 6533, bonus = 100, icon = "INV_Misc_Food_26" },
-        { name = "Sharpened Fish Hook", id = 3486, bonus = 100, icon = "INV_Misc_Hook_01" },
+        { name = "Sharpened Fish Hook", id = 34861, bonus = 100, icon = "INV_Misc_Hook_01" },
     }
 
     local yOffset = -10
@@ -3615,6 +3615,24 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.1"] = {
+        features = {
+            "Goals Tab - Set catch goals for specific fish with progress bars!",
+            "Goals display on the HUD with color-coded progress (yellow at 75%%, green on completion)",
+            "Catch & Release Tab - Mark fish for deletion via keybind to keep bags clean",
+            "Two-row tab layout to fit all new features",
+            "Fish dropdowns now sorted alphabetically",
+            "Smarter fish detection - fewer non-fish items in lists",
+            "HUD dynamically scales height based on active goals",
+        },
+        fixes = {
+            "Fixed HUD backdrop rendering on top of content",
+            "Fixed non-fish items (Discarded Nutriment, Glowcap) appearing in fish lists",
+            "Fixed Sharpened Fish Hook ID and Easy Cast support",
+            "Fixed HUD showing wrong lure name for same-bonus lures",
+        },
+        tip = "TIP: Set up Catch & Release: ESC > Settings > Key Bindings > scroll to\nClassic Fishing Companion > bind a key to Release Fish.\nRequires a full client restart after setting the keybind."
+    },
     ["1.1.0"] = {
         features = {
             "Goals Tab - Set catch goals for specific fish with progress bars!",

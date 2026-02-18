@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.0"
+CFC.VERSION = "1.1.1"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -3077,6 +3077,7 @@ local EASYCAST_LURE_NAMES = {
     [7307] = "Flesh Eating Worm",
     [6533] = "Aquadynamic Fish Attractor",
     [6811] = "Aquadynamic Fish Lens",
+    [34861] = "Sharpened Fish Hook",
 }
 
 -- Track state

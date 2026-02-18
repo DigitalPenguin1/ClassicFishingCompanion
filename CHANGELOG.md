@@ -2,10 +2,18 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.1] - 2026-02-17
+
+### Fixed
+- Fixed Sharpened Fish Hook ID and Easy Cast support — lure now applies correctly via Easy Cast
+- Fixed HUD showing wrong lure name for same-bonus lures (e.g. Sharpened Fish Hook showing as Aquadynamic Fish Attractor)
+
 ## [1.1.0] - 2026-02-17
 
 ### Fixed
-- Fixed Sharpened Fish Hook spell ID (was 3486, corrected to 34861) — lure will now properly detected on fishing pole
+- Fixed Sharpened Fish Hook ID (was 3486, corrected to 34861) — lure now properly applies with Easy Cast and detected on fishing pole
+- Fixed HUD showing wrong lure name for same-bonus lures (e.g. Sharpened Fish Hook showing as Aquadynamic Fish Attractor) — HUD now uses selected lure as source of truth when bonus matches
+- Fixed Easy Cast not recognizing Sharpened Fish Hook — added to lure name table so macro builds correctly
 
 ## [1.0.18] - 2026-02-16
 

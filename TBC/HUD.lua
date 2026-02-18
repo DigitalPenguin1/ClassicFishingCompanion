@@ -618,8 +618,24 @@ function HUDModule:GetCurrentFishingBuff()
         buffScanTooltip:Hide()
 
         if fishingBonus then
-            -- Map common bonuses to lure names
-            local buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
+            -- Prefer the selected lure name if its bonus matches (avoids wrong name for same-bonus lures)
+            local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
+            local selectedLureName = selectedLureID and lureNames[selectedLureID]
+            local selectedLureBonus = selectedLureID and (
+                selectedLureID == 34861 and 100 or
+                selectedLureID == 6533 and 100 or
+                selectedLureID == 6532 and 75 or
+                selectedLureID == 7307 and 75 or
+                selectedLureID == 6530 and 50 or
+                selectedLureID == 6811 and 50 or
+                selectedLureID == 6529 and 25
+            )
+            local buffName
+            if selectedLureName and selectedLureBonus == fishingBonus then
+                buffName = selectedLureName
+            else
+                buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
+            end
             local expirationSeconds = math.floor(mainHandExpiration / 1000)  -- Convert milliseconds to seconds
             return { name = buffName, expirationSeconds = expirationSeconds }
         end

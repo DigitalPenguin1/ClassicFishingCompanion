@@ -3286,6 +3286,7 @@ function CFC:ClearEasyCastBinding()
     self.easyCastBindingActive = false
     self.easyCastBindingSetTime = 0
     self.easyCastLastAction = nil
+    self.easyCastMouseDownTime = 0
 end
 
 -- Set up binding for fishing cast
@@ -3441,6 +3442,13 @@ function CFC:HandleFirstClick()
         return false
     end
 
+    -- Don't activate while moving (prevents camera takeover while running/in PvP)
+    if GetUnitSpeed("player") > 0 then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Player is moving, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
     -- Don't set binding if over UI elements (skip this check briefly after looting)
     if not justLooted and self:IsOverUIElement() then
         if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Over UI element, skipping") end
@@ -3493,6 +3501,14 @@ function CFC:InitializeEasyCast()
                     CFC.easyCastLastAction = nil
                 end
                 return
+            end
+
+            -- Clear binding if player starts moving (prevents camera takeover)
+            if CFC.easyCastBindingActive and GetUnitSpeed("player") > 0 then
+                if CFC.debug then
+                    print("|cff00ff00[CFC Debug]|r Easy Cast: Player started moving, clearing binding")
+                end
+                CFC:ClearEasyCastBinding()
             end
 
             -- Expire binding after timeout

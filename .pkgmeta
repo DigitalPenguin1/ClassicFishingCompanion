@@ -12,6 +12,7 @@ ignore:
   - .gitignore
   - .pkgmeta
   - .claude
+  - .git
   - wiki
 
 # Changelog file to include in the package

@@ -1767,90 +1767,114 @@ function UI:CreateGearSetsTab()
 
     -- Description
     frame.desc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
+    frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -4)
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
-    frame.desc:SetText("Save and manage your fishing and combat gear sets. Equip the gear you want to save, then click the Save button.")
+    frame.desc:SetText("Equip the gear you want, then click Save. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
 
-    -- Combat Gear Section
-    local combatY = -80
-    frame.combatTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.combatTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, combatY)
-    frame.combatTitle:SetText("|cffff8000Combat Gear Set|r")
+    -- Slot display order
+    local slotOrder = { 16, 17, 1, 3, 5, 10, 7, 8, 9, 6, 15, 2, 11, 12, 13, 14 }
+    local slotNames = {
+        [1] = "Head", [2] = "Neck", [3] = "Shoulder",
+        [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",
+        [9] = "Wrist", [10] = "Hands", [11] = "Ring 1", [12] = "Ring 2",
+        [13] = "Trinket 1", [14] = "Trinket 2", [15] = "Back",
+        [16] = "Main Hand", [17] = "Off Hand",
+    }
+    frame.slotOrder = slotOrder
+    frame.slotNames = slotNames
+    frame.activeSet = "combat"
 
-    -- Combat gear display
-    frame.combatGearText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.combatGearText:SetPoint("TOPLEFT", frame.combatTitle, "BOTTOMLEFT", 0, -10)
-    frame.combatGearText:SetWidth(260)
-    frame.combatGearText:SetHeight(150)
-    frame.combatGearText:SetJustifyH("LEFT")
-    frame.combatGearText:SetJustifyV("TOP")
-
-    -- Combat button
-    frame.saveCombatBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.saveCombatBtn:SetSize(150, 25)
-    frame.saveCombatBtn:SetPoint("TOPLEFT", frame.combatGearText, "BOTTOMLEFT", 0, -10)
-    frame.saveCombatBtn:SetText("Save Combat Gear")
-    frame.saveCombatBtn:SetScript("OnClick", function()
-        CFC:SaveGearSet("combat")
+    -- Toggle buttons
+    frame.combatToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.combatToggle:SetSize(100, 22)
+    frame.combatToggle:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -8)
+    frame.combatToggle:SetText("|cffff8000Combat|r")
+    frame.combatToggle:SetScript("OnClick", function()
+        frame.activeSet = "combat"
         UI:UpdateGearSetsTab()
-        print("|cff00ff00Classic Fishing Companion:|r Combat gear set saved!")
     end)
 
-    -- Fishing Gear Section
-    frame.fishingTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.fishingTitle:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, combatY)
-    frame.fishingTitle:SetText("|cff00ccffFishing Gear Set|r")
-
-    -- Fishing gear display
-    frame.fishingGearText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.fishingGearText:SetPoint("TOPRIGHT", frame.fishingTitle, "BOTTOMRIGHT", 0, -10)
-    frame.fishingGearText:SetWidth(260)
-    frame.fishingGearText:SetHeight(150)
-    frame.fishingGearText:SetJustifyH("RIGHT")
-    frame.fishingGearText:SetJustifyV("TOP")
-
-    -- Fishing button
-    frame.saveFishingBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.saveFishingBtn:SetSize(150, 25)
-    frame.saveFishingBtn:SetPoint("TOPRIGHT", frame.fishingGearText, "BOTTOMRIGHT", 0, -10)
-    frame.saveFishingBtn:SetText("Save Fishing Gear")
-    frame.saveFishingBtn:SetScript("OnClick", function()
-        CFC:SaveGearSet("fishing")
+    frame.fishingToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.fishingToggle:SetSize(100, 22)
+    frame.fishingToggle:SetPoint("LEFT", frame.combatToggle, "RIGHT", 4, 0)
+    frame.fishingToggle:SetText("|cff00ccffFishing|r")
+    frame.fishingToggle:SetScript("OnClick", function()
+        frame.activeSet = "fishing"
         UI:UpdateGearSetsTab()
-        print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
     end)
 
-    -- Swap Gear Button (big button at bottom)
+    -- Save button
+    frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.saveBtn:SetSize(120, 22)
+    frame.saveBtn:SetPoint("LEFT", frame.fishingToggle, "RIGHT", 4, 0)
+    frame.saveBtn:SetText("Save Set")
+    frame.saveBtn:SetScript("OnClick", function()
+        local setName = frame.activeSet
+        local label = (setName == "combat") and "Combat Gear" or "Fishing Gear"
+        CFC:SaveGearSet(setName)
+        UI:UpdateGearSetsTab()
+        print("|cff00ff00Classic Fishing Companion:|r " .. label .. " saved!")
+    end)
+
+    -- Swap Gear Button
     frame.swapGearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.swapGearBtn:SetSize(200, 35)
-    frame.swapGearBtn:SetPoint("BOTTOM", frame, "BOTTOM", 0, 20)
-    frame.swapGearBtn:SetText("|TInterface\\Icons\\INV_Sword_04:16|t Swap to Fishing Gear")
-
-    local swapFont = frame.swapGearBtn:GetFontString()
-    swapFont:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-
+    frame.swapGearBtn:SetSize(90, 22)
+    frame.swapGearBtn:SetPoint("LEFT", frame.saveBtn, "RIGHT", 4, 0)
+    frame.swapGearBtn:SetText("Swap Gear")
     frame.swapGearBtn:SetScript("OnClick", function()
         CFC:SwapGear()
         UI:UpdateGearSetsTab()
     end)
 
-    -- Current Mode Display
-    frame.currentModeText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.currentModeText:SetPoint("BOTTOM", frame.swapGearBtn, "TOP", 0, 10)
-
-    -- Clear All Gear Sets Button
+    -- Clear All Button
     frame.clearSetsBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.clearSetsBtn:SetSize(140, 25)
-    frame.clearSetsBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
-    frame.clearSetsBtn:SetText("Clear All Gear Sets")
-
+    frame.clearSetsBtn:SetSize(70, 22)
+    frame.clearSetsBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
+    frame.clearSetsBtn:SetText("Clear All")
     local clearFont = frame.clearSetsBtn:GetFontString()
-    clearFont:SetFont("Fonts\\FRIZQT__.TTF", 10)
-
+    clearFont:SetFont("Fonts\\FRIZQT__.TTF", 9)
     frame.clearSetsBtn:SetScript("OnClick", function()
         StaticPopup_Show("CFC_CLEAR_GEAR_SETS")
     end)
+
+    -- Status line
+    frame.statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.statusText:SetPoint("TOPLEFT", frame.combatToggle, "BOTTOMLEFT", 0, -6)
+
+    -- Item rows (single list, full width)
+    local ROW_HEIGHT = 15
+    local MAX_ROWS = 16
+    frame.rows = {}
+    for i = 1, MAX_ROWS do
+        local row = {}
+        row.icon = frame:CreateTexture(nil, "ARTWORK")
+        row.icon:SetSize(16, 16)
+        row.icon:SetPoint("TOPLEFT", frame.statusText, "BOTTOMLEFT", 0, -4 - ((i - 1) * ROW_HEIGHT))
+
+        row.slot = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.slot:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+        row.slot:SetWidth(75)
+        row.slot:SetJustifyH("LEFT")
+        row.slot:SetFont("Fonts\\FRIZQT__.TTF", 10)
+
+        row.name = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.name:SetPoint("LEFT", row.slot, "RIGHT", 2, 0)
+        row.name:SetWidth(380)
+        row.name:SetJustifyH("LEFT")
+        row.name:SetFont("Fonts\\FRIZQT__.TTF", 10)
+        row.name:SetWordWrap(false)
+
+        row.avail = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.avail:SetPoint("LEFT", row.name, "RIGHT", 4, 0)
+        row.avail:SetFont("Fonts\\FRIZQT__.TTF", 10)
+
+        row.icon:Hide()
+        row.slot:Hide()
+        row.name:Hide()
+        row.avail:Hide()
+        frame.rows[i] = row
+    end
 
     -- Store reference
     mainFrame.gearsets = frame
@@ -1866,73 +1890,75 @@ function UI:UpdateGearSetsTab()
         return
     end
 
-    -- Get gear sets
-    local combatGear = CFC.db.profile.gearSets.combat or {}
-    local fishingGear = CFC.db.profile.gearSets.fishing or {}
-    local currentMode = CFC:GetCurrentGearMode()
+    local activeSet = frame.activeSet or "combat"
+    local gearData = CFC.db.profile.gearSets[activeSet] or {}
+    local isEmpty = not next(gearData)
 
-    -- Update combat gear display
-    local combatText = ""
-    if next(combatGear) then
-        combatText = "|cff00ff00|TInterface\\RaidFrame\\ReadyCheck-Ready:16|t Gear Set Saved|r\n\n"
-        local slotNames = {
-            [1] = "Head", [2] = "Neck", [3] = "Shoulder",
-            [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",
-            [9] = "Wrist", [10] = "Hands", [15] = "Back",
-            [16] = "Main Hand", [17] = "Off Hand",
-        }
-        local count = 0
-        for slotID, itemLink in pairs(combatGear) do
-            if slotNames[slotID] and count < 8 then
-                local itemName = string.match(itemLink, "%[(.-)%]")
-                combatText = combatText .. slotNames[slotID] .. ": " .. (itemName or "Unknown") .. "\n"
-                count = count + 1
+    -- Update toggle highlights
+    if activeSet == "combat" then
+        frame.combatToggle:LockHighlight()
+        frame.fishingToggle:UnlockHighlight()
+    else
+        frame.combatToggle:UnlockHighlight()
+        frame.fishingToggle:LockHighlight()
+    end
+
+    -- Update save button text
+    local setLabel = (activeSet == "combat") and "Combat Gear" or "Fishing Gear"
+    frame.saveBtn:SetText("Save " .. setLabel)
+
+    -- Hide all rows
+    for i = 1, #frame.rows do
+        frame.rows[i].icon:Hide()
+        frame.rows[i].slot:Hide()
+        frame.rows[i].name:Hide()
+        frame.rows[i].avail:Hide()
+    end
+
+    if isEmpty then
+        frame.statusText:SetText("|cffff0000No gear saved|r - Equip your " .. setLabel:lower() .. ", then click Save.")
+    else
+        -- Validate the active set
+        local validation = CFC:ValidateGearSet(activeSet)
+
+        -- Status line
+        if validation.missing > 0 then
+            frame.statusText:SetText("|cff00ff00" .. validation.available .. "|r/" .. validation.total .. " items available  |cffff0000(" .. validation.missing .. " missing)|r")
+        else
+            frame.statusText:SetText("|cff00ff00" .. validation.total .. "/" .. validation.total .. " items available|r")
+        end
+
+        -- Populate rows
+        local rowIndex = 0
+        for _, slotID in ipairs(frame.slotOrder) do
+            local item = validation.items[slotID]
+            if item and rowIndex < #frame.rows then
+                rowIndex = rowIndex + 1
+                local row = frame.rows[rowIndex]
+
+                if item.texture then
+                    row.icon:SetTexture(item.texture)
+                    row.icon:Show()
+                end
+
+                row.slot:SetText("|cff888888" .. (frame.slotNames[slotID] or "?") .. "|r")
+                row.slot:Show()
+
+                local color = ITEM_QUALITY_COLORS[item.quality] or ITEM_QUALITY_COLORS[1]
+                row.name:SetText(color.hex .. item.name .. "|r")
+                row.name:Show()
+
+                if item.available then
+                    row.avail:SetText("|cff00ff00OK|r")
+                else
+                    row.avail:SetText("|cffff0000X|r")
+                end
+                row.avail:Show()
             end
         end
-        if count >= 8 then
-            combatText = combatText .. "... and more"
-        end
-    else
-        combatText = "|cffff0000No combat gear saved|r\n\nEquip your combat gear,\nthen click Save Combat Gear."
     end
-    frame.combatGearText:SetText(combatText)
 
-    -- Update fishing gear display
-    local fishingText = ""
-    if next(fishingGear) then
-        fishingText = "|cff00ff00|TInterface\\RaidFrame\\ReadyCheck-Ready:16|t Gear Set Saved|r\n\n"
-        local slotNames = {
-            [1] = "Head", [2] = "Neck", [3] = "Shoulder",
-            [5] = "Chest", [6] = "Waist", [7] = "Legs", [8] = "Feet",
-            [9] = "Wrist", [10] = "Hands", [15] = "Back",
-            [16] = "Main Hand", [17] = "Off Hand",
-        }
-        local count = 0
-        for slotID, itemLink in pairs(fishingGear) do
-            if slotNames[slotID] and count < 8 then
-                local itemName = string.match(itemLink, "%[(.-)%]")
-                fishingText = fishingText .. slotNames[slotID] .. ": " .. (itemName or "Unknown") .. "\n"
-                count = count + 1
-            end
-        end
-        if count >= 8 then
-            fishingText = fishingText .. "... and more"
-        end
-    else
-        fishingText = "|cffff0000No fishing gear saved|r\n\nEquip your fishing gear,\nthen click Save Fishing Gear."
-    end
-    frame.fishingGearText:SetText(fishingText)
-
-    -- Update current mode
-    local modeIcon = (currentMode == "fishing") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
-    frame.currentModeText:SetText("Current Mode: " .. modeIcon .. " " .. currentMode:upper())
-
-    -- Update swap button
-    local targetMode = (currentMode == "combat") and "fishing" or "combat"
-    local btnIcon = (currentMode == "combat") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
-    frame.swapGearBtn:SetText(btnIcon .. " Swap to " .. targetMode:sub(1,1):upper() .. targetMode:sub(2) .. " Gear")
-
-    -- Disable swap if gear sets not configured
+    -- Enable/disable swap button
     if CFC:HasGearSets() then
         frame.swapGearBtn:Enable()
     else

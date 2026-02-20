@@ -55,6 +55,7 @@ function CFC:InitializeMinimap()
         elseif button == "RightButton" then
             -- Toggle HUD visibility on right-click
             if CFC.HUD and CFC.HUD.ToggleShow then
+                local swapBlocked = false
                 -- Check if auto-swap is enabled
                 if CFC.db and CFC.db.profile and CFC.db.profile.settings and CFC.db.profile.settings.autoSwapOnHUD then
                     -- Check if gear sets are configured
@@ -66,25 +67,27 @@ function CFC:InitializeMinimap()
                         -- Warn if gear sets not configured
                         print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
                     else
-                        -- HUD is currently shown, so we're about to hide it -> swap to combat
-                        -- HUD is currently hidden, so we're about to show it -> swap to fishing
                         local hudCurrentlyShown = CFC.db.profile.hud.show
                         local currentMode = gearSets.currentMode or "combat"
 
                         if hudCurrentlyShown then
-                            -- About to hide HUD, swap to combat gear (only if not already in combat mode)
                             if currentMode ~= "combat" and CFC.SwapGear then
-                                CFC:SwapGear()
+                                if CFC:SwapGear() == false then
+                                    swapBlocked = true
+                                end
                             end
                         else
-                            -- About to show HUD, swap to fishing gear (only if not already in fishing mode)
                             if currentMode ~= "fishing" and CFC.SwapGear then
-                                CFC:SwapGear()
+                                if CFC:SwapGear() == false then
+                                    swapBlocked = true
+                                end
                             end
                         end
                     end
                 end
-                CFC.HUD:ToggleShow()
+                if not swapBlocked then
+                    CFC.HUD:ToggleShow()
+                end
             end
         end
     end)

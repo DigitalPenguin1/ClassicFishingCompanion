@@ -1984,6 +1984,49 @@ function CFC:FindItemInBags(itemID, usedBagSlots)
     return nil, nil
 end
 
+-- Validate a gear set: check which items are available (equipped or in bags)
+-- Returns: { available = count, missing = count, total = count, items = { [slotID] = { name, texture, quality, available } } }
+function CFC:ValidateGearSet(setName)
+    local result = { available = 0, missing = 0, total = 0, items = {} }
+    local gearSet = self.db and self.db.profile and self.db.profile.gearSets and self.db.profile.gearSets[setName]
+    if not gearSet or not next(gearSet) then
+        return result
+    end
+
+    for slotID, itemLink in pairs(gearSet) do
+        local itemName, _, quality, _, _, _, _, _, _, texture = GetItemInfo(itemLink)
+        local itemID = tonumber(string.match(itemLink, "item:(%d+)"))
+        if itemName and itemID then
+            result.total = result.total + 1
+            -- Check if already equipped in this slot
+            local equippedLink = GetInventoryItemLink("player", slotID)
+            local equippedID = equippedLink and tonumber(string.match(equippedLink, "item:(%d+)"))
+            local isAvailable = false
+            if equippedID == itemID then
+                isAvailable = true
+            else
+                -- Check bags
+                local bag, slot = self:FindItemInBags(itemID, {})
+                if bag then
+                    isAvailable = true
+                end
+            end
+            if isAvailable then
+                result.available = result.available + 1
+            else
+                result.missing = result.missing + 1
+            end
+            result.items[slotID] = {
+                name = itemName,
+                texture = texture,
+                quality = quality or 1,
+                available = isAvailable,
+            }
+        end
+    end
+    return result
+end
+
 -- Swap between fishing and combat gear
 function CFC:SwapGear()
     if self.debug then
@@ -1996,7 +2039,7 @@ function CFC:SwapGear()
         if self.debug then
             print("|cffff0000[CFC Debug]|r Combat lockdown active - aborting gear swap")
         end
-        return
+        return false
     end
 
     -- Check if casting or channeling
@@ -2009,7 +2052,7 @@ function CFC:SwapGear()
         if self.debug then
             print("|cffff0000[CFC Debug]|r Currently casting/channeling: " .. tostring(spellName) .. " - aborting gear swap")
         end
-        return
+        return false
     end
 
     if not self.db or not self.db.profile or not self.db.profile.gearSets then
@@ -2019,7 +2062,7 @@ function CFC:SwapGear()
         if self.debug then
             print("|cffff0000[CFC Debug]|r Gear sets not configured - database missing")
         end
-        return
+        return false
     end
 
     local currentMode = self.db.profile.gearSets.currentMode or "combat"
@@ -2039,11 +2082,34 @@ function CFC:SwapGear()
         print("|cffff8800[CFC Debug]|r Has fishing gear: " .. tostring(hasFishing))
     end
 
-    -- Save current gear before swapping
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Saving current gear to '" .. currentMode .. "' set...")
+    -- When swapping to fishing, verify the fishing pole is available
+    if newMode == "fishing" and hasFishing then
+        local fishingSet = self.db.profile.gearSets.fishing
+        local poleLink = fishingSet[16] -- Main Hand slot
+        if poleLink then
+            local poleItemID = tonumber(string.match(poleLink, "item:(%d+)"))
+            if poleItemID then
+                -- Check if already equipped in main hand
+                local equippedLink = GetInventoryItemLink("player", 16)
+                local equippedID = equippedLink and tonumber(string.match(equippedLink, "item:(%d+)"))
+                local hasPole = (equippedID == poleItemID)
+
+                -- If not equipped, check bags
+                if not hasPole then
+                    hasPole = self:FindItemInBags(poleItemID) ~= nil
+                end
+
+                if not hasPole then
+                    local poleName = string.match(poleLink, "%[(.-)%]") or "Fishing Pole"
+                    print("|cffff0000Classic Fishing Companion:|r Cannot swap to fishing gear - " .. poleName .. " not found!")
+                    if self.debug then
+                        print("|cffff0000[CFC Debug]|r Fishing pole (item " .. poleItemID .. ") not in bags or equipped - aborting swap")
+                    end
+                    return false
+                end
+            end
+        end
     end
-    self:SaveGearSet(currentMode)
 
     -- Load the other gear set
     if self.debug then
@@ -2055,10 +2121,12 @@ function CFC:SwapGear()
         if self.debug then
             print("|cff00ff00[CFC Debug]|r ===== GEAR SWAP COMPLETE =====")
         end
+        return true
     else
         if self.debug then
             print("|cffff0000[CFC Debug]|r ===== GEAR SWAP FAILED =====")
         end
+        return false
     end
 end
 
@@ -2846,6 +2914,7 @@ SlashCmdList["CFC"] = function(msg)
         print("|cff00ff00Classic Fishing Companion:|r Testing milestone notification (sound ID: 888)")
     elseif msg == "hud" then
         if CFC.HUD and CFC.HUD.ToggleShow then
+            local swapBlocked = false
             -- Auto-swap gear if enabled
             if CFC.db.profile.settings.autoSwapOnHUD then
                 local gearSets = CFC.db.profile.gearSets
@@ -2858,18 +2927,24 @@ SlashCmdList["CFC"] = function(msg)
 
                     if hudCurrentlyShown then
                         if currentMode ~= "combat" and CFC.SwapGear then
-                            CFC:SwapGear()
+                            if CFC:SwapGear() == false then
+                                swapBlocked = true
+                            end
                         end
                     else
                         if currentMode ~= "fishing" and CFC.SwapGear then
-                            CFC:SwapGear()
+                            if CFC:SwapGear() == false then
+                                swapBlocked = true
+                            end
                         end
                     end
                 else
                     print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
                 end
             end
-            CFC.HUD:ToggleShow()
+            if not swapBlocked then
+                CFC.HUD:ToggleShow()
+            end
         else
             print("|cff00ff00Classic Fishing Companion:|r HUD module not loaded.")
         end

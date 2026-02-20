@@ -2,6 +2,17 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.3] - 2026-02-20
+
+### Improved
+- Gear Sets tab redesigned with toggle view — switch between combat and fishing sets with full-width item display instead of cramped side-by-side columns
+- Gear swap no longer corrupts saved sets — removed auto-save that was overwriting gear data with partially-swapped equipment
+- Fishing pole validation — swapping to fishing gear is blocked if your fishing pole is missing from bags and equipment, preventing incomplete swaps
+- HUD no longer toggles when gear swap fails — if auto-swap on HUD is enabled and the swap is blocked, the HUD stays in its current state
+- Easy Cast camera handling — binding is no longer set during active fishing channel, preventing brief camera lock when clicking swap button during combat
+- Easy Cast pre-combat detection — binding clears before combat lockdown using UnitAffectingCombat check
+- Quick recast after missed fish — double right-click now works immediately after a missed catch instead of requiring an extra click
+
 ## [1.1.2] - 2026-02-18
 
 ### Fixed

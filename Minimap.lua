@@ -26,11 +26,11 @@ function CFC:InitializeMinimap()
     minimapButton:RegisterForDrag("LeftButton")
     minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- Black background behind icon
+    -- Background behind icon (matches logo background #36281F)
     minimapButton.bg = minimapButton:CreateTexture(nil, "BACKGROUND")
     minimapButton.bg:SetSize(20, 20)
     minimapButton.bg:SetPoint("CENTER", 0, 0)
-    minimapButton.bg:SetColorTexture(0, 0, 0, 1)
+    minimapButton.bg:SetColorTexture(0.212, 0.157, 0.122, 1)
 
     -- Button icon (custom addon icon)
     minimapButton.icon = minimapButton:CreateTexture(nil, "ARTWORK")

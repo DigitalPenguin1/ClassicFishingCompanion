@@ -276,6 +276,7 @@ function CFC:OnEnable()
     self.lastBuffTrackTime = 0  -- Track last time we counted a buff application
     self.addonJustLoaded = true  -- Flag to prevent counting existing lures on first check after load/reload
     self.easyCastLootClosedTime = 0  -- Track when loot window closed for Easy Cast
+    self.easyCastChannelStopTime = 0  -- Track when fishing channel stopped (for quick re-cast after miss)
     self.lastFishingCastTime = 0  -- Track when player last cast Fishing spell (for fallback detection)
     self.autoSwappedCombatWeapons = false  -- Track if we auto-swapped to combat weapons during combat
     self.isFishingChannelActive = false  -- Track if we're currently channeling fishing
@@ -854,6 +855,9 @@ function CFC:OnSpellChannelStop(event, unit, _, spellID)
 
     -- Mark fishing as no longer active
     self.isFishingChannelActive = false
+
+    -- Set channel stop time so Easy Cast can bypass bobber check after a miss
+    self.easyCastChannelStopTime = GetTime()
 end
 
 -- Create the combat weapon swap button (must be created before combat)
@@ -979,6 +983,10 @@ end
 -- Handle entering combat
 function CFC:OnCombatStart()
     self.lastFishingCastTime = 0
+
+    -- Clear Easy Cast binding immediately (before InCombatLockdown() returns true)
+    -- This prevents the override binding from capturing right-clicks during combat
+    self:ClearEasyCastBinding()
 
     if self.debug then
         print("|cffff8800[CFC Debug]|r === OnCombatStart ===")
@@ -3364,6 +3372,14 @@ function CFC:SetupEasyCastBinding()
         return false
     end
 
+    -- Don't set binding while already fishing (prevents camera issues on combat start)
+    if self.isFishingChannelActive then
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Already fishing, skipping binding setup")
+        end
+        return false
+    end
+
     -- Check if we should apply a lure first
     if self:ShouldApplyLure() then
         return self:SetupEasyCastLureBinding()
@@ -3390,16 +3406,18 @@ function CFC:HandleFirstClick()
         return false
     end
 
-    -- Check if we just finished looting (within 2 seconds) - skip some checks for quick re-cast
+    -- Check if we just finished fishing (looted or missed) - skip some checks for quick re-cast
     local justLooted = (GetTime() - self.easyCastLootClosedTime) < 2.0
+    local justFinishedCast = (GetTime() - self.easyCastChannelStopTime) < 2.0
+    local allowQuickRecast = justLooted or justFinishedCast
 
-    if CFC.debug and justLooted then
-        print("|cff00ff00[CFC Debug]|r Easy Cast: Just looted, allowing quick re-cast")
+    if CFC.debug and allowQuickRecast then
+        print("|cff00ff00[CFC Debug]|r Easy Cast: Just finished fishing, allowing quick re-cast")
     end
 
     -- Don't interfere if we're on the bobber (let normal click work)
-    -- Skip this check briefly after looting to allow quick re-cast
-    if not justLooted and self:IsOnFishingBobber() then
+    -- Skip this check briefly after fishing ends to allow quick re-cast
+    if not allowQuickRecast and self:IsOnFishingBobber() then
         if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: On bobber, skipping") end
         self:ClearEasyCastBinding()
         return false
@@ -3450,7 +3468,7 @@ function CFC:HandleFirstClick()
     end
 
     -- Don't set binding if over UI elements (skip this check briefly after looting)
-    if not justLooted and self:IsOverUIElement() then
+    if not allowQuickRecast and self:IsOverUIElement() then
         if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Over UI element, skipping") end
         self:ClearEasyCastBinding()
         return false
@@ -3489,18 +3507,26 @@ function CFC:InitializeEasyCast()
 
         local wasRightDown = false
         self.easyCastFrame:SetScript("OnUpdate", function(frame, elapsed)
-            -- If in combat, clear binding state and skip processing
+            -- If in combat lockdown, reset state flags (can't clear actual binding)
             if InCombatLockdown() then
                 if CFC.easyCastBindingActive then
                     if CFC.debug then
-                        print("|cff00ff00[CFC Debug]|r Easy Cast: In combat, clearing binding state")
+                        print("|cff00ff00[CFC Debug]|r Easy Cast: In combat lockdown, clearing binding state")
                     end
-                    -- Can't clear actual binding during combat, but reset state
                     CFC.easyCastBindingActive = false
                     CFC.easyCastBindingSetTime = 0
                     CFC.easyCastLastAction = nil
                 end
                 return
+            end
+
+            -- Pre-combat detection: clear binding before lockdown kicks in
+            -- UnitAffectingCombat becomes true before InCombatLockdown in some cases
+            if CFC.easyCastBindingActive and UnitAffectingCombat("player") and not InCombatLockdown() then
+                if CFC.debug then
+                    print("|cff00ff00[CFC Debug]|r Easy Cast: Combat detected, clearing binding before lockdown")
+                end
+                CFC:ClearEasyCastBinding()
             end
 
             -- Clear binding if player starts moving (prevents camera takeover)
@@ -3510,6 +3536,7 @@ function CFC:InitializeEasyCast()
                 end
                 CFC:ClearEasyCastBinding()
             end
+
 
             -- Expire binding after timeout
             if CFC.easyCastBindingActive and CFC.easyCastBindingSetTime > 0 then

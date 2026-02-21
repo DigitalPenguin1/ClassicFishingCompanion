@@ -3447,13 +3447,8 @@ function CFC:SetupEasyCastBinding()
         return false
     end
 
-    -- Don't set binding while already fishing (prevents camera issues on combat start)
-    if self.isFishingChannelActive then
-        if self.debug then
-            print("|cff00ff00[CFC Debug]|r Easy Cast: Already fishing, skipping binding setup")
-        end
-        return false
-    end
+    -- Allow recasting while already fishing (e.g. repositioning lure in a fish pool)
+    -- Combat protection is handled by InCombatLockdown() check above and pre-combat detection
 
     -- Check if we should apply a lure first
     if self:ShouldApplyLure() then

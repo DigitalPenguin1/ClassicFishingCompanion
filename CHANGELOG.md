@@ -2,7 +2,7 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [1.1.4] - 2026-02-20
+## [1.1.4] - 2026-02-21
 
 ### Improved
 - Tooltip flicker eliminated — shift-comparing items in bags no longer causes the equipped item tooltip to flash every second while HUD is visible
@@ -10,6 +10,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - Minimap icon background now matches the addon logo
 - Catch & Release notifications now appear as a brief HUD indicator instead of chat messages
 - Welcome message displays after a short delay on login/reload
+- Easy Cast now allows recasting while your line is already out — useful for repositioning your lure in fish pools
 
 ## [1.1.3] - 2026-02-20
 

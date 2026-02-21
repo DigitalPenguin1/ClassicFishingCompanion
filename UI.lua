@@ -3624,6 +3624,23 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.4"] = {
+        features = {
+            "Goals Tab - Set catch goals for specific fish with progress bars!",
+            "Goals display on the HUD with color-coded progress (yellow at 75%%, green on completion)",
+            "Catch & Release Tab - Mark fish for deletion via keybind to keep bags clean",
+            "Gear Sets tab redesigned with toggle view — full-width item display",
+            "Fishing pole validation blocks swap if pole is missing",
+        },
+        fixes = {
+            "Improved gear swap stability — saved sets no longer get corrupted",
+            "Improved Easy Cast camera handling — no more brief camera lock during combat",
+            "Improved quick recast after missed fish — works immediately now",
+            "Improved tooltip stability — no more flickering when shift-comparing items",
+            "Improved lure statistics — now shows proper lure names, old data auto-merged",
+        },
+        tip = "TIP: The Gear Sets tab has been redesigned. You may need to re-save your\ncombat and fishing gear sets after this update.\nCatch & Release keybind: ESC > Key Bindings > Classic Fishing Companion."
+    },
     ["1.1.3"] = {
         features = {
             "Goals Tab - Set catch goals for specific fish with progress bars!",

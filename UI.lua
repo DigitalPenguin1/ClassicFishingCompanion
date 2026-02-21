@@ -3624,7 +3624,7 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
-    ["1.1.4"] = {
+    ["1.1.3"] = {
         features = {
             "Goals Tab - Set catch goals for specific fish with progress bars!",
             "Goals display on the HUD with color-coded progress (yellow at 75%%, green on completion)",

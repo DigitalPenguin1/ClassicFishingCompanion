@@ -141,6 +141,13 @@ function CFC:InitializeHUD()
         hudFrame.goalTexts[i] = goalText
     end
 
+    -- Release notification (shows briefly when catching a release-list fish)
+    hudFrame.releaseText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hudFrame.releaseText:SetPoint("BOTTOM", hudFrame, "TOP", 0, 4)
+    hudFrame.releaseText:SetJustifyH("CENTER")
+    hudFrame.releaseText:SetTextColor(1, 0.5, 0)  -- Orange
+    hudFrame.releaseText:Hide()
+
     -- Lock/unlock button
     hudFrame.lockIcon = CreateFrame("Button", nil, hudFrame)
     hudFrame.lockIcon:SetSize(16, 16)
@@ -525,30 +532,38 @@ end
 
 -- Reusable tooltip for scanning fishing pole bonus (created once)
 local poleBonusTooltip = nil
+-- Cache pole bonus by item link to avoid repeated tooltip scans
+local cachedPoleLink = nil
+local cachedPoleBonus = nil
 
 -- Get fishing pole inherent bonus
 -- Returns: bonus amount (number) or nil
 function HUDModule:GetFishingPoleBonus()
     local mainHandLink = GetInventoryItemLink("player", 16)
     if not mainHandLink then
+        cachedPoleLink = nil
+        cachedPoleBonus = nil
         return nil
     end
 
-    -- Create tooltip once and reuse it
+    -- Return cached value if same pole is equipped
+    if mainHandLink == cachedPoleLink then
+        return cachedPoleBonus
+    end
+
+    -- Different pole equipped — scan tooltip once and cache result
     if not poleBonusTooltip then
         poleBonusTooltip = CreateFrame("GameTooltip", "CFCHUDPoleScanTooltip", nil, "GameTooltipTemplate")
         poleBonusTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     end
 
-    -- Ensure tooltip is hidden before resetting
     poleBonusTooltip:Hide()
     poleBonusTooltip:ClearLines()
     poleBonusTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     poleBonusTooltip:SetInventoryItem("player", 16)
-
-    -- In Classic WoW, tooltip must be shown to populate lines
     poleBonusTooltip:Show()
 
+    local result = nil
     local numLines = poleBonusTooltip:NumLines()
 
     for i = 1, numLines do
@@ -556,7 +571,6 @@ function HUDModule:GetFishingPoleBonus()
         if line then
             local text = line:GetText()
             if text then
-                -- Match patterns like "Equip: Increased Fishing +25" or "Fishing +35"
                 local bonus = string.match(text, "Fishing %+(%d+)")
                 if not bonus then
                     bonus = string.match(text, "increased by %+(%d+)")
@@ -566,19 +580,22 @@ function HUDModule:GetFishingPoleBonus()
                 end
 
                 if bonus then
-                    poleBonusTooltip:Hide()
-                    return tonumber(bonus)
+                    result = tonumber(bonus)
+                    break
                 end
             end
         end
     end
 
     poleBonusTooltip:Hide()
-    return nil
-end
 
--- Reusable tooltip for scanning fishing buff (created once)
-local buffScanTooltip = nil
+    -- Only cache if we got a result (tooltip data may not be ready yet after gear swap)
+    if result then
+        cachedPoleLink = mainHandLink
+        cachedPoleBonus = result
+    end
+    return result
+end
 
 -- Get current fishing buff (lure)
 -- Returns: { name = "Buff Name", expirationSeconds = 123 } or nil
@@ -589,45 +606,12 @@ function HUDModule:GetCurrentFishingBuff()
     if hasMainHandEnchant then
         local expirationSeconds = math.floor(mainHandExpiration / 1000)
 
-        -- First: try direct enchant ID lookup (no tooltip scan needed, avoids tooltip flashing)
+        -- Use direct enchant ID lookup (no tooltip scan needed, avoids tooltip flashing)
         if mainHandEnchantId and CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId] then
             return { name = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId], expirationSeconds = expirationSeconds }
         end
 
-        -- Fallback: tooltip scan for unknown enchant IDs
-        local fishingBonus = nil
-
-        if not buffScanTooltip then
-            buffScanTooltip = CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
-            buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        end
-
-        buffScanTooltip:Hide()
-        buffScanTooltip:ClearLines()
-        buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        buffScanTooltip:SetInventoryItem("player", 16)
-        buffScanTooltip:Show()
-
-        for i = 1, buffScanTooltip:NumLines() do
-            local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
-            if line then
-                local text = line:GetText()
-                if text then
-                    local bonus = string.match(text, "Fishing Lure %+(%d+)")
-                    if bonus then
-                        fishingBonus = tonumber(bonus)
-                        break
-                    end
-                end
-            end
-        end
-
-        buffScanTooltip:Hide()
-
-        if fishingBonus then
-            local buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
-            return { name = buffName, expirationSeconds = expirationSeconds }
-        end
+        -- Unknown enchant ID — not a fishing lure (e.g. sharpening stone), skip it
     end
 
     -- Check for fishing-related buffs
@@ -654,6 +638,27 @@ function HUDModule:GetCurrentFishingBuff()
     end
 
     return nil
+end
+
+-- Show release notification on HUD (fades after 3 seconds)
+function HUDModule:ShowReleaseNotification(fishName)
+    if not hudFrame or not hudFrame:IsShown() then return end
+
+    hudFrame.releaseText:SetText("|cffff8800Release:|r " .. fishName)
+    hudFrame.releaseText:SetAlpha(1)
+    hudFrame.releaseText:Show()
+
+    -- Cancel any existing fade timer
+    if hudFrame.releaseFadeTimer then
+        hudFrame.releaseFadeTimer:Cancel()
+    end
+
+    -- Fade out after 3 seconds
+    hudFrame.releaseFadeTimer = C_Timer.NewTimer(3, function()
+        if hudFrame and hudFrame.releaseText then
+            hudFrame.releaseText:Hide()
+        end
+    end)
 end
 
 -- Save HUD position

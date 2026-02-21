@@ -155,6 +155,13 @@ function CFC:InitializeHUD()
         hudFrame.goalTexts[i] = goalText
     end
 
+    -- Release notification (shows briefly when catching a release-list fish)
+    hudFrame.releaseText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hudFrame.releaseText:SetPoint("BOTTOM", hudFrame, "TOP", 0, 4)
+    hudFrame.releaseText:SetJustifyH("CENTER")
+    hudFrame.releaseText:SetTextColor(1, 0.5, 0)  -- Orange
+    hudFrame.releaseText:Hide()
+
     -- Lock/unlock button
     hudFrame.lockIcon = CreateFrame("Button", nil, hudFrame)
     hudFrame.lockIcon:SetSize(16, 16)
@@ -519,30 +526,38 @@ end
 
 -- Reusable tooltip for scanning fishing pole bonus (created once)
 local poleBonusTooltip = nil
+-- Cache pole bonus by item link to avoid repeated tooltip scans
+local cachedPoleLink = nil
+local cachedPoleBonus = nil
 
 -- Get fishing pole inherent bonus
 -- Returns: bonus amount (number) or nil
 function HUDModule:GetFishingPoleBonus()
     local mainHandLink = GetInventoryItemLink("player", 16)
     if not mainHandLink then
+        cachedPoleLink = nil
+        cachedPoleBonus = nil
         return nil
     end
 
-    -- Create tooltip once and reuse it
+    -- Return cached value if same pole is equipped
+    if mainHandLink == cachedPoleLink then
+        return cachedPoleBonus
+    end
+
+    -- Different pole equipped — scan tooltip once and cache result
     if not poleBonusTooltip then
         poleBonusTooltip = CreateFrame("GameTooltip", "CFCHUDPoleScanTooltip", nil, "GameTooltipTemplate")
         poleBonusTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     end
 
-    -- Ensure tooltip is hidden before resetting
     poleBonusTooltip:Hide()
     poleBonusTooltip:ClearLines()
     poleBonusTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     poleBonusTooltip:SetInventoryItem("player", 16)
-
-    -- In Classic WoW, tooltip must be shown to populate lines
     poleBonusTooltip:Show()
 
+    local result = nil
     local numLines = poleBonusTooltip:NumLines()
 
     for i = 1, numLines do
@@ -550,7 +565,6 @@ function HUDModule:GetFishingPoleBonus()
         if line then
             local text = line:GetText()
             if text then
-                -- Match patterns like "Equip: Increased Fishing +25" or "Fishing +35"
                 local bonus = string.match(text, "Fishing %+(%d+)")
                 if not bonus then
                     bonus = string.match(text, "increased by %+(%d+)")
@@ -560,18 +574,25 @@ function HUDModule:GetFishingPoleBonus()
                 end
 
                 if bonus then
-                    poleBonusTooltip:Hide()
-                    return tonumber(bonus)
+                    result = tonumber(bonus)
+                    break
                 end
             end
         end
     end
 
     poleBonusTooltip:Hide()
-    return nil
+
+    -- Only cache if we got a result (tooltip data may not be ready yet after gear swap)
+    if result then
+        cachedPoleLink = mainHandLink
+        cachedPoleBonus = result
+    end
+    return result
 end
 
--- Reusable tooltip for scanning fishing buff (created once)
+-- Session cache for enchant IDs not in the static table (scanned once via tooltip, then cached)
+local enchantIdCache = {}
 local buffScanTooltip = nil
 
 -- Get current fishing buff (lure)
@@ -583,62 +604,81 @@ function HUDModule:GetCurrentFishingBuff()
     if hasMainHandEnchant then
         local expirationSeconds = math.floor(mainHandExpiration / 1000)
 
-        -- First: try direct enchant ID lookup (no tooltip scan needed, avoids tooltip flashing)
+        -- First: try direct enchant ID lookup (instant, no tooltip)
         if mainHandEnchantId and CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId] then
             return { name = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId], expirationSeconds = expirationSeconds }
         end
 
-        -- Fallback: tooltip scan for unknown enchant IDs
-        local fishingBonus = nil
+        -- Second: check session cache (previously scanned unknown enchant IDs)
+        if mainHandEnchantId and enchantIdCache[mainHandEnchantId] ~= nil then
+            if enchantIdCache[mainHandEnchantId] == false then
+                -- Cached as not-a-lure, skip
+            else
+                return { name = enchantIdCache[mainHandEnchantId], expirationSeconds = expirationSeconds }
+            end
+        elseif mainHandEnchantId then
+            -- Unknown enchant ID — do a ONE-TIME tooltip scan and cache the result
+            if not buffScanTooltip then
+                buffScanTooltip = CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
+            end
 
-        if not buffScanTooltip then
-            buffScanTooltip = CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
+            buffScanTooltip:Hide()
+            buffScanTooltip:ClearLines()
             buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        end
+            buffScanTooltip:SetInventoryItem("player", 16)
+            buffScanTooltip:Show()
 
-        buffScanTooltip:Hide()
-        buffScanTooltip:ClearLines()
-        buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        buffScanTooltip:SetInventoryItem("player", 16)
-        buffScanTooltip:Show()
-
-        for i = 1, buffScanTooltip:NumLines() do
-            local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
-            if line then
-                local text = line:GetText()
-                if text then
-                    -- TBC format: "Fishing Lure (+25 Fishing Skill) (10 min)"
-                    local bonus = string.match(text, "Lure.*%(%+(%d+)")
-                    if bonus then
-                        fishingBonus = tonumber(bonus)
-                        break
+            local fishingBonus = nil
+            for i = 1, buffScanTooltip:NumLines() do
+                local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
+                if line then
+                    local text = line:GetText()
+                    if text then
+                        local bonus = string.match(text, "Lure.*%(%+(%d+)")
+                        if not bonus then
+                            bonus = string.match(text, "Fishing Lure %+(%d+)")
+                        end
+                        if bonus then
+                            fishingBonus = tonumber(bonus)
+                            break
+                        end
                     end
                 end
             end
-        end
 
-        buffScanTooltip:Hide()
+            buffScanTooltip:Hide()
 
-        if fishingBonus then
-            -- Prefer the selected lure name if its bonus matches (avoids wrong name for same-bonus lures)
-            local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
-            local selectedLureName = selectedLureID and lureNames[selectedLureID]
-            local selectedLureBonus = selectedLureID and (
-                selectedLureID == 34861 and 100 or
-                selectedLureID == 6533 and 100 or
-                selectedLureID == 6532 and 75 or
-                selectedLureID == 7307 and 75 or
-                selectedLureID == 6530 and 50 or
-                selectedLureID == 6811 and 50 or
-                selectedLureID == 6529 and 25
-            )
-            local buffName
-            if selectedLureName and selectedLureBonus == fishingBonus then
-                buffName = selectedLureName
+            if fishingBonus then
+                -- Prefer selected lure name if bonus matches
+                local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
+                local selectedLureName = selectedLureID and lureNames[selectedLureID]
+                local selectedLureBonus = selectedLureID and (
+                    selectedLureID == 34861 and 100 or
+                    selectedLureID == 6533 and 100 or
+                    selectedLureID == 6532 and 75 or
+                    selectedLureID == 7307 and 75 or
+                    selectedLureID == 6530 and 50 or
+                    selectedLureID == 6811 and 50 or
+                    selectedLureID == 6529 and 25
+                )
+                local buffName
+                if selectedLureName and selectedLureBonus == fishingBonus then
+                    buffName = selectedLureName
+                else
+                    buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
+                end
+                enchantIdCache[mainHandEnchantId] = buffName
+                if CFC.debug then
+                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as: " .. buffName)
+                end
+                return { name = buffName, expirationSeconds = expirationSeconds }
             else
-                buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
+                -- Not a fishing lure (e.g. sharpening stone) — cache as false so we never scan again
+                enchantIdCache[mainHandEnchantId] = false
+                if CFC.debug then
+                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as: not a lure")
+                end
             end
-            return { name = buffName, expirationSeconds = expirationSeconds }
         end
     end
 
@@ -666,6 +706,27 @@ function HUDModule:GetCurrentFishingBuff()
     end
 
     return nil
+end
+
+-- Show release notification on HUD (fades after 3 seconds)
+function HUDModule:ShowReleaseNotification(fishName)
+    if not hudFrame or not hudFrame:IsShown() then return end
+
+    hudFrame.releaseText:SetText("|cffff8800Release:|r " .. fishName)
+    hudFrame.releaseText:SetAlpha(1)
+    hudFrame.releaseText:Show()
+
+    -- Cancel any existing fade timer
+    if hudFrame.releaseFadeTimer then
+        hudFrame.releaseFadeTimer:Cancel()
+    end
+
+    -- Fade out after 3 seconds
+    hudFrame.releaseFadeTimer = C_Timer.NewTimer(3, function()
+        if hudFrame and hudFrame.releaseText then
+            hudFrame.releaseText:Hide()
+        end
+    end)
 end
 
 -- Save HUD position

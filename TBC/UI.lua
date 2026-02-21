@@ -3653,6 +3653,8 @@ local whatsNewContent = {
             "Improved gear swap stability — saved sets no longer get corrupted",
             "Improved Easy Cast camera handling — no more brief camera lock during combat",
             "Improved quick recast after missed fish — works immediately now",
+            "Improved tooltip stability — no more flickering when shift-comparing items",
+            "Improved lure statistics — now shows proper lure names, old data auto-merged",
         },
         tip = "TIP: The Gear Sets tab has been redesigned. You may need to re-save your\ncombat and fishing gear sets after this update.\nCatch & Release keybind: ESC > Key Bindings > Classic Fishing Companion."
     },

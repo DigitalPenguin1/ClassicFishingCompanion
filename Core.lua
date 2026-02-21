@@ -71,13 +71,22 @@ CFC.CONSTANTS = {
         [6533] = "Aquadynamic Fish Attractor",
     },
     -- Weapon enchant IDs for fishing lures (locale-independent detection)
+    -- Classic Era uses IDs 2603-2608, TBC uses different IDs (e.g. 265 for Bright Baubles)
     LURE_ENCHANT_IDS = {
+        -- Classic Era enchant IDs
         [2603] = "Shiny Bauble",           -- +25 fishing
         [2604] = "Nightcrawlers",          -- +50 fishing
         [2605] = "Bright Baubles",         -- +75 fishing
         [2606] = "Aquadynamic Fish Attractor", -- +100 fishing
         [2607] = "Flesh Eating Worm",      -- +75 fishing
         [2608] = "Aquadynamic Fish Lens",  -- +50 fishing (Engineering)
+        -- TBC enchant IDs
+        [263] = "Shiny Bauble",            -- +25 fishing (TBC)
+        [264] = "Nightcrawlers",           -- +50 fishing (TBC)
+        [265] = "Bright Baubles",          -- +75 fishing (TBC)
+        [266] = "Aquadynamic Fish Attractor", -- +100 fishing (TBC)
+        [267] = "Flesh Eating Worm",       -- +75 fishing (TBC)
+        [268] = "Aquadynamic Fish Lens",   -- +50 fishing (TBC)
         [34861] = "Sharpened Fish Hook",   -- +100 fishing (TBC)
     },
     -- Catch milestones for notifications
@@ -244,6 +253,39 @@ function CFC:OnInitialize()
         end)
     end
 
+    -- Migrate generic lure names to proper lure names (v1.1.3)
+    if self.db.profile.buffUsage then
+        local lureNameMap = {
+            -- Classic Era format: "Fishing Lure +XX"
+            ["Fishing Lure +25"] = "Shiny Bauble",
+            ["Fishing Lure +50"] = "Nightcrawlers",
+            ["Fishing Lure +75"] = "Bright Baubles",
+            ["Fishing Lure +100"] = "Aquadynamic Fish Attractor",
+            -- TBC format: "Fishing Lure (+XX Fishing Skill)"
+            ["Fishing Lure (+25 Fishing Skill)"] = "Shiny Bauble",
+            ["Fishing Lure (+50 Fishing Skill)"] = "Nightcrawlers",
+            ["Fishing Lure (+75 Fishing Skill)"] = "Bright Baubles",
+            ["Fishing Lure (+100 Fishing Skill)"] = "Aquadynamic Fish Attractor",
+        }
+
+        for oldName, newName in pairs(lureNameMap) do
+            if self.db.profile.buffUsage[oldName] then
+                local oldData = self.db.profile.buffUsage[oldName]
+                if self.db.profile.buffUsage[newName] then
+                    -- Merge: add counts, keep latest lastUsed
+                    self.db.profile.buffUsage[newName].count = self.db.profile.buffUsage[newName].count + oldData.count
+                    if oldData.lastUsed > self.db.profile.buffUsage[newName].lastUsed then
+                        self.db.profile.buffUsage[newName].lastUsed = oldData.lastUsed
+                    end
+                else
+                    -- Rename: move data to new key
+                    self.db.profile.buffUsage[newName] = oldData
+                end
+                self.db.profile.buffUsage[oldName] = nil
+            end
+        end
+    end
+
     -- Reset session statistics on login
     self.db.profile.statistics.sessionCatches = 0
     self.db.profile.statistics.sessionStartTime = time()
@@ -255,8 +297,10 @@ function CFC:OnInitialize()
         end
     end
 
-    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
-    print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
+    C_Timer.After(3, function()
+        print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
+        print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
+    end)
 end
 
 -- Handle addon loading
@@ -480,37 +524,46 @@ function CFC:CheckLureChanges()
         -- Convert expiration from milliseconds to seconds
         local expirationSeconds = math.floor(mainHandExpiration / 1000)
 
-        -- First try to detect lure by enchant ID (locale-independent, most reliable)
+        -- Detect lure by enchant ID (locale-independent, no tooltip scan needed)
         local lureName = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantID]
 
-        -- Fallback: Parse tooltip if enchant ID not in our mapping (handles unknown/future lures)
-        if not lureName then
-            CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-            CFC_ScanTooltip:ClearLines()
-            CFC_ScanTooltip:SetInventoryItem("player", CFC.CONSTANTS.SLOTS.MAIN_HAND)
+        -- Check session cache for previously scanned unknown enchant IDs
+        if not lureName and mainHandEnchantID then
+            if self.enchantIdCache and self.enchantIdCache[mainHandEnchantID] ~= nil then
+                if self.enchantIdCache[mainHandEnchantID] == false then
+                    lureName = nil  -- cached as not-a-lure
+                else
+                    lureName = self.enchantIdCache[mainHandEnchantID]
+                end
+            else
+                -- One-time tooltip scan for unknown enchant ID
+                if not self.enchantIdCache then self.enchantIdCache = {} end
+                CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+                CFC_ScanTooltip:ClearLines()
+                CFC_ScanTooltip:SetInventoryItem("player", CFC.CONSTANTS.SLOTS.MAIN_HAND)
 
-            for i = 1, CFC_ScanTooltip:NumLines() do
-                local line = _G["CFC_ScanTooltipTextLeft" .. i]
-                if line then
-                    local text = line:GetText()
-                    -- Look for fishing-related text (works for English clients, fallback for unknown enchants)
-                    if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing") or string.find(text, "Fishing Skill")) then
-                        -- Normalize lure name to consistent format "Fishing Lure +XX"
-                        -- TBC format: "Fishing Lure (+75 Fishing Skill) (10 min)"
-                        -- Classic Era format: "Fishing Lure +75"
-                        local bonus = string.match(text, "%+(%d+)")
-                        if bonus then
-                            lureName = "Fishing Lure +" .. bonus
-                        else
-                            -- Fallback: just remove duration text
-                            lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                for i = 1, CFC_ScanTooltip:NumLines() do
+                    local line = _G["CFC_ScanTooltipTextLeft" .. i]
+                    if line then
+                        local text = line:GetText()
+                        if text and (string.find(text, "Lure") or string.find(text, "Increased Fishing") or string.find(text, "Fishing Skill")) then
+                            local bonus = string.match(text, "%+(%d+)")
+                            if bonus then
+                                lureName = "Fishing Lure +" .. bonus
+                            else
+                                lureName = string.gsub(text, "%s*%(%d+%s*%w+%)%s*$", "")
+                            end
+                            break
                         end
-                        break
                     end
                 end
+
+                -- Cache result so we never scan this enchant ID again
+                self.enchantIdCache[mainHandEnchantID] = lureName or false
+                if self.debug then
+                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantID .. " as: " .. tostring(lureName or "not a lure"))
+                end
             end
-            -- If still no name found, this is not a fishing lure - ignore it entirely
-            -- (e.g., weapon enchants like sharpening stones should not be tracked)
         end
 
         if lureName then
@@ -691,27 +744,15 @@ function CFC:HasFishingBuff()
     -- Check weapon enchantment (lures applied to fishing pole)
     local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantId = GetWeaponEnchantInfo()
 
-    if hasMainHandEnchant then
-        -- Check if it's a fishing lure by scanning tooltip
-        local tooltip = CreateFrame("GameTooltip", "CFCBuffCheckTooltip", nil, "GameTooltipTemplate")
-        tooltip:SetOwner(UIParent, "ANCHOR_NONE")
-        tooltip:SetInventoryItem("player", 16)
-
-        for i = 1, tooltip:NumLines() do
-            local line = _G["CFCBuffCheckTooltipTextLeft" .. i]
-            if line then
-                local text = line:GetText()
-                -- Check both formats:
-                -- TBC format: "Fishing Lure (+25 Fishing Skill) (10 min)"
-                -- Classic Era format: "Fishing Lure +25"
-                if text and (string.match(text, "Lure.*%(%+(%d+)") or string.match(text, "Fishing Lure %+(%d+)")) then
-                    tooltip:Hide()
-                    return true
-                end
-            end
+    if hasMainHandEnchant and mainHandEnchantId then
+        -- Check if it's a fishing lure by enchant ID (no tooltip scan needed)
+        if CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId] then
+            return true
         end
-
-        tooltip:Hide()
+        -- Check session cache (for TBC enchant IDs discovered via one-time tooltip scan)
+        if self.enchantIdCache and self.enchantIdCache[mainHandEnchantId] and self.enchantIdCache[mainHandEnchantId] ~= false then
+            return true
+        end
     end
 
     -- Check for fishing-related buffs
@@ -1534,15 +1575,43 @@ end
 -- Auto-delete fish on the release list
 -- Catch and Release: track pending fish for keybind deletion
 CFC.pendingRelease = nil
+CFC.releaseCatchCount = 0
+
+function CFC:CountReleaseFishInBags()
+    local count = 0
+    if not self.db.profile.releaseList then return 0 end
+    for bag = 0, 4 do
+        local numSlots = C_Container and C_Container.GetContainerNumSlots(bag) or GetContainerNumSlots(bag)
+        for slot = 1, numSlots do
+            local itemInfo = C_Container and C_Container.GetContainerItemInfo(bag, slot) or nil
+            local itemName = nil
+            if itemInfo then
+                itemName = itemInfo.itemName or (itemInfo.hyperlink and string.match(itemInfo.hyperlink, "%[(.-)%]"))
+            elseif not C_Container then
+                local texture, itemCount, locked, quality, readable, lootable, link = GetContainerItemInfo(bag, slot)
+                if link then
+                    itemName = string.match(link, "%[(.-)%]")
+                end
+            end
+            if itemName and self.db.profile.releaseList[itemName] then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
 
 function CFC:CheckCatchAndRelease(fishName)
     if not self.db.profile.releaseList or not self.db.profile.releaseList[fishName] then return end
 
     -- Store for keybind pickup+delete
     self.pendingRelease = fishName
+    self.releaseCatchCount = (self.releaseCatchCount or 0) + 1
 
-    -- Notify the user
-    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Caught " .. fishName .. " (on release list) - press your |cffffff00Release Fish|r keybind to delete it.")
+    -- Show release notification on HUD only (no chat spam)
+    if CFC.HUD and CFC.HUD.ShowReleaseNotification then
+        CFC.HUD:ShowReleaseNotification(fishName)
+    end
 end
 
 -- Called by the keybind (hardware event) - picks up and deletes the fish

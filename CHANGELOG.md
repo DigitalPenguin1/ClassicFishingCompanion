@@ -2,6 +2,11 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.5] - 2026-02-25
+
+### Milestone
+- 10,000 downloads! Thank you to the Classic fishing community for your support!
+
 ## [1.1.4] - 2026-02-21
 
 ### Improved

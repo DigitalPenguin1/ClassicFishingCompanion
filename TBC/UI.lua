@@ -3641,6 +3641,9 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.5"] = {
+        tip = "Thank you for 10,000 downloads! Your support means the world. Classic Fishing Companion started as a small passion project and thanks to you, it's grown into something special.\n\nTight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.4"] = {
         features = {
             "Goals Tab - Set catch goals for specific fish with progress bars!",

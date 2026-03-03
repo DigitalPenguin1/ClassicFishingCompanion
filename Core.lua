@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.5"
+CFC.VERSION = "1.1.6"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -132,6 +132,8 @@ local defaults = {
             minimalHUD = false,  -- Minimal HUD mode: no border, more translucent background (disabled by default)
             hudShowLureButton = true,  -- Show lure button on HUD (enabled by default)
             hudShowSwapButton = true,  -- Show gear swap button on HUD (enabled by default)
+            autoRumsey = false,  -- Auto-drink Captain Rumsey's Lager before fishing (TBC only, disabled by default)
+            hudShowRumseyButton = true,  -- Show Rumsey toggle icon on HUD (TBC only, enabled by default)
         },
         hud = {
             show = true,  -- Show stats HUD by default
@@ -776,7 +778,38 @@ function CFC:HasFishingBuff()
     return false
 end
 
--- Detect fishing pole buffs (lures, bobbers, etc.)
+-- Check if player has Captain Rumsey's Lager buff active
+function CFC:HasRumseyBuff()
+    for i = 1, 40 do
+        local buffName = UnitBuff("player", i)
+        if buffName then
+            if string.find(string.lower(buffName), "rumsey") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Check if we should auto-drink Captain Rumsey's Lager (mirrors ShouldApplyLure)
+function CFC:ShouldDrinkRumsey()
+    if not self.db or not self.db.profile.settings.autoRumsey then
+        return false
+    end
+    if self:HasRumseyBuff() then
+        return false
+    end
+    local count = GetItemCount(34832)
+    if count == 0 then
+        local now = GetTime()
+        if now - (self.lastNoRumseyWarningTime or 0) >= 600 then
+            print(CFC.COLORS.ERROR .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Out of Captain Rumsey's Lager!")
+            self.lastNoRumseyWarningTime = now
+        end
+        return false
+    end
+    return true
+end
 
 -- Handle loot window opening
 function CFC:OnLootOpened()
@@ -3220,6 +3253,7 @@ end
 
 local EASYCAST_BUTTON_NAME = "CFCEasyCastButton"
 local EASYCAST_LURE_BUTTON_NAME = "CFCEasyCastLureButton"
+local EASYCAST_RUMSEY_BUTTON_NAME = "CFCEasyCastRumseyButton"
 local EASYCAST_DOUBLE_CLICK_WINDOW = 0.4  -- Max time between clicks
 local EASYCAST_MAX_TAP_DURATION = 0.2     -- Max hold time to count as a "tap" (not camera movement)
 
@@ -3378,6 +3412,38 @@ function CFC:CreateEasyCastLureButton()
     return btn
 end
 
+-- Create the Easy Cast Rumsey button (for auto-drinking Captain Rumsey's Lager)
+function CFC:CreateEasyCastRumseyButton()
+    if _G[EASYCAST_RUMSEY_BUTTON_NAME] then
+        return _G[EASYCAST_RUMSEY_BUTTON_NAME]
+    end
+
+    local btn = CreateFrame("Button", EASYCAST_RUMSEY_BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
+    btn:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    btn:SetSize(1, 1)
+    btn:SetFrameStrata("LOW")
+    btn:EnableMouse(false)
+    btn:RegisterForClicks("AnyDown")
+    btn:Show()
+
+    btn:SetAttribute("type", "macro")
+    btn:SetAttribute("macrotext", "/use Captain Rumsey's Lager")
+
+    btn:SetScript("PostClick", function()
+        if not InCombatLockdown() then
+            ClearOverrideBindings(btn)
+        end
+        CFC.easyCastBindingActive = false
+        CFC.easyCastBindingSetTime = 0
+        CFC.easyCastLastAction = nil
+        if CFC.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Rumsey's consumed, binding cleared")
+        end
+    end)
+
+    return btn
+end
+
 -- Check if player has an active fishing lure
 function CFC:HasActiveLure()
     local hasMainHandEnchant = GetWeaponEnchantInfo()
@@ -3433,6 +3499,10 @@ function CFC:ClearEasyCastBinding()
         local lureBtn = _G[EASYCAST_LURE_BUTTON_NAME]
         if lureBtn then
             ClearOverrideBindings(lureBtn)
+        end
+        local rumseyBtn = _G[EASYCAST_RUMSEY_BUTTON_NAME]
+        if rumseyBtn then
+            ClearOverrideBindings(rumseyBtn)
         end
     end
     self.easyCastBindingActive = false
@@ -3509,6 +3579,31 @@ function CFC:SetupEasyCastLureBinding()
     return false
 end
 
+-- Set up binding for Captain Rumsey's Lager
+function CFC:SetupEasyCastRumseyBinding()
+    if InCombatLockdown() then
+        return false
+    end
+
+    local btn = _G[EASYCAST_RUMSEY_BUTTON_NAME]
+    if not btn then
+        btn = self:CreateEasyCastRumseyButton()
+    end
+
+    if btn then
+        SetOverrideBindingClick(btn, true, "BUTTON2", EASYCAST_RUMSEY_BUTTON_NAME)
+        self.easyCastBindingActive = true
+        self.easyCastBindingSetTime = GetTime()
+        self.easyCastLastAction = "rumsey"
+
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast: Binding SET - next right-click will DRINK Captain Rumsey's Lager")
+        end
+        return true
+    end
+    return false
+end
+
 -- Set up binding after first click (catches second click)
 -- Automatically chooses between lure application or fishing cast
 function CFC:SetupEasyCastBinding()
@@ -3519,8 +3614,10 @@ function CFC:SetupEasyCastBinding()
     -- Allow recasting while already fishing (e.g. repositioning lure in a fish pool)
     -- Combat protection is handled by InCombatLockdown() check above and pre-combat detection
 
-    -- Check if we should apply a lure first
-    if self:ShouldApplyLure() then
+    -- Priority: Rumsey's Lager > Lure > Cast Fishing
+    if self:ShouldDrinkRumsey() then
+        return self:SetupEasyCastRumseyBinding()
+    elseif self:ShouldApplyLure() then
         return self:SetupEasyCastLureBinding()
     else
         return self:SetupEasyCastFishingBinding()
@@ -3627,9 +3724,10 @@ end
 
 -- Initialize Easy Cast system
 function CFC:InitializeEasyCast()
-    -- Create the secure buttons on load (fishing and lure)
+    -- Create the secure buttons on load (fishing, lure, and rumsey)
     local fishBtn = self:CreateEasyCastButton()
     local lureBtn = self:CreateEasyCastLureButton()
+    local rumseyBtn = self:CreateEasyCastRumseyButton()
 
     if self.debug then
         if fishBtn then
@@ -3637,6 +3735,9 @@ function CFC:InitializeEasyCast()
         end
         if lureBtn then
             print("|cff00ff00[CFC Debug]|r Easy Cast lure button created")
+        end
+        if rumseyBtn then
+            print("|cff00ff00[CFC Debug]|r Easy Cast rumsey button created")
         end
     end
 

@@ -193,6 +193,49 @@ function CFC:InitializeHUD()
         GameTooltip:Hide()
     end)
 
+    -- Rumsey toggle icon (top-right, next to lock icon)
+    hudFrame.rumseyIcon = CreateFrame("Button", nil, hudFrame)
+    hudFrame.rumseyIcon:SetSize(16, 16)
+    hudFrame.rumseyIcon:SetPoint("RIGHT", hudFrame.lockIcon, "LEFT", -4, 0)
+
+    hudFrame.rumseyIcon.texture = hudFrame.rumseyIcon:CreateTexture(nil, "OVERLAY")
+    hudFrame.rumseyIcon.texture:SetAllPoints()
+    hudFrame.rumseyIcon.texture:SetTexture("Interface\\Icons\\INV_Drink_03")
+
+    hudFrame.rumseyIcon:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.autoRumsey = not CFC.db.profile.settings.autoRumsey
+        HUDModule:UpdateRumseyIcon()
+        if CFC.db.profile.settings.autoRumsey then
+            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.SUCCESS .. "enabled|r")
+        else
+            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.ERROR .. "disabled|r")
+        end
+    end)
+
+    hudFrame.rumseyIcon:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if CFC.db.profile.settings.autoRumsey then
+            GameTooltip:SetText("Captain Rumsey's Lager", 0, 0.8, 1)
+            GameTooltip:AddLine("Auto-Drink: Enabled", 0, 1, 0)
+            GameTooltip:AddLine("Click to disable", 0.8, 0.8, 0.8)
+        else
+            GameTooltip:SetText("Captain Rumsey's Lager", 0, 0.8, 1)
+            GameTooltip:AddLine("Auto-Drink: Disabled", 1, 0, 0)
+            GameTooltip:AddLine("Click to enable", 0.8, 0.8, 0.8)
+        end
+        local count = GetItemCount(34832)
+        if count > 0 then
+            GameTooltip:AddLine("In bags: " .. count, 0.7, 0.7, 0.7)
+        else
+            GameTooltip:AddLine("None in bags", 1, 0.5, 0)
+        end
+        GameTooltip:Show()
+    end)
+
+    hudFrame.rumseyIcon:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
     -- Lure button (opens Lure tab in UI)
     hudFrame.applyLureButton = CreateFrame("Button", "CFCLureButton", hudFrame, "UIPanelButtonTemplate")
     hudFrame.applyLureButton:SetSize(88, 22)
@@ -323,6 +366,9 @@ function CFC:InitializeHUD()
     -- Update lure button icon
     HUDModule:UpdateLureButton()
 
+    -- Update Rumsey icon
+    HUDModule:UpdateRumseyIcon()
+
     -- Show or hide based on settings
     if CFC.db.profile.hud.show then
         hudFrame:Show()
@@ -408,6 +454,12 @@ function HUDModule:Update()
             end
         end
 
+        -- Check for Captain Rumsey's Lager buff and add to skill display
+        local rumseyBuff = HUDModule:GetRumseyBuff()
+        if rumseyBuff then
+            skillText = skillText .. " |cff00ccff+10|r |TInterface\\Icons\\INV_Drink_03:14|t"
+        end
+
         hudFrame.skillText:SetText(skillText)
     else
         hudFrame.skillText:SetText("Skill: |cffaaaaaa--/--|r")
@@ -434,6 +486,10 @@ function HUDModule:Update()
         hudFrame.buffText:SetText("Lure: |cffff0000None|r")
         hudFrame.buffTimerText:SetText("")
     end
+
+
+    -- Update Rumsey icon state
+    HUDModule:UpdateRumseyIcon()
 
     -- Update goals display
     local goalCount = 0
@@ -708,6 +764,24 @@ function HUDModule:GetCurrentFishingBuff()
     return nil
 end
 
+-- Get Captain Rumsey's Lager buff status
+-- Returns: { name = "Rumsey Rum Black Label", expirationSeconds = 123 } or nil
+function HUDModule:GetRumseyBuff()
+    for i = 1, 40 do
+        local buffName, _, _, _, _, expirationTime = UnitBuff("player", i)
+        if buffName then
+            if string.find(string.lower(buffName), "rumsey") then
+                local remainingSeconds = 0
+                if expirationTime and expirationTime > 0 then
+                    remainingSeconds = math.floor(expirationTime - GetTime())
+                end
+                return { name = buffName, expirationSeconds = remainingSeconds }
+            end
+        end
+    end
+    return nil
+end
+
 -- Show release notification on HUD (fades after 3 seconds)
 function HUDModule:ShowReleaseNotification(fishName)
     if not hudFrame or not hudFrame:IsShown() then return end
@@ -861,6 +935,26 @@ function HUDModule:ApplyButtonVisibility()
 end
 
 -- Update lock state visual
+-- Update Rumsey icon appearance based on enabled/disabled state
+function HUDModule:UpdateRumseyIcon()
+    if not hudFrame or not hudFrame.rumseyIcon then return end
+
+    -- Show/hide based on setting
+    if not CFC.db.profile.settings.hudShowRumseyButton then
+        hudFrame.rumseyIcon:Hide()
+        return
+    end
+    hudFrame.rumseyIcon:Show()
+
+    if CFC.db.profile.settings.autoRumsey then
+        hudFrame.rumseyIcon.texture:SetDesaturated(false)
+        hudFrame.rumseyIcon.texture:SetVertexColor(1, 1, 1)
+    else
+        hudFrame.rumseyIcon.texture:SetDesaturated(true)
+        hudFrame.rumseyIcon.texture:SetVertexColor(0.5, 0.5, 0.5)
+    end
+end
+
 function HUDModule:UpdateLockState()
     if not hudFrame or not CFC.db then
         return

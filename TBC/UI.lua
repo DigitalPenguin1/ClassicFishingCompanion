@@ -2069,6 +2069,34 @@ function UI:CreateLuresTab()
     frame.easyCastHint:SetWidth(220)
     frame.easyCastHint:SetJustifyH("LEFT")
 
+    -- Captain Rumsey's Lager section
+    frame.rumseyHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.rumseyHeader:SetPoint("TOPLEFT", frame.easyCastHint, "BOTTOMLEFT", 0, -25)
+    frame.rumseyHeader:SetText("Captain Rumsey's Lager:")
+    frame.rumseyHeader:SetTextColor(0, 0.8, 1)
+
+    frame.autoRumseyCheck = CreateFrame("CheckButton", "CFCAutoRumseyCheck", frame, "UICheckButtonTemplate")
+    frame.autoRumseyCheck:SetPoint("TOPLEFT", frame.rumseyHeader, "BOTTOMLEFT", 0, -8)
+    frame.autoRumseyCheck.text = frame.autoRumseyCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.autoRumseyCheck.text:SetPoint("LEFT", frame.autoRumseyCheck, "RIGHT", 5, 0)
+    frame.autoRumseyCheck.text:SetText("Auto-Drink with Easy Cast")
+
+    frame.autoRumseyCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.autoRumsey = self:GetChecked()
+        if CFC.db.profile.settings.autoRumsey then
+            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.SUCCESS .. "enabled|r")
+        else
+            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.ERROR .. "disabled|r")
+        end
+    end)
+
+    frame.rumseyDesc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.rumseyDesc:SetPoint("TOPLEFT", frame.autoRumseyCheck, "BOTTOMLEFT", 20, -5)
+    frame.rumseyDesc:SetWidth(220)
+    frame.rumseyDesc:SetJustifyH("LEFT")
+    frame.rumseyDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.rumseyDesc:SetText("Automatically drink Captain Rumsey's Lager (+10 fishing) before casting when Easy Cast fires.")
+
     -- Store reference
     mainFrame.luresFrame = frame
 end
@@ -2104,6 +2132,11 @@ function UI:UpdateLuresTab()
         frame.easyCastStatus:SetText("Disabled")
         frame.easyCastStatus:SetTextColor(1, 0, 0)  -- Red
         frame.easyCastHint:SetText("Go to Settings tab to enable Easy Cast.")
+    end
+
+    -- Update Rumsey checkbox
+    if frame.autoRumseyCheck then
+        frame.autoRumseyCheck:SetChecked(CFC.db.profile.settings.autoRumsey or false)
     end
 end
 
@@ -3066,9 +3099,28 @@ function UI:CreateSettingsTab()
         end
     end)
 
+    -- Show Rumsey Icon Checkbox
+    frame.showRumseyButtonCheck = CreateFrame("CheckButton", "CFCShowRumseyButtonCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.showRumseyButtonCheck:SetPoint("TOPLEFT", frame.showSwapButtonCheck, "BOTTOMLEFT", 0, -5)
+    frame.showRumseyButtonCheck.text = frame.showRumseyButtonCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.showRumseyButtonCheck.text:SetPoint("LEFT", frame.showRumseyButtonCheck, "RIGHT", 5, 0)
+    frame.showRumseyButtonCheck.text:SetText("Show Rumsey Icon on HUD")
+
+    frame.showRumseyButtonCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.hudShowRumseyButton = self:GetChecked()
+        if CFC.HUD and CFC.HUD.UpdateRumseyIcon then
+            CFC.HUD:UpdateRumseyIcon()
+        end
+        if CFC.db.profile.settings.hudShowRumseyButton then
+            print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cff00ff00shown|r")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cffff0000hidden|r")
+        end
+    end)
+
     -- Button visibility description
     frame.hudButtonDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.hudButtonDesc:SetPoint("TOPLEFT", frame.showSwapButtonCheck, "BOTTOMLEFT", 25, -5)
+    frame.hudButtonDesc:SetPoint("TOPLEFT", frame.showRumseyButtonCheck, "BOTTOMLEFT", 25, -5)
     frame.hudButtonDesc:SetJustifyH("LEFT")
     frame.hudButtonDesc:SetWidth(500)
     frame.hudButtonDesc:SetTextColor(0.7, 0.7, 0.7)
@@ -3374,6 +3426,7 @@ function UI:UpdateSettings()
     -- Update button visibility checkboxes
     frame.showLureButtonCheck:SetChecked(CFC.db.profile.settings.hudShowLureButton)
     frame.showSwapButtonCheck:SetChecked(CFC.db.profile.settings.hudShowSwapButton)
+    frame.showRumseyButtonCheck:SetChecked(CFC.db.profile.settings.hudShowRumseyButton)
 
     -- Update auto-swap checkbox
     frame.autoSwapCheck:SetChecked(CFC.db.profile.settings.autoSwapOnHUD)
@@ -3641,6 +3694,15 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.6"] = {
+        features = {
+            "Captain Rumsey's Lager auto-drink with Easy Cast (TBC)",
+            "Rumsey toggle icon on HUD, click to enable/disable",
+            "Rumsey +10 fishing bonus shows on the Skill line",
+            "Easy Cast now allows recasting while your line is already out",
+        },
+        tip = "Thank you for 10,000 downloads! Your support means the world. Classic Fishing Companion started as a small passion project and thanks to you, it's grown into something special.\n\nTight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.5"] = {
         tip = "Thank you for 10,000 downloads! Your support means the world. Classic Fishing Companion started as a small passion project and thanks to you, it's grown into something special.\n\nTight lines and happy fishing!\n- Relyk"
     },

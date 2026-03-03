@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.6] - 2026-03-03
+
+### Added
+- Captain Rumsey's Lager auto-drink support (TBC) — Easy Cast automatically drinks before casting when the buff isn't active
+- Rumsey toggle icon on HUD (top-right) — click to enable/disable, tooltip shows bag count
+- Rumsey +10 fishing bonus displays on the Skill line when the buff is active
+- Auto-drink checkbox on the Lure tab for Captain Rumsey's Lager
+- Show/hide Rumsey icon option in HUD Settings
+
 ## [1.1.5] - 2026-02-25
 
 ### Milestone

@@ -4,7 +4,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 
 ## Features
 
-- **Easy Cast** - Double right-click to cast; automatically applies lure when needed
+- **Easy Cast** - Double right-click to cast; automatically applies lure and drinks Captain Rumsey's Lager when needed
 - **Auto-Swap Combat Weapons** - Swaps to combat gear when attacked, back to fishing when combat ends
 - **Stats HUD** - Draggable display with session/total catches, fish/hour, skill, and lure timer
 - **Zones Tab** - Collapsible zone-based view of all fish caught with icons, counts, and tooltips
@@ -32,6 +32,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Setting up Catch & Release**: ESC > Settings > Key Bindings > scroll to "Classic Fishing Companion" > bind a key to "Release Fish". Requires a full client restart after setting the keybind.
 - **Goals on the HUD**: Add goals in the Goals tab — up to 3 will display on the HUD automatically. They reset each session so you can set fresh targets every time you fish.
 - **Lure auto-apply**: Enable Easy Cast in Settings and the addon will automatically apply your selected lure when it expires.
+- **Captain Rumsey's Lager (TBC)**: Enable auto-drink on the Lure tab or click the drink icon on the HUD. Easy Cast will automatically drink before casting when the buff isn't active.
 - **Quick gear swap**: Save your fishing and combat gear sets in the Gear Sets tab. The addon can auto-swap when you enter/leave combat.
 - **Minimap button**: Left-click opens the UI, right-click toggles the HUD, hover to see a quick stats summary.
 

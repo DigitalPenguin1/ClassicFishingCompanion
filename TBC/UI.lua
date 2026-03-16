@@ -1814,7 +1814,7 @@ function UI:CreateGearSetsTab()
         local label = (setName == "combat") and "Combat Gear" or "Fishing Gear"
         CFC:SaveGearSet(setName)
         UI:UpdateGearSetsTab()
-        print("|cff00ff00Classic Fishing Companion:|r " .. label .. " saved!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. label .. " saved!")
     end)
 
     -- Swap Gear Button
@@ -2005,7 +2005,7 @@ function UI:CreateLuresTab()
         if CFC.HUD and CFC.HUD.UpdateLureButton then
             CFC.HUD:UpdateLureButton()
         end
-        print("|cff00ff00Classic Fishing Companion:|r Lure selection cleared.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Lure selection cleared.")
     end)
 
     -- Create scroll frame for lure buttons
@@ -2049,7 +2049,7 @@ function UI:CreateLuresTab()
             if CFC.HUD and CFC.HUD.UpdateLureButton then
                 CFC.HUD:UpdateLureButton()
             end
-            print("|cff00ff00Classic Fishing Companion:|r Selected " .. lure.name)
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Selected " .. lure.name)
         end)
 
         yOffset = yOffset - 40
@@ -2084,9 +2084,9 @@ function UI:CreateLuresTab()
     frame.autoRumseyCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.autoRumsey = self:GetChecked()
         if CFC.db.profile.settings.autoRumsey then
-            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.SUCCESS .. "enabled|r")
+            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.SUCCESS .. "enabled|r")
         else
-            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.ERROR .. "disabled|r")
+            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.ERROR .. "disabled|r")
         end
     end)
 
@@ -2247,7 +2247,7 @@ function UI:CreateGoalsTab()
             sessionCatches = 0,
         })
 
-        print("|cff00ff00Classic Fishing Companion:|r Goal added: Catch " .. targetCount .. " " .. fishName)
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Goal added: Catch " .. targetCount .. " " .. fishName)
 
         -- Reset inputs
         frame.selectedFish = nil
@@ -2360,7 +2360,7 @@ function UI:UpdateGoals()
             local removed = CFC.db.profile.goals[goalIndex]
             table.remove(CFC.db.profile.goals, goalIndex)
             if removed then
-                print("|cff00ff00Classic Fishing Companion:|r Goal removed: " .. removed.fishName)
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Goal removed: " .. removed.fishName)
             end
             UI:UpdateGoals()
             if CFC.HUD and CFC.HUD.Update then CFC.HUD:Update() end
@@ -2459,7 +2459,7 @@ function UI:CreateReleaseTab()
         end
 
         CFC.db.profile.releaseList[fishName] = true
-        print("|cff00ff00Classic Fishing Companion:|r " .. fishName .. " added to release list.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. fishName .. " added to release list.")
 
         frame.selectedFish = nil
         UIDropDownMenu_SetText(frame.fishDropdown, "Choose fish...")
@@ -2544,7 +2544,7 @@ function UI:UpdateReleaseList()
         local releaseName = fishName
         entry.removeBtn:SetScript("OnClick", function()
             CFC.db.profile.releaseList[releaseName] = nil
-            print("|cff00ff00Classic Fishing Companion:|r " .. releaseName .. " removed from release list.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. releaseName .. " removed from release list.")
             UI:UpdateReleaseList()
         end)
 
@@ -2620,10 +2620,10 @@ function UI:CreateSettingsTab()
         if CFC.minimapButton then
             if shouldShow then
                 CFC.minimapButton:Show()
-                print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
             else
                 CFC.minimapButton:Hide()
-                print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden.")
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden.")
             end
         end
     end)
@@ -2682,9 +2682,9 @@ function UI:CreateSettingsTab()
     frame.announceCatchesCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.announceCatches = self:GetChecked()
         if CFC.db.profile.settings.announceCatches then
-            print("|cff00ff00Classic Fishing Companion Announcements:|r Fish catch announcements |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion Announcements:|r Fish catch announcements |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion Announcements:|r Fish catch announcements |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion Announcements:|r Fish catch announcements |cffff0000disabled|r")
         end
     end)
 
@@ -2706,9 +2706,9 @@ function UI:CreateSettingsTab()
     frame.announceLuresCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.announceLures = self:GetChecked()
         if CFC.db.profile.settings.announceLures then
-            print("|cff00ff00Classic Fishing Companion:|r Missing lure warnings |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Missing lure warnings |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Missing lure warnings |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Missing lure warnings |cffff0000disabled|r")
         end
     end)
 
@@ -2741,7 +2741,7 @@ function UI:CreateSettingsTab()
                 CFC.db.profile.settings.lureWarningInterval = interval
                 UIDropDownMenu_SetSelectedValue(frame.lureIntervalDropdown, interval)
                 UIDropDownMenu_SetText(frame.lureIntervalDropdown, labels[i])
-                print("|cff00ff00Classic Fishing Companion:|r Lure warning interval set to |cffffff00" .. interval .. " seconds|r")
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Lure warning interval set to |cffffff00" .. interval .. " seconds|r")
             end
             info.checked = (CFC.db.profile.settings.lureWarningInterval == interval)
             UIDropDownMenu_AddButton(info, level)
@@ -2760,9 +2760,9 @@ function UI:CreateSettingsTab()
     frame.announceSkillUpsCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.announceSkillUps = self:GetChecked()
         if CFC.db.profile.settings.announceSkillUps then
-            print("|cff00ff00Classic Fishing Companion:|r Skill increase announcements |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Skill increase announcements |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Skill increase announcements |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Skill increase announcements |cffff0000disabled|r")
         end
     end)
 
@@ -2794,9 +2794,9 @@ function UI:CreateSettingsTab()
         end
 
         if enabled then
-            print("|cff00ff00Classic Fishing Companion:|r Max skill announcements |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Max skill announcements |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Max skill announcements |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Max skill announcements |cffff0000disabled|r")
         end
     end)
 
@@ -2859,9 +2859,9 @@ function UI:CreateSettingsTab()
         end
 
         if enabled then
-            print("|cff00ff00Classic Fishing Companion:|r Milestone announcements |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Milestone announcements |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Milestone announcements |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Milestone announcements |cffff0000disabled|r")
         end
     end)
 
@@ -2904,10 +2904,34 @@ function UI:CreateSettingsTab()
     frame.milestonesDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.milestonesDesc:SetText("Share your fishing achievements by announcing when you reach catch milestones (100, 250, 500, 1000, 2500, 5000, 10000, etc.).")
 
+    -- Quiet Mode Checkbox
+    frame.quietModeCheck = CreateFrame("CheckButton", "CFCQuietModeCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.quietModeCheck:SetPoint("TOPLEFT", frame.milestonesDesc, "BOTTOMLEFT", -25, -20)
+    frame.quietModeCheck.text = frame.quietModeCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.quietModeCheck.text:SetPoint("LEFT", frame.quietModeCheck, "RIGHT", 5, 0)
+    frame.quietModeCheck.text:SetText("Quiet Mode")
+
+    frame.quietModeCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.quietMode = self:GetChecked()
+        if CFC.db.profile.settings.quietMode then
+            print("|cff00ff00Classic Fishing Companion:|r Quiet Mode |cff00ff00enabled|r - chat messages suppressed")
+        else
+            print("|cff00ff00Classic Fishing Companion:|r Quiet Mode |cffff0000disabled|r - chat messages restored")
+        end
+    end)
+
+    -- Quiet Mode description
+    frame.quietModeDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.quietModeDesc:SetPoint("TOPLEFT", frame.quietModeCheck, "BOTTOMLEFT", 25, -5)
+    frame.quietModeDesc:SetJustifyH("LEFT")
+    frame.quietModeDesc:SetWidth(500)
+    frame.quietModeDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.quietModeDesc:SetText("Suppress all chat messages except errors and warnings.")
+
     -- =============================================
     -- HUD SETTINGS SECTION
     -- =============================================
-    frame.hudHeader = CreateSectionHeader("HUD Settings", frame.milestonesDesc, -25)
+    frame.hudHeader = CreateSectionHeader("HUD Settings", frame.quietModeDesc, -25)
 
     -- Show Stats HUD Checkbox
     frame.showHUDCheck = CreateFrame("CheckButton", "CFCShowHUDCheck", frame.scrollChild, "UICheckButtonTemplate")
@@ -2964,13 +2988,24 @@ function UI:CreateSettingsTab()
 
     frame.minimalHUDCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.minimalHUD = self:GetChecked()
+        -- Mutual exclusion with text-only mode
+        if CFC.db.profile.settings.minimalHUD then
+            CFC.db.profile.settings.textOnlyHUD = false
+            frame.textOnlyHUDCheck:SetChecked(false)
+        end
         if CFC.HUD and CFC.HUD.ApplyMinimalMode then
             CFC.HUD:ApplyMinimalMode()
         end
+        if CFC.HUD and CFC.HUD.ApplyButtonVisibility then
+            CFC.HUD:ApplyButtonVisibility()
+        end
+        if CFC.HUD and CFC.HUD.UpdateLockState then
+            CFC.HUD:UpdateLockState()
+        end
         if CFC.db.profile.settings.minimalHUD then
-            print("|cff00ff00Classic Fishing Companion:|r Minimal HUD |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimal HUD |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Minimal HUD |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimal HUD |cffff0000disabled|r")
         end
     end)
 
@@ -2982,9 +3017,47 @@ function UI:CreateSettingsTab()
     frame.minimalHUDDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.minimalHUDDesc:SetText("Remove the border and make the background more translucent for a cleaner look.")
 
+    -- Text Only HUD Checkbox
+    frame.textOnlyHUDCheck = CreateFrame("CheckButton", "CFCTextOnlyHUDCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.textOnlyHUDCheck:SetPoint("TOPLEFT", frame.minimalHUDDesc, "BOTTOMLEFT", -25, -20)
+    frame.textOnlyHUDCheck.text = frame.textOnlyHUDCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.textOnlyHUDCheck.text:SetPoint("LEFT", frame.textOnlyHUDCheck, "RIGHT", 5, 0)
+    frame.textOnlyHUDCheck.text:SetText("Text Only HUD")
+
+    frame.textOnlyHUDCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.textOnlyHUD = self:GetChecked()
+        -- Mutual exclusion with minimal mode
+        if CFC.db.profile.settings.textOnlyHUD then
+            CFC.db.profile.settings.minimalHUD = false
+            frame.minimalHUDCheck:SetChecked(false)
+        end
+        if CFC.HUD and CFC.HUD.ApplyMinimalMode then
+            CFC.HUD:ApplyMinimalMode()
+        end
+        if CFC.HUD and CFC.HUD.ApplyButtonVisibility then
+            CFC.HUD:ApplyButtonVisibility()
+        end
+        if CFC.HUD and CFC.HUD.UpdateLockState then
+            CFC.HUD:UpdateLockState()
+        end
+        if CFC.db.profile.settings.textOnlyHUD then
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Text Only HUD |cff00ff00enabled|r")
+        else
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Text Only HUD |cffff0000disabled|r")
+        end
+    end)
+
+    -- Text Only HUD description
+    frame.textOnlyHUDDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.textOnlyHUDDesc:SetPoint("TOPLEFT", frame.textOnlyHUDCheck, "BOTTOMLEFT", 25, -5)
+    frame.textOnlyHUDDesc:SetJustifyH("LEFT")
+    frame.textOnlyHUDDesc:SetWidth(500)
+    frame.textOnlyHUDDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.textOnlyHUDDesc:SetText("Show only floating text with no background or border. Hover to reveal the HUD outline and buttons.")
+
     -- Auto-Swap Gear on HUD Toggle Checkbox
     frame.autoSwapCheck = CreateFrame("CheckButton", "CFCAutoSwapCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.autoSwapCheck:SetPoint("TOPLEFT", frame.minimalHUDDesc, "BOTTOMLEFT", -25, -20)
+    frame.autoSwapCheck:SetPoint("TOPLEFT", frame.textOnlyHUDDesc, "BOTTOMLEFT", -25, -20)
     frame.autoSwapCheck.text = frame.autoSwapCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.autoSwapCheck.text:SetPoint("LEFT", frame.autoSwapCheck, "RIGHT", 5, 0)
     frame.autoSwapCheck.text:SetText("Auto-Swap Gear on HUD Toggle")
@@ -2992,9 +3065,9 @@ function UI:CreateSettingsTab()
     frame.autoSwapCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.autoSwapOnHUD = self:GetChecked()
         if CFC.db.profile.settings.autoSwapOnHUD then
-            print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Auto-swap gear on HUD toggle |cffff0000disabled|r")
         end
     end)
 
@@ -3074,9 +3147,9 @@ function UI:CreateSettingsTab()
             CFC.HUD:ApplyButtonVisibility()
         end
         if CFC.db.profile.settings.hudShowLureButton then
-            print("|cff00ff00Classic Fishing Companion:|r HUD lure button |cff00ff00shown|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD lure button |cff00ff00shown|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r HUD lure button |cffff0000hidden|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD lure button |cffff0000hidden|r")
         end
     end)
 
@@ -3093,9 +3166,9 @@ function UI:CreateSettingsTab()
             CFC.HUD:ApplyButtonVisibility()
         end
         if CFC.db.profile.settings.hudShowSwapButton then
-            print("|cff00ff00Classic Fishing Companion:|r HUD swap button |cff00ff00shown|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD swap button |cff00ff00shown|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r HUD swap button |cffff0000hidden|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD swap button |cffff0000hidden|r")
         end
     end)
 
@@ -3112,9 +3185,9 @@ function UI:CreateSettingsTab()
             CFC.HUD:UpdateRumseyIcon()
         end
         if CFC.db.profile.settings.hudShowRumseyButton then
-            print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cff00ff00shown|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cff00ff00shown|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cffff0000hidden|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cffff0000hidden|r")
         end
     end)
 
@@ -3141,9 +3214,9 @@ function UI:CreateSettingsTab()
     frame.easyCastCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.easyCast = self:GetChecked()
         if CFC.db.profile.settings.easyCast then
-            print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cff00ff00enabled|r - Double right-click to cast fishing!")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cff00ff00enabled|r - Double right-click to cast fishing!")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cffff0000disabled|r")
         end
     end)
 
@@ -3165,9 +3238,9 @@ function UI:CreateSettingsTab()
     frame.autoSwapCombatCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.autoSwapCombatWeapons = self:GetChecked()
         if CFC.db.profile.settings.autoSwapCombatWeapons then
-            print("|cff00ff00Classic Fishing Companion:|r Auto-Swap Combat Weapons |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Auto-Swap Combat Weapons |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Auto-Swap Combat Weapons |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Auto-Swap Combat Weapons |cffff0000disabled|r")
         end
     end)
 
@@ -3194,9 +3267,9 @@ function UI:CreateSettingsTab()
     frame.debugCheck:SetScript("OnClick", function(self)
         CFC.debug = self:GetChecked()
         if CFC.debug then
-            print("|cff00ff00Classic Fishing Companion:|r Debug mode |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Debug mode |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Debug mode |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Debug mode |cffff0000disabled|r")
         end
     end)
 
@@ -3223,10 +3296,10 @@ function UI:CreateSettingsTab()
     frame.autoBackupCheck:SetScript("OnClick", function(self)
         CFC.db.profile.backup.enabled = self:GetChecked()
         if CFC.db.profile.backup.enabled then
-            print("|cff00ff00Classic Fishing Companion:|r Automatic backups |cff00ff00enabled|r")
-            print("|cffffcc00Info:|r Backups are created every 24 hours and stored internally")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Automatic backups |cff00ff00enabled|r")
+            CFC:Print("|cffffcc00Info:|r Backups are created every 24 hours and stored internally")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Automatic backups |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Automatic backups |cffff0000disabled|r")
         end
     end)
 
@@ -3346,6 +3419,9 @@ function UI:UpdateSettings()
     -- Update debug checkbox
     frame.debugCheck:SetChecked(CFC.debug or false)
 
+    -- Update quiet mode checkbox
+    frame.quietModeCheck:SetChecked(CFC.db.profile.settings.quietMode)
+
     -- Update minimap checkbox (inverted because db stores "hide")
     frame.minimapCheck:SetChecked(not CFC.db.profile.minimap.hide)
 
@@ -3415,6 +3491,9 @@ function UI:UpdateSettings()
 
     -- Update minimal HUD checkbox
     frame.minimalHUDCheck:SetChecked(CFC.db.profile.settings.minimalHUD)
+
+    -- Update text only HUD checkbox
+    frame.textOnlyHUDCheck:SetChecked(CFC.db.profile.settings.textOnlyHUD)
 
     -- Update HUD scale slider
     local scaleValue = (CFC.db.profile.hud.scale or 1.0) * 100
@@ -3530,7 +3609,7 @@ StaticPopupDialogs["CFC_CLEAR_STATS_CONFIRM"] = {
             CFC.db.profile.statistics.totalFishingTime = 0
             CFC.db.profile.statistics.sessionStartTime = time()
 
-            print("|cff00ff00Classic Fishing Companion:|r All statistics have been cleared.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r All statistics have been cleared.")
 
             -- Update UI if it's open
             if CFC.UpdateUI then
@@ -3599,7 +3678,7 @@ StaticPopupDialogs["CFC_PERCHAR_ENABLE"] = {
 
         -- Enable per-character mode
         ClassicFishingCompanionDB.profile.settings.perCharacterMode = true
-        print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cff00ff00enabled|r with account data copied. Reloading UI...")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cff00ff00enabled|r with account data copied. Reloading UI...")
 
         -- Reload UI
         ReloadUI()
@@ -3632,7 +3711,7 @@ StaticPopupDialogs["CFC_PERCHAR_ENABLE_FRESH"] = {
     OnAccept = function(self)
         -- Enable per-character mode without copying data
         ClassicFishingCompanionDB.profile.settings.perCharacterMode = true
-        print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cff00ff00enabled|r (starting fresh). Reloading UI...")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cff00ff00enabled|r (starting fresh). Reloading UI...")
 
         -- Reload UI
         ReloadUI()
@@ -3665,7 +3744,7 @@ StaticPopupDialogs["CFC_PERCHAR_DISABLE"] = {
     OnAccept = function(self)
         -- Disable per-character mode
         ClassicFishingCompanionDB.profile.settings.perCharacterMode = false
-        print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cffff0000disabled|r. Reloading UI...")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Per-character mode |cffff0000disabled|r. Reloading UI...")
 
         -- Reload UI
         ReloadUI()
@@ -3694,6 +3773,13 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.7"] = {
+        features = {
+            "Text Only HUD - floating text with no background or border, hover to reveal controls",
+            "Quiet Mode - suppress all chat messages except errors and warnings",
+        },
+        tip = "Thank you for 10,000 downloads! Your support means the world. Classic Fishing Companion started as a small passion project and thanks to you, it's grown into something special.\n\nTight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.6"] = {
         features = {
             "Captain Rumsey's Lager auto-drink with Easy Cast (TBC)",
@@ -4023,7 +4109,7 @@ StaticPopupDialogs["CFC_CLEAR_GEAR_SETS"] = {
             CFC.db.profile.gearSets.fishing = {}
             CFC.db.profile.gearSets.currentMode = "combat"
 
-            print("|cff00ff00Classic Fishing Companion:|r All gear sets have been cleared.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r All gear sets have been cleared.")
 
             -- Update UI if it's open
             if CFC.UI and CFC.UI.UpdateGearSetsTab then

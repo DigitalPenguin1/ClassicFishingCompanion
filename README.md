@@ -6,7 +6,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 
 - **Easy Cast** - Double right-click to cast; automatically applies lure and drinks Captain Rumsey's Lager when needed
 - **Auto-Swap Combat Weapons** - Swaps to combat gear when attacked, back to fishing when combat ends
-- **Stats HUD** - Draggable display with session/total catches, fish/hour, skill, and lure timer
+- **Stats HUD** - Draggable display with session/total catches, fish/hour, skill, and lure timer (Default, Minimal, or Text Only appearance)
 - **Zones Tab** - Collapsible zone-based view of all fish caught with icons, counts, and tooltips
 - **Gear Sets** - Save and swap between fishing and combat equipment
 - **Lure Manager** - Select and apply lures from the HUD
@@ -19,6 +19,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Automatic Backups** - Internal backups every 24 hours with one-click restore
 - **Per-Character Mode** - Optional per-character stats with account data copy
 - **Keybinding Support** - Bind keys via ESC > Settings > Key Bindings
+- **Quiet Mode** - Suppress all chat messages except errors and warnings
 - **Minimap Button** - Left-click UI, right-click HUD, hover for stats
 
 ## Quick Start
@@ -34,6 +35,8 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Lure auto-apply**: Enable Easy Cast in Settings and the addon will automatically apply your selected lure when it expires.
 - **Captain Rumsey's Lager (TBC)**: Enable auto-drink on the Lure tab or click the drink icon on the HUD. Easy Cast will automatically drink before casting when the buff isn't active.
 - **Quick gear swap**: Save your fishing and combat gear sets in the Gear Sets tab. The addon can auto-swap when you enter/leave combat.
+- **Text Only HUD**: Enable in Settings for a clean floating text display with no background. Hover over the HUD area to reveal controls.
+- **Quiet Mode**: Enable in Settings under Announcements to suppress all chat messages except errors.
 - **Minimap button**: Left-click opens the UI, right-click toggles the HUD, hover to see a quick stats summary.
 
 ## Commands

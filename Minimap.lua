@@ -65,7 +65,7 @@ function CFC:InitializeMinimap()
 
                     if not hasFishingGear or not hasCombatGear then
                         -- Warn if gear sets not configured
-                        print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
+                        CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
                     else
                         local hudCurrentlyShown = CFC.db.profile.hud.show
                         local currentMode = gearSets.currentMode or "combat"
@@ -270,10 +270,10 @@ function MinimapModule:ToggleButton()
 
     if CFC.db.profile.minimap.hide then
         minimapButton:Hide()
-        print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden. Use /cfc to open.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden. Use /cfc to open.")
     else
         minimapButton:Show()
-        print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
     end
 end
 
@@ -298,7 +298,7 @@ StaticPopupDialogs["CFC_RESET_CONFIRM"] = {
             CFC.db.profile.statistics.totalFishingTime = 0
             CFC.db.profile.statistics.sessionStartTime = time()
 
-            print("|cff00ff00Classic Fishing Companion:|r All data has been reset.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r All data has been reset.")
 
             if CFC.UpdateUI then
                 CFC:UpdateUI()

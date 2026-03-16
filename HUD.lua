@@ -164,6 +164,7 @@ function CFC:InitializeHUD()
 
     -- Tooltip on hover
     hudFrame.lockIcon:SetScript("OnEnter", function(self)
+        HUDModule:ShowTextOnlyHover()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         if CFC.db.profile.hud.locked then
             GameTooltip:SetText("HUD Locked", 1, 1, 1)
@@ -176,6 +177,7 @@ function CFC:InitializeHUD()
     end)
 
     hudFrame.lockIcon:SetScript("OnLeave", function(self)
+        HUDModule:HideTextOnlyHover()
         GameTooltip:Hide()
     end)
 
@@ -247,6 +249,7 @@ function CFC:InitializeHUD()
 
     -- Tooltip for apply lure button
     hudFrame.applyLureButton:SetScript("OnEnter", function(self)
+        HUDModule:ShowTextOnlyHover()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
 
         local selectedLureID = CFC.db.profile.selectedLure
@@ -264,6 +267,7 @@ function CFC:InitializeHUD()
     end)
 
     hudFrame.applyLureButton:SetScript("OnLeave", function(self)
+        HUDModule:HideTextOnlyHover()
         GameTooltip:Hide()
     end)
 
@@ -285,6 +289,7 @@ function CFC:InitializeHUD()
 
     -- Tooltip for gear swap button
     hudFrame.gearSwapButton:SetScript("OnEnter", function(self)
+        HUDModule:ShowTextOnlyHover()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
 
         if CFC:HasGearSets() then
@@ -306,6 +311,7 @@ function CFC:InitializeHUD()
     end)
 
     hudFrame.gearSwapButton:SetScript("OnLeave", function(self)
+        HUDModule:HideTextOnlyHover()
         GameTooltip:Hide()
     end)
 
@@ -323,6 +329,7 @@ function CFC:InitializeHUD()
 
     -- Tooltip on hover
     hudFrame:SetScript("OnEnter", function(self)
+        HUDModule:ShowTextOnlyHover()
         if not CFC.db.profile.hud.locked then
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
             GameTooltip:SetText("Fishing Stats HUD", 1, 1, 1)
@@ -333,6 +340,7 @@ function CFC:InitializeHUD()
     end)
 
     hudFrame:SetScript("OnLeave", function(self)
+        HUDModule:HideTextOnlyHover()
         GameTooltip:Hide()
     end)
 
@@ -356,6 +364,7 @@ function CFC:InitializeHUD()
     HUDModule:ApplyMinimalMode()
     HUDModule:ApplyScale()
     HUDModule:ApplyButtonVisibility()
+    HUDModule:UpdateLockState()
 
     -- Store reference
     CFC.hudFrame = hudFrame
@@ -702,10 +711,10 @@ function HUDModule:ToggleShow()
     if hudFrame then
         if CFC.db.profile.hud.show then
             hudFrame:Show()
-            print("|cff00ff00Classic Fishing Companion:|r Stats HUD shown.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Stats HUD shown.")
         else
             hudFrame:Hide()
-            print("|cff00ff00Classic Fishing Companion:|r Stats HUD hidden.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Stats HUD hidden.")
         end
     end
 end
@@ -721,24 +730,56 @@ function HUDModule:ToggleLock()
     HUDModule:UpdateLockState()
 
     if CFC.db.profile.hud.locked then
-        print("|cff00ff00Classic Fishing Companion:|r Stats HUD locked.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Stats HUD locked.")
     else
-        print("|cff00ff00Classic Fishing Companion:|r Stats HUD unlocked. Drag to move.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Stats HUD unlocked. Drag to move.")
     end
 end
 
 -- Apply minimal mode (no border, translucent background)
+local function IsTextOnlyMode()
+    return CFC.db and CFC.db.profile.settings.textOnlyHUD
+end
+
 function HUDModule:ApplyMinimalMode()
     if not hudFrame or not CFC.db then
         return
     end
 
-    if CFC.db.profile.settings.minimalHUD then
+    if CFC.db.profile.settings.textOnlyHUD then
+        hudFrame.border:Hide()
+        hudFrame.minimalBg:Hide()
+    elseif CFC.db.profile.settings.minimalHUD then
         hudFrame.border:Hide()
         hudFrame.minimalBg:Show()
     else
         hudFrame.border:Show()
         hudFrame.minimalBg:Hide()
+    end
+end
+
+function HUDModule:ShowTextOnlyHover()
+    if IsTextOnlyMode() and hudFrame then
+        hudFrame.minimalBg:Show()
+        if hudFrame.lockIcon then hudFrame.lockIcon:Show() end
+        if CFC.db.profile.settings.hudShowLureButton and hudFrame.applyLureButton then
+            hudFrame.applyLureButton:Show()
+        end
+        if CFC.db.profile.settings.hudShowSwapButton and hudFrame.gearSwapButton then
+            hudFrame.gearSwapButton:Show()
+        end
+    end
+end
+
+function HUDModule:HideTextOnlyHover()
+    if IsTextOnlyMode() and hudFrame then
+        C_Timer.After(0, function()
+            if hudFrame:IsMouseOver() then return end
+            hudFrame.minimalBg:Hide()
+            if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
+            if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
+            if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end
+        end)
     end
 end
 
@@ -787,6 +828,13 @@ function HUDModule:ApplyButtonVisibility()
         end
     end
 
+    -- In text-only mode, hide buttons and lock icon (shown on hover)
+    if IsTextOnlyMode() then
+        if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
+        if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
+        if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end
+    end
+
     -- Resize HUD based on button visibility and goals
     local baseHeight = anyButtons and 140 or 110
     hudFrame:SetHeight(baseHeight + goalHeight)
@@ -799,12 +847,15 @@ function HUDModule:UpdateLockState()
     end
 
     if CFC.db.profile.hud.locked then
-        -- Locked icon (red padlock)
         hudFrame.lockIcon.texture:SetTexture("Interface\\Buttons\\LockButton-Locked-Up")
-        hudFrame:EnableMouse(false)  -- Disable mouse when locked
+        -- In text-only mode, keep mouse enabled for hover-reveal (drag is still blocked)
+        if IsTextOnlyMode() then
+            hudFrame:EnableMouse(true)
+        else
+            hudFrame:EnableMouse(false)
+        end
     else
-        -- Unlocked icon (open padlock)
         hudFrame.lockIcon.texture:SetTexture("Interface\\Buttons\\LockButton-Unlocked-Up")
-        hudFrame:EnableMouse(true)  -- Enable mouse when unlocked
+        hudFrame:EnableMouse(true)
     end
 end

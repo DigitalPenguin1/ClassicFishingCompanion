@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.6"
+CFC.VERSION = "1.1.7"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -130,6 +130,8 @@ local defaults = {
             easyCast = false,  -- Double right-click to cast fishing
             rareFishSound = true,  -- Play sound when catching rare fish (enabled by default)
             minimalHUD = false,  -- Minimal HUD mode: no border, more translucent background (disabled by default)
+            textOnlyHUD = false,  -- Text-only HUD mode: no background or border, hover to reveal (disabled by default)
+            quietMode = false,  -- Suppress all chat messages except errors and warnings
             hudShowLureButton = true,  -- Show lure button on HUD (enabled by default)
             hudShowSwapButton = true,  -- Show gear swap button on HUD (enabled by default)
             autoRumsey = false,  -- Auto-drink Captain Rumsey's Lager before fishing (TBC only, disabled by default)
@@ -249,8 +251,8 @@ function CFC:OnInitialize()
             end
 
             if fishCount > 0 then
-                print("|cffffcc00Classic Fishing Companion:|r Database upgraded to v" .. CFC.VERSION .. "!")
-                print("|cffffcc00Tip:|r Fish icons will now cache reliably. Use 'Refresh Icons' button in Fish List if you have fish in your bags.")
+                CFC:Print("|cffffcc00Classic Fishing Companion:|r Database upgraded to v" .. CFC.VERSION .. "!")
+                CFC:Print("|cffffcc00Tip:|r Fish icons will now cache reliably. Use 'Refresh Icons' button in Fish List if you have fish in your bags.")
             end
         end)
     end
@@ -300,9 +302,16 @@ function CFC:OnInitialize()
     end
 
     C_Timer.After(3, function()
-        print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
-        print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
+        CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
+        CFC:Print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
     end)
+end
+
+-- Print helper: suppressed by Quiet Mode
+function CFC:Print(msg)
+    if not self.db or not self.db.profile.settings.quietMode then
+        print(msg)
+    end
 end
 
 -- Handle addon loading
@@ -424,7 +433,7 @@ function CFC:UpdateFishingSkill()
                     date = date("%Y-%m-%d %H:%M:%S", time()),
                 })
                 if self.db.profile.settings.announceSkillUps then
-                    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Fishing skill increased to " .. skillLevel .. "!")
+                    CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Fishing skill increased to " .. skillLevel .. "!")
                 end
 
                 -- Check if just hit max skill (300 in Classic)
@@ -670,7 +679,7 @@ function CFC:CheckBackupNeeded()
         -- Create initial backup immediately
         local success = self:CreateBackup()
         if success then
-            print("|cff00ff00Classic Fishing Companion:|r Initial backup created")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Initial backup created")
         end
         return
     end
@@ -681,7 +690,7 @@ function CFC:CheckBackupNeeded()
         -- Create automatic backup
         local success = self:CreateBackup()
         if success then
-            print("|cff00ff00Classic Fishing Companion:|r Automatic backup created (24 hours elapsed)")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Automatic backup created (24 hours elapsed)")
         end
     end
 
@@ -692,8 +701,8 @@ function CFC:CheckBackupNeeded()
     local timeSinceLastReminder = totalPlayTime - (self.db.profile.backup.lastExportReminder or 0)
     if timeSinceLastReminder >= 604800 then  -- 7 days = 604800 seconds
         -- Show export reminder
-        print("|cffffcc00Classic Fishing Companion:|r Reminder: Consider exporting your fishing data for backup!")
-        print("|cffffcc00Tip:|r Open Settings and click 'Export Data' to save your data externally.")
+        CFC:Print("|cffffcc00Classic Fishing Companion:|r Reminder: Consider exporting your fishing data for backup!")
+        CFC:Print("|cffffcc00Tip:|r Open Settings and click 'Export Data' to save your data externally.")
         self.db.profile.backup.lastExportReminder = totalPlayTime
     end
 end
@@ -1082,7 +1091,7 @@ function CFC:OnCombatStart()
                 -- Not fishing - try to swap immediately (before combat lockdown kicks in)
                 if self:SwapWeaponsOnly("combat") then
                     self.autoSwappedCombatWeapons = true
-                    print("|cff00ff00Classic Fishing Companion:|r Swapped to combat weapons!")
+                    CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to combat weapons!")
                 else
                     -- Swap failed, show button as fallback
                     self:ShowCombatSwapButton()
@@ -1154,7 +1163,7 @@ function CFC:OnCombatEnd()
             print("|cffff8800[CFC Debug]|r Auto-swapping back to fishing weapons...")
         end
         if self:SwapWeaponsOnly("fishing") then
-            print("|cff00ff00Classic Fishing Companion:|r Combat ended - swapped back to fishing pole!")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Combat ended - swapped back to fishing pole!")
         end
         self.autoSwappedCombatWeapons = false
     end
@@ -1449,7 +1458,7 @@ function CFC:RecordFishCatch(itemName, itemLink)
 
     -- Print notification if setting is enabled
     if self.db.profile.settings.announceCatches then
-        print("|cff00ff00Classic Fishing Companion Announcements:|r Caught " .. itemName .. " in " .. zone)
+        CFC:Print("|cff00ff00Classic Fishing Companion Announcements:|r Caught " .. itemName .. " in " .. zone)
     end
 
     -- Check for milestone notifications
@@ -1516,8 +1525,8 @@ function CFC:AnnounceMaxSkill(skillLevel)
     local enabled = self.db.profile.settings.maxSkillAnnounceEnabled
     local channel = self.db.profile.settings.maxSkillAnnounce
 
-    -- Always show local notification
-    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. "Congratulations! You've reached maximum fishing skill (" .. skillLevel .. ")!" .. CFC.COLORS.RESET)
+    -- Local notification (respects quiet mode)
+    CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. "Congratulations! You've reached maximum fishing skill (" .. skillLevel .. ")!" .. CFC.COLORS.RESET)
     RaidNotice_AddMessage(RaidWarningFrame, "MAX FISHING SKILL REACHED!", ChatTypeInfo["RAID_WARNING"], 5)
     PlaySound(SOUNDKIT.UI_PLAYER_LEVEL_UP or 888)
 
@@ -1551,7 +1560,7 @@ function CFC:CheckMilestone(catchCount)
 
             -- Show milestone notification
             local message = "Milestone reached: " .. milestone .. " fish caught!"
-            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
+            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
 
             -- Show raid warning style notification
             RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
@@ -1595,7 +1604,7 @@ function CFC:CheckGoalProgress(fishName)
 
             if goal.sessionCatches == goal.targetCount then
                 local message = "Goal completed: " .. goal.targetCount .. " " .. fishName .. "!"
-                print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
+                CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
                 RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
                 PlaySound(888)
             end
@@ -1651,7 +1660,7 @@ end
 function CFC:ReleaseFishKeybind()
     local fishName = self.pendingRelease
     if not fishName then
-        print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " No fish pending release.")
+        CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " No fish pending release.")
         return
     end
 
@@ -1679,7 +1688,7 @@ function CFC:ReleaseFishKeybind()
                     ClearCursor()
                     PickupItem(bag, slot)
                     DeleteCursorItem()
-                    print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Released: " .. fishName)
+                    CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Released: " .. fishName)
                     self.pendingRelease = nil
                     return
                 end
@@ -1793,8 +1802,8 @@ function CFC:SaveGearSet(setName)
 
         -- If all items match exactly, warn the user
         if totalItems > 0 and matchingItems == totalItems then
-            print("|cffffcc00Classic Fishing Companion:|r |cffff8800WARNING:|r Your fishing and combat gear are identical!")
-            print("|cffffcc00Tip:|r Equip different gear for each set to make swapping useful.")
+            CFC:Print("|cffffcc00Classic Fishing Companion:|r |cffff8800WARNING:|r Your fishing and combat gear are identical!")
+            CFC:Print("|cffffcc00Tip:|r Equip different gear for each set to make swapping useful.")
         end
     end
 
@@ -2227,7 +2236,7 @@ function CFC:SwapGear()
     end
 
     if self:LoadGearSet(newMode) then
-        print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. newMode .. " gear!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. newMode .. " gear!")
         if self.debug then
             print("|cff00ff00[CFC Debug]|r ===== GEAR SWAP COMPLETE =====")
         end
@@ -2486,7 +2495,7 @@ function CFC:ApplySelectedLure()
                 end
             end)
 
-            print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Applied " .. lureName .. " to fishing pole!")
+            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Applied " .. lureName .. " to fishing pole!")
         else
             if CFC.debug then
                 print("|cffff0000[CFC Debug]|r ERROR: Cursor doesn't have lure! Type: " .. tostring(cursorType))
@@ -2545,7 +2554,7 @@ function CFC:UpdateLureMacro()
         end)
 
         if success then
-            print("|cff00ff00Classic Fishing Companion:|r Macro updated with " .. lureName .. "!")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Macro updated with " .. lureName .. "!")
             return true
         else
             print("|cffff0000Classic Fishing Companion:|r Failed to update macro (protected by Blizzard)")
@@ -2559,7 +2568,7 @@ function CFC:UpdateLureMacro()
         end)
 
         if success then
-            print("|cff00ff00Classic Fishing Companion:|r Macro created with " .. lureName .. "!")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Macro created with " .. lureName .. "!")
             return true
         else
             print("|cffff0000Classic Fishing Companion:|r Failed to create macro (protected by Blizzard)")
@@ -2670,7 +2679,7 @@ function CFC:ExportData()
         print("|cffff0000Classic Fishing Companion:|r Export dialog not available!")
     end
 
-    print("|cff00ff00Classic Fishing Companion:|r Data exported successfully!")
+    CFC:Print("|cff00ff00Classic Fishing Companion:|r Data exported successfully!")
 end
 
 -- Purge a specific item from the database
@@ -2752,10 +2761,10 @@ function CFC:PurgeItem(itemName)
         if foundInLureUsage then
             message = message .. " (lure usage)"
         end
-        print(message)
+        CFC:Print(message)
         return true
     else
-        print("|cffffcc00Classic Fishing Companion:|r Item '" .. itemName .. "' not found in database")
+        CFC:Print("|cffffcc00Classic Fishing Companion:|r Item '" .. itemName .. "' not found in database")
         return false
     end
 end
@@ -2786,7 +2795,7 @@ function CFC:ImportData(importString)
 
     -- Validate version (optional, just for info)
     if importData.version then
-        print("|cff00ff00Classic Fishing Companion:|r Importing data from version " .. importData.version)
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Importing data from version " .. importData.version)
     end
 
     -- Import the data
@@ -2826,7 +2835,7 @@ function CFC:ImportData(importString)
         self.db.profile.poleUsage = importData.poleUsage
     end
 
-    print("|cff00ff00Classic Fishing Companion:|r Data imported successfully!")
+    CFC:Print("|cff00ff00Classic Fishing Companion:|r Data imported successfully!")
 
     -- Update UI if open
     if self.UpdateUI then
@@ -2921,7 +2930,7 @@ function CFC:RestoreFromBackup()
     end
 
     local backupDate = date("%Y-%m-%d %H:%M:%S", backupData.timestamp)
-    print("|cff00ff00Classic Fishing Companion:|r Data restored from backup created on " .. backupDate)
+    CFC:Print("|cff00ff00Classic Fishing Companion:|r Data restored from backup created on " .. backupDate)
 
     -- Update UI if open
     if self.UpdateUI then
@@ -2966,29 +2975,29 @@ SlashCmdList["CFC"] = function(msg)
             CFC.db.profile.fishData = {}
             CFC.db.profile.statistics.totalCatches = 0
             CFC.db.profile.statistics.sessionCatches = 0
-            print("|cff00ff00Classic Fishing Companion:|r All data has been reset.")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r All data has been reset.")
         end
     elseif msg == "stats" then
         CFC:PrintStats()
     elseif msg == "debug" then
         CFC.debug = not CFC.debug
         if CFC.debug then
-            print("|cff00ff00Classic Fishing Companion:|r Debug mode |cff00ff00enabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Debug mode |cff00ff00enabled|r")
         else
-            print("|cff00ff00Classic Fishing Companion:|r Debug mode |cffff0000disabled|r")
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Debug mode |cffff0000disabled|r")
         end
     elseif msg == "savefishing" then
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r Slash command: savefishing")
         end
         CFC:SaveGearSet("fishing")
-        print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
     elseif msg == "savecombat" then
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r Slash command: savecombat")
         end
         CFC:SaveGearSet("combat")
-        print("|cff00ff00Classic Fishing Companion:|r Combat gear set saved!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Combat gear set saved!")
     elseif msg == "swap" or msg == "gear" then
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r Slash command: swap/gear")
@@ -3004,10 +3013,10 @@ SlashCmdList["CFC"] = function(msg)
             -- Try to toggle directly
             if CFC.minimapButton:IsShown() then
                 CFC.minimapButton:Hide()
-                print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden.")
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden.")
             else
                 CFC.minimapButton:Show()
-                print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
             end
         else
             print("|cffff0000Classic Fishing Companion:|r Minimap module not loaded or button not created.")
@@ -3015,13 +3024,13 @@ SlashCmdList["CFC"] = function(msg)
         end
     elseif msg == "testsound" then
         PlaySound(CFC.CONSTANTS.RARE_FISH_SOUND, "Master")
-        print("|cff00ff00Classic Fishing Companion:|r Playing rare fish sound (ID: " .. CFC.CONSTANTS.RARE_FISH_SOUND .. ")")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Playing rare fish sound (ID: " .. CFC.CONSTANTS.RARE_FISH_SOUND .. ")")
     elseif msg == "testmilestone" then
         local message = "Milestone reached: 1000 fish caught!"
-        print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
+        CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " " .. CFC.COLORS.TIP .. message .. CFC.COLORS.RESET)
         RaidNotice_AddMessage(RaidWarningFrame, message, ChatTypeInfo["RAID_WARNING"], 5)
         PlaySound(888)
-        print("|cff00ff00Classic Fishing Companion:|r Testing milestone notification (sound ID: 888)")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Testing milestone notification (sound ID: 888)")
     elseif msg == "hud" then
         if CFC.HUD and CFC.HUD.ToggleShow then
             local swapBlocked = false
@@ -3049,7 +3058,7 @@ SlashCmdList["CFC"] = function(msg)
                         end
                     end
                 else
-                    print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
+                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
                 end
             end
             if not swapBlocked then
@@ -3070,12 +3079,12 @@ function CFC:PrintStats()
     local fph = self:GetFishPerHour()
     local totalTime = self:GetTotalFishingTime()
 
-    print("|cff00ff00=== Classic Fishing Companion Statistics ===|r")
-    print("|cffffcc00Total Catches:|r " .. self.db.profile.statistics.totalCatches)
-    print("|cffffcc00Session Catches:|r " .. self.db.profile.statistics.sessionCatches)
-    print("|cffffcc00Fish Per Hour:|r " .. string.format("%.1f", fph))
-    print("|cffffcc00Total Fishing Time:|r " .. string.format("%.1f hours", totalTime))
-    print("|cffffcc00Unique Fish Types:|r " .. self:GetUniqueFishCount())
+    CFC:Print("|cff00ff00=== Classic Fishing Companion Statistics ===|r")
+    CFC:Print("|cffffcc00Total Catches:|r " .. self.db.profile.statistics.totalCatches)
+    CFC:Print("|cffffcc00Session Catches:|r " .. self.db.profile.statistics.sessionCatches)
+    CFC:Print("|cffffcc00Fish Per Hour:|r " .. string.format("%.1f", fph))
+    CFC:Print("|cffffcc00Total Fishing Time:|r " .. string.format("%.1f hours", totalTime))
+    CFC:Print("|cffffcc00Unique Fish Types:|r " .. self:GetUniqueFishCount())
 end
 
 -- Get count of unique fish types
@@ -3089,7 +3098,7 @@ end
 
 -- Refresh fish icons by scanning bags
 function CFC:RefreshFishIcons()
-    print("|cff00ff00Classic Fishing Companion:|r Scanning bags for fish icons...")
+    CFC:Print("|cff00ff00Classic Fishing Companion:|r Scanning bags for fish icons...")
 
     local iconsFound = 0
     local iconsUpdated = 0
@@ -3158,9 +3167,9 @@ function CFC:RefreshFishIcons()
     end
 
     if iconsUpdated > 0 then
-        print("|cff00ff00Classic Fishing Companion:|r Found " .. iconsFound .. " fish in bags, updated " .. iconsUpdated .. " icons!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Found " .. iconsFound .. " fish in bags, updated " .. iconsUpdated .. " icons!")
     else
-        print("|cffffcc00Classic Fishing Companion:|r Found " .. iconsFound .. " fish in bags (all already had icons cached).")
+        CFC:Print("|cffffcc00Classic Fishing Companion:|r Found " .. iconsFound .. " fish in bags (all already had icons cached).")
     end
 end
 

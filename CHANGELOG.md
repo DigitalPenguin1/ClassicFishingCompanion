@@ -2,6 +2,12 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.7] - 2026-03-16
+
+### Added
+- Text Only HUD mode — floating text with no background or border, hover to reveal controls
+- Quiet Mode — suppress all chat messages except errors and warnings (under Announcements in Settings)
+
 ## [1.1.6] - 2026-03-03
 
 ### Added

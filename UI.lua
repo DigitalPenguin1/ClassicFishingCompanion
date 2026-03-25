@@ -1781,15 +1781,15 @@ function UI:CreateGearSetsTab()
     }
     frame.slotOrder = slotOrder
     frame.slotNames = slotNames
-    frame.activeSet = "combat"
+    frame.activeSet = "current"
 
     -- Toggle buttons
     frame.combatToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.combatToggle:SetSize(100, 22)
     frame.combatToggle:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -8)
-    frame.combatToggle:SetText("|cffff8000Combat|r")
+    frame.combatToggle:SetText("|cffff8000Current|r")
     frame.combatToggle:SetScript("OnClick", function()
-        frame.activeSet = "combat"
+        frame.activeSet = "current"
         UI:UpdateGearSetsTab()
     end)
 
@@ -1802,17 +1802,15 @@ function UI:CreateGearSetsTab()
         UI:UpdateGearSetsTab()
     end)
 
-    -- Save button
+    -- Save button (only for fishing set)
     frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.saveBtn:SetSize(120, 22)
     frame.saveBtn:SetPoint("LEFT", frame.fishingToggle, "RIGHT", 4, 0)
     frame.saveBtn:SetText("Save Set")
     frame.saveBtn:SetScript("OnClick", function()
-        local setName = frame.activeSet
-        local label = (setName == "combat") and "Combat Gear" or "Fishing Gear"
-        CFC:SaveGearSet(setName)
+        CFC:SaveGearSet("fishing")
         UI:UpdateGearSetsTab()
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. label .. " saved!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing Gear saved!")
     end)
 
     -- Swap Gear Button
@@ -1888,12 +1886,12 @@ function UI:UpdateGearSetsTab()
         return
     end
 
-    local activeSet = frame.activeSet or "combat"
+    local activeSet = frame.activeSet or "current"
     local gearData = CFC.db.profile.gearSets[activeSet] or {}
     local isEmpty = not next(gearData)
 
     -- Update toggle highlights
-    if activeSet == "combat" then
+    if activeSet == "current" then
         frame.combatToggle:LockHighlight()
         frame.fishingToggle:UnlockHighlight()
     else
@@ -1901,9 +1899,16 @@ function UI:UpdateGearSetsTab()
         frame.fishingToggle:LockHighlight()
     end
 
-    -- Update save button text
-    local setLabel = (activeSet == "combat") and "Combat Gear" or "Fishing Gear"
-    frame.saveBtn:SetText("Save " .. setLabel)
+    -- Update save button and description based on active set
+    if activeSet == "current" then
+        frame.saveBtn:Hide()
+        frame.desc:SetText("Your current gear is |cff00ff00auto-saved|r before each fishing swap. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
+    else
+        frame.saveBtn:SetText("Save Fishing Gear")
+        frame.saveBtn:Enable()
+        frame.saveBtn:Show()
+        frame.desc:SetText("Equip your fishing gear, then click Save. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
+    end
 
     -- Hide all rows
     for i = 1, #frame.rows do
@@ -1914,7 +1919,11 @@ function UI:UpdateGearSetsTab()
     end
 
     if isEmpty then
-        frame.statusText:SetText("|cffff0000No gear saved|r - Equip your " .. setLabel:lower() .. ", then click Save.")
+        if activeSet == "current" then
+            frame.statusText:SetText("|cffff0000No gear saved yet|r - Gear will be auto-saved when you swap to fishing.")
+        else
+            frame.statusText:SetText("|cffff0000No gear saved|r - Equip your fishing gear, then click Save.")
+        end
     else
         -- Validate the active set
         local validation = CFC:ValidateGearSet(activeSet)
@@ -3031,7 +3040,7 @@ function UI:CreateSettingsTab()
     frame.autoSwapDesc:SetJustifyH("LEFT")
     frame.autoSwapDesc:SetWidth(500)
     frame.autoSwapDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to combat gear when hiding HUD. Requires gear sets to be saved.")
+    frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to current gear when hiding HUD. Requires fishing gear set to be saved.")
 
     -- HUD Scale Slider
     frame.hudScaleLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -3185,7 +3194,7 @@ function UI:CreateSettingsTab()
     frame.autoSwapCombatDesc:SetJustifyH("LEFT")
     frame.autoSwapCombatDesc:SetWidth(500)
     frame.autoSwapCombatDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.autoSwapCombatDesc:SetText("When combat starts with fishing pole equipped: if not casting, auto-swaps to combat weapons. If actively casting, a button appears to click to swap. When combat ends, auto-swaps back to fishing pole. Requires combat gear set to be saved.")
+    frame.autoSwapCombatDesc:SetText("When combat starts with fishing pole equipped: if not casting, auto-swaps to your current weapons. If actively casting, a button appears to click to swap. When combat ends, auto-swaps back to fishing pole. Current gear is auto-saved before each fishing swap.")
 
     -- =============================================
     -- ADVANCED SECTION
@@ -3853,7 +3862,7 @@ local whatsNewContent = {
             "When combat ends, auto-swaps back to your fishing pole",
         },
         fixes = {},
-        tip = "TIP: Enable 'Auto-Swap Combat Weapons' in Settings!\nSave your combat gear first with /cfc savecombat, then fish safely knowing you can defend yourself."
+        tip = "TIP: Enable 'Auto-Swap Combat Weapons' in Settings!\nYour current gear is auto-saved before each fishing swap, so you can fish safely knowing you can defend yourself."
     },
     ["1.0.12"] = {
         features = {
@@ -3892,7 +3901,7 @@ local whatsNewContent = {
             "New setting in Settings tab to enable/disable",
         },
         fixes = {},
-        tip = "TIP: Enable 'Auto-Swap Gear on HUD Toggle' in Settings for one-click fishing setup!\nMake sure to save both your fishing and combat gear sets first."
+        tip = "TIP: Enable 'Auto-Swap Gear on HUD Toggle' in Settings for one-click fishing setup!\nMake sure to save your fishing gear set first. Your current gear is auto-saved on swap."
     },
     ["1.0.9"] = {
         features = {
@@ -4026,15 +4035,15 @@ StaticPopupDialogs["CFC_WHATS_NEW"] = {
 }
 
 StaticPopupDialogs["CFC_CLEAR_GEAR_SETS"] = {
-    text = "Are you sure you want to clear ALL gear sets?\n\nThis will delete:\n• Combat gear set\n• Fishing gear set\n\nYou will need to reconfigure your gear sets after this.\n\nThis action CANNOT be undone!",
+    text = "Are you sure you want to clear ALL gear sets?\n\nThis will delete:\n• Current gear set (auto-saved)\n• Fishing gear set\n\nYou will need to reconfigure your gear sets after this.\n\nThis action CANNOT be undone!",
     button1 = "Yes, Clear Gear Sets",
     button2 = "Cancel",
     OnAccept = function()
         if CFC.db and CFC.db.profile and CFC.db.profile.gearSets then
             -- Clear both gear sets
-            CFC.db.profile.gearSets.combat = {}
+            CFC.db.profile.gearSets.current = {}
             CFC.db.profile.gearSets.fishing = {}
-            CFC.db.profile.gearSets.currentMode = "combat"
+            CFC.db.profile.gearSets.currentMode = "current"
 
             CFC:Print("|cff00ff00Classic Fishing Companion:|r All gear sets have been cleared.")
 

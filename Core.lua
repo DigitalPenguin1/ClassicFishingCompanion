@@ -162,9 +162,9 @@ local defaults = {
         skillLevels = {},  -- Tracks fishing skill level ups
         poleUsage = {},  -- Tracks fishing pole usage
         gearSets = {
-            fishing = {},  -- Fishing gear set (saved item links)
-            combat = {},   -- Combat gear set (saved item links)
-            currentMode = "combat",  -- Current gear mode: "fishing" or "combat"
+            fishing = {},   -- Fishing gear set (saved item links)
+            current = {},   -- Current gear set (auto-saved before fishing swap)
+            currentMode = "current",  -- Current gear mode: "fishing" or "current"
         },
         backup = {
             enabled = true,  -- Enable automatic backups (enabled by default)
@@ -287,6 +287,17 @@ function CFC:OnInitialize()
                 end
                 self.db.profile.buffUsage[oldName] = nil
             end
+        end
+    end
+
+    -- Migrate gear sets: rename "combat" to "current" (v1.1.8)
+    if self.db.profile.gearSets then
+        if self.db.profile.gearSets.combat and not self.db.profile.gearSets.current then
+            self.db.profile.gearSets.current = self.db.profile.gearSets.combat
+        end
+        self.db.profile.gearSets.combat = nil
+        if self.db.profile.gearSets.currentMode == "combat" then
+            self.db.profile.gearSets.currentMode = "current"
         end
     end
 
@@ -1009,14 +1020,14 @@ function CFC:UpdateCombatSwapMacro()
 
     local btn = self:CreateCombatSwapButton()
 
-    if not self.db or not self.db.profile.gearSets or not self.db.profile.gearSets.combat then
+    if not self.db or not self.db.profile.gearSets or not self.db.profile.gearSets.current then
         if self.debug then
-            print("|cffff0000[CFC Debug]|r No combat gear saved for swap macro")
+            print("|cffff0000[CFC Debug]|r No current gear saved for swap macro")
         end
         return false
     end
 
-    local combatGear = self.db.profile.gearSets.combat
+    local combatGear = self.db.profile.gearSets.current
     local macroLines = {"/stopcasting"}  -- Always stop fishing first
 
     -- Main hand (slot 16)
@@ -1089,9 +1100,9 @@ function CFC:OnCombatStart()
                 end
             else
                 -- Not fishing - try to swap immediately (before combat lockdown kicks in)
-                if self:SwapWeaponsOnly("combat") then
+                if self:SwapWeaponsOnly("current") then
                     self.autoSwappedCombatWeapons = true
-                    CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to combat weapons!")
+                    CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to current weapons!")
                 else
                     -- Swap failed, show button as fallback
                     self:ShowCombatSwapButton()
@@ -1188,7 +1199,7 @@ function CFC:OnEquipmentChanged(event, slot)
         end
     end
 
-    local currentMode = self.db.profile.gearSets.currentMode or "combat"
+    local currentMode = self.db.profile.gearSets.currentMode or "current"
 
     -- Update mode if it's out of sync
     if isFishingPole and currentMode ~= "fishing" then
@@ -1201,9 +1212,9 @@ function CFC:OnEquipmentChanged(event, slot)
             self:UpdateCombatSwapMacro()
         end
     elseif not isFishingPole and currentMode == "fishing" then
-        self.db.profile.gearSets.currentMode = "combat"
+        self.db.profile.gearSets.currentMode = "current"
         if self.debug then
-            print("|cffff8800[CFC Debug]|r Detected non-fishing weapon equipped - mode set to 'combat'")
+            print("|cffff8800[CFC Debug]|r Detected non-fishing weapon equipped - mode set to 'current'")
         end
     end
 end
@@ -1748,8 +1759,8 @@ function CFC:SaveGearSet(setName)
     if not self.db.profile.gearSets then
         self.db.profile.gearSets = {
             fishing = {},
-            combat = {},
-            currentMode = "combat",
+            current = {},
+            currentMode = "current",
         }
         if self.debug then
             print("|cffff8800[CFC Debug]|r Initialized gearSets database")
@@ -1782,31 +1793,6 @@ function CFC:SaveGearSet(setName)
         print("|cffff8800[CFC Debug]|r Saved " .. itemCount .. " items to " .. setName .. " gear set")
     end
 
-    -- Check if both gear sets are identical
-    local otherSet = (setName == "fishing") and "combat" or "fishing"
-    if self.db.profile.gearSets[otherSet] and next(self.db.profile.gearSets[otherSet]) then
-        local matchingItems = 0
-        local totalItems = 0
-
-        for slotID, itemLink in pairs(gearSet) do
-            totalItems = totalItems + 1
-            local otherItemLink = self.db.profile.gearSets[otherSet][slotID]
-            if otherItemLink then
-                local itemID = tonumber(string.match(itemLink, "item:(%d+)"))
-                local otherItemID = tonumber(string.match(otherItemLink, "item:(%d+)"))
-                if itemID == otherItemID then
-                    matchingItems = matchingItems + 1
-                end
-            end
-        end
-
-        -- If all items match exactly, warn the user
-        if totalItems > 0 and matchingItems == totalItems then
-            CFC:Print("|cffffcc00Classic Fishing Companion:|r |cffff8800WARNING:|r Your fishing and combat gear are identical!")
-            CFC:Print("|cffffcc00Tip:|r Equip different gear for each set to make swapping useful.")
-        end
-    end
-
     return true
 end
 
@@ -1826,7 +1812,7 @@ function CFC:LoadGearSet(setName)
 
     local gearSet = self.db.profile.gearSets[setName]
     if not gearSet or not next(gearSet) then
-        print("|cffff0000Classic Fishing Companion:|r No " .. setName .. " gear set saved. Equip your gear and use /cfc save" .. setName .. " first!")
+        print("|cffff0000Classic Fishing Companion:|r No " .. setName .. " gear set saved!")
         if self.debug then
             print("|cffff0000[CFC Debug]|r Gear set '" .. setName .. "' is empty or doesn't exist")
         end
@@ -2176,33 +2162,35 @@ function CFC:SwapGear()
 
     if not self.db or not self.db.profile or not self.db.profile.gearSets then
         print("|cffff0000Classic Fishing Companion:|r No gear sets configured!")
-        print("|cffffcc00Tip:|r Equip your combat gear, then type |cffff8800/cfc savecombat|r")
-        print("|cffffcc00Then:|r Equip your fishing gear, then type |cffff8800/cfc savefishing|r")
+        print("|cffffcc00Tip:|r Equip your fishing gear, then type |cffff8800/cfc savefishing|r")
         if self.debug then
             print("|cffff0000[CFC Debug]|r Gear sets not configured - database missing")
         end
         return false
     end
 
-    local currentMode = self.db.profile.gearSets.currentMode or "combat"
-    local newMode = (currentMode == "combat") and "fishing" or "combat"
+    local currentMode = self.db.profile.gearSets.currentMode or "current"
+    local newMode = (currentMode == "current") and "fishing" or "current"
 
     if self.debug then
         print("|cffff8800[CFC Debug]|r Current mode: " .. currentMode)
         print("|cffff8800[CFC Debug]|r Target mode: " .. newMode)
     end
 
-    -- Check if both gear sets exist
-    local hasCombat = self.db.profile.gearSets.combat and next(self.db.profile.gearSets.combat)
+    -- Check if fishing gear set exists
     local hasFishing = self.db.profile.gearSets.fishing and next(self.db.profile.gearSets.fishing)
 
     if self.debug then
-        print("|cffff8800[CFC Debug]|r Has combat gear: " .. tostring(hasCombat))
         print("|cffff8800[CFC Debug]|r Has fishing gear: " .. tostring(hasFishing))
     end
 
-    -- When swapping to fishing, verify the fishing pole is available
+    -- When swapping to fishing, auto-save current gear and verify the fishing pole is available
     if newMode == "fishing" and hasFishing then
+        -- Auto-save current equipment before swapping to fishing
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Auto-saving current gear before fishing swap...")
+        end
+        self:SaveGearSet("current")
         local fishingSet = self.db.profile.gearSets.fishing
         local poleLink = fishingSet[16] -- Main Hand slot
         if poleLink then
@@ -2236,7 +2224,8 @@ function CFC:SwapGear()
     end
 
     if self:LoadGearSet(newMode) then
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. newMode .. " gear!")
+        local displayMode = (newMode == "current") and "current" or "fishing"
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. displayMode .. " gear!")
         if self.debug then
             print("|cff00ff00[CFC Debug]|r ===== GEAR SWAP COMPLETE =====")
         end
@@ -2588,25 +2577,21 @@ function CFC:HasGearSets()
     end
 
     local fishing = self.db.profile.gearSets.fishing
-    local combat = self.db.profile.gearSets.combat
-
     local hasFishing = fishing and next(fishing)
-    local hasCombat = combat and next(combat)
-    local hasGearSets = hasFishing and hasCombat
 
-    return hasGearSets
+    return hasFishing
 end
 
 -- Get current gear mode
 function CFC:GetCurrentGearMode()
     if not self.db or not self.db.profile or not self.db.profile.gearSets then
         if self.debug then
-            print("|cffff8800[CFC Debug]|r GetCurrentGearMode: No database, defaulting to 'combat'")
+            print("|cffff8800[CFC Debug]|r GetCurrentGearMode: No database, defaulting to 'current'")
         end
-        return "combat"
+        return "current"
     end
 
-    local mode = self.db.profile.gearSets.currentMode or "combat"
+    local mode = self.db.profile.gearSets.currentMode or "current"
     return mode
 end
 
@@ -2993,11 +2978,9 @@ SlashCmdList["CFC"] = function(msg)
         CFC:SaveGearSet("fishing")
         CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
     elseif msg == "savecombat" then
-        if CFC.debug then
-            print("|cffff8800[CFC Debug]|r Slash command: savecombat")
-        end
-        CFC:SaveGearSet("combat")
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Combat gear set saved!")
+        -- Legacy command - inform user about the change
+        CFC:Print("|cffffcc00Classic Fishing Companion:|r The savecombat command has been removed.")
+        CFC:Print("|cffffcc00Info:|r Your current gear is now auto-saved when you swap to fishing gear.")
     elseif msg == "swap" or msg == "gear" then
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r Slash command: swap/gear")
@@ -3038,14 +3021,13 @@ SlashCmdList["CFC"] = function(msg)
             if CFC.db.profile.settings.autoSwapOnHUD then
                 local gearSets = CFC.db.profile.gearSets
                 local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
-                local hasCombatGear = gearSets and gearSets.combat and next(gearSets.combat)
 
-                if hasFishingGear and hasCombatGear then
+                if hasFishingGear then
                     local hudCurrentlyShown = CFC.db.profile.hud.show
-                    local currentMode = gearSets.currentMode or "combat"
+                    local currentMode = gearSets.currentMode or "current"
 
                     if hudCurrentlyShown then
-                        if currentMode ~= "combat" and CFC.SwapGear then
+                        if currentMode ~= "current" and CFC.SwapGear then
                             if CFC:SwapGear() == false then
                                 swapBlocked = true
                             end
@@ -3058,7 +3040,7 @@ SlashCmdList["CFC"] = function(msg)
                         end
                     end
                 else
-                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
+                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but fishing gear set not configured. Please save your fishing gear set in the Gear Sets tab.")
                 end
             end
             if not swapBlocked then

@@ -1686,7 +1686,6 @@ function UI:UpdateStats()
         table.sort(poleList, function(a, b) return a.count > b.count end)
 
         if #poleList > 0 then
-            bottomText = bottomText .. "\n"
             for _, pole in ipairs(poleList) do
                 bottomText = bottomText .. pole.name .. ": |cff00ff00" .. pole.count .. " catches|r\n"
             end
@@ -1698,7 +1697,7 @@ function UI:UpdateStats()
     end
 
     -- Fishing Lures Used
-    bottomText = bottomText .. "\n\n|cffffd700Fishing Lures Used:|r\n"
+    bottomText = bottomText .. "\n|cffffd700Fishing Lures Used:|r\n"
     if CFC.db.profile.buffUsage then
         local buffList = {}
         for buffName, data in pairs(CFC.db.profile.buffUsage) do
@@ -1709,7 +1708,6 @@ function UI:UpdateStats()
         table.sort(buffList, function(a, b) return a.count > b.count end)
 
         if #buffList > 0 then
-            bottomText = bottomText .. "\n"
             for _, buff in ipairs(buffList) do
                 bottomText = bottomText .. buff.name .. ": |cff00ff00" .. buff.count .. " times|r\n"
             end
@@ -1721,7 +1719,7 @@ function UI:UpdateStats()
     end
 
     -- Top fish
-    bottomText = bottomText .. "\n\n|cffffd700Top 10 Most Caught Fish:|r\n\n"
+    bottomText = bottomText .. "\n|cffffd700Top 10 Most Caught Fish:|r\n"
     local fishList = CFC.Database:GetFishList()
 
     if #fishList > 0 then
@@ -1735,7 +1733,7 @@ function UI:UpdateStats()
     end
 
     -- Top zones
-    bottomText = bottomText .. "\n\n|cffffd700Fishing Zones:|r\n\n"
+    bottomText = bottomText .. "\n|cffffd700Fishing Zones:|r\n"
     local zones = CFC.Database:GetZoneList()
 
     if #zones > 0 then
@@ -1783,15 +1781,15 @@ function UI:CreateGearSetsTab()
     }
     frame.slotOrder = slotOrder
     frame.slotNames = slotNames
-    frame.activeSet = "combat"
+    frame.activeSet = "current"
 
     -- Toggle buttons
     frame.combatToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.combatToggle:SetSize(100, 22)
     frame.combatToggle:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -8)
-    frame.combatToggle:SetText("|cffff8000Combat|r")
+    frame.combatToggle:SetText("|cffff8000Current|r")
     frame.combatToggle:SetScript("OnClick", function()
-        frame.activeSet = "combat"
+        frame.activeSet = "current"
         UI:UpdateGearSetsTab()
     end)
 
@@ -1804,17 +1802,15 @@ function UI:CreateGearSetsTab()
         UI:UpdateGearSetsTab()
     end)
 
-    -- Save button
+    -- Save button (only for fishing set)
     frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.saveBtn:SetSize(120, 22)
     frame.saveBtn:SetPoint("LEFT", frame.fishingToggle, "RIGHT", 4, 0)
     frame.saveBtn:SetText("Save Set")
     frame.saveBtn:SetScript("OnClick", function()
-        local setName = frame.activeSet
-        local label = (setName == "combat") and "Combat Gear" or "Fishing Gear"
-        CFC:SaveGearSet(setName)
+        CFC:SaveGearSet("fishing")
         UI:UpdateGearSetsTab()
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. label .. " saved!")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing Gear saved!")
     end)
 
     -- Swap Gear Button
@@ -1890,12 +1886,12 @@ function UI:UpdateGearSetsTab()
         return
     end
 
-    local activeSet = frame.activeSet or "combat"
+    local activeSet = frame.activeSet or "current"
     local gearData = CFC.db.profile.gearSets[activeSet] or {}
     local isEmpty = not next(gearData)
 
     -- Update toggle highlights
-    if activeSet == "combat" then
+    if activeSet == "current" then
         frame.combatToggle:LockHighlight()
         frame.fishingToggle:UnlockHighlight()
     else
@@ -1903,9 +1899,16 @@ function UI:UpdateGearSetsTab()
         frame.fishingToggle:LockHighlight()
     end
 
-    -- Update save button text
-    local setLabel = (activeSet == "combat") and "Combat Gear" or "Fishing Gear"
-    frame.saveBtn:SetText("Save " .. setLabel)
+    -- Update save button and description based on active set
+    if activeSet == "current" then
+        frame.saveBtn:Hide()
+        frame.desc:SetText("Your current gear is |cff00ff00auto-saved|r before each fishing swap. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
+    else
+        frame.saveBtn:SetText("Save Fishing Gear")
+        frame.saveBtn:Enable()
+        frame.saveBtn:Show()
+        frame.desc:SetText("Equip your fishing gear, then click Save. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
+    end
 
     -- Hide all rows
     for i = 1, #frame.rows do
@@ -1916,7 +1919,11 @@ function UI:UpdateGearSetsTab()
     end
 
     if isEmpty then
-        frame.statusText:SetText("|cffff0000No gear saved|r - Equip your " .. setLabel:lower() .. ", then click Save.")
+        if activeSet == "current" then
+            frame.statusText:SetText("|cffff0000No gear saved yet|r - Gear will be auto-saved when you swap to fishing.")
+        else
+            frame.statusText:SetText("|cffff0000No gear saved|r - Equip your fishing gear, then click Save.")
+        end
     else
         -- Validate the active set
         local validation = CFC:ValidateGearSet(activeSet)
@@ -2001,22 +2008,12 @@ function UI:CreateLuresTab()
     frame.clearBtn:SetScript("OnClick", function()
         CFC.db.profile.selectedLure = nil
         UI:UpdateLuresTab()
-        -- Update HUD lure button
-        if CFC.HUD and CFC.HUD.UpdateLureButton then
-            CFC.HUD:UpdateLureButton()
+
+        -- Update the Apply Lure button macro on the HUD
+        if CFC.hudFrame and CFC.hudFrame.UpdateApplyLureMacro then
+            CFC.hudFrame.UpdateApplyLureMacro()
         end
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Lure selection cleared.")
     end)
-
-    -- Create scroll frame for lure buttons
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    frame.scrollFrame:SetPoint("TOPLEFT", frame.selectedLure, "BOTTOMLEFT", 0, -20)
-    frame.scrollFrame:SetSize(270, 200)
-
-    -- Create content frame for scroll (holds the buttons)
-    frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
-    frame.scrollChild:SetSize(250, 300)
-    frame.scrollFrame:SetScrollChild(frame.scrollChild)
 
     -- Lure selection buttons
     local lureData = {
@@ -2026,14 +2023,13 @@ function UI:CreateLuresTab()
         { name = "Bright Baubles", id = 6532, bonus = 75, icon = "INV_Misc_Gem_Variety_02" },
         { name = "Flesh Eating Worm", id = 7307, bonus = 75, icon = "INV_Misc_MonsterTail_03" },
         { name = "Aquadynamic Fish Attractor", id = 6533, bonus = 100, icon = "INV_Misc_Food_26" },
-        { name = "Sharpened Fish Hook", id = 34861, bonus = 100, icon = "INV_Misc_Hook_01" },
     }
 
-    local yOffset = -10
+    local yOffset = -120
     for i, lure in ipairs(lureData) do
-        local btn = CreateFrame("Button", nil, frame.scrollChild, "UIPanelButtonTemplate")
+        local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
         btn:SetSize(250, 30)
-        btn:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 0, yOffset)
+        btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
 
         -- Add faction icon if specified
         local buttonText = "|TInterface\\Icons\\" .. lure.icon .. ":20|t " .. lure.name .. " (+" .. lure.bonus .. ")"
@@ -2045,11 +2041,11 @@ function UI:CreateLuresTab()
         btn:SetScript("OnClick", function()
             CFC.db.profile.selectedLure = lure.id
             UI:UpdateLuresTab()
-            -- Update HUD lure button
-            if CFC.HUD and CFC.HUD.UpdateLureButton then
-                CFC.HUD:UpdateLureButton()
+
+            -- Update the Apply Lure button macro on the HUD
+            if CFC.hudFrame and CFC.hudFrame.UpdateApplyLureMacro then
+                CFC.hudFrame.UpdateApplyLureMacro()
             end
-            CFC:Print("|cff00ff00Classic Fishing Companion:|r Selected " .. lure.name)
         end)
 
         yOffset = yOffset - 40
@@ -2068,34 +2064,6 @@ function UI:CreateLuresTab()
     frame.easyCastHint:SetPoint("TOPLEFT", frame.easyCastStatus, "BOTTOMLEFT", 0, -5)
     frame.easyCastHint:SetWidth(220)
     frame.easyCastHint:SetJustifyH("LEFT")
-
-    -- Captain Rumsey's Lager section
-    frame.rumseyHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.rumseyHeader:SetPoint("TOPLEFT", frame.easyCastHint, "BOTTOMLEFT", 0, -25)
-    frame.rumseyHeader:SetText("Captain Rumsey's Lager:")
-    frame.rumseyHeader:SetTextColor(0, 0.8, 1)
-
-    frame.autoRumseyCheck = CreateFrame("CheckButton", "CFCAutoRumseyCheck", frame, "UICheckButtonTemplate")
-    frame.autoRumseyCheck:SetPoint("TOPLEFT", frame.rumseyHeader, "BOTTOMLEFT", 0, -8)
-    frame.autoRumseyCheck.text = frame.autoRumseyCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.autoRumseyCheck.text:SetPoint("LEFT", frame.autoRumseyCheck, "RIGHT", 5, 0)
-    frame.autoRumseyCheck.text:SetText("Auto-Drink with Easy Cast")
-
-    frame.autoRumseyCheck:SetScript("OnClick", function(self)
-        CFC.db.profile.settings.autoRumsey = self:GetChecked()
-        if CFC.db.profile.settings.autoRumsey then
-            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.SUCCESS .. "enabled|r")
-        else
-            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.ERROR .. "disabled|r")
-        end
-    end)
-
-    frame.rumseyDesc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.rumseyDesc:SetPoint("TOPLEFT", frame.autoRumseyCheck, "BOTTOMLEFT", 20, -5)
-    frame.rumseyDesc:SetWidth(220)
-    frame.rumseyDesc:SetJustifyH("LEFT")
-    frame.rumseyDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.rumseyDesc:SetText("Automatically drink Captain Rumsey's Lager (+10 fishing) before casting when Easy Cast fires.")
 
     -- Store reference
     mainFrame.luresFrame = frame
@@ -2132,11 +2100,6 @@ function UI:UpdateLuresTab()
         frame.easyCastStatus:SetText("Disabled")
         frame.easyCastStatus:SetTextColor(1, 0, 0)  -- Red
         frame.easyCastHint:SetText("Go to Settings tab to enable Easy Cast.")
-    end
-
-    -- Update Rumsey checkbox
-    if frame.autoRumseyCheck then
-        frame.autoRumseyCheck:SetChecked(CFC.db.profile.settings.autoRumsey or false)
     end
 end
 
@@ -2779,7 +2742,7 @@ function UI:CreateSettingsTab()
     frame.maxSkillCheck:SetPoint("TOPLEFT", frame.announceSkillUpsDesc, "BOTTOMLEFT", -25, -30)
     frame.maxSkillCheck.text = frame.maxSkillCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.maxSkillCheck.text:SetPoint("LEFT", frame.maxSkillCheck, "RIGHT", 5, 0)
-    frame.maxSkillCheck.text:SetText("Announce Max Skill (375)")
+    frame.maxSkillCheck.text:SetText("Announce Max Skill (300)")
 
     frame.maxSkillCheck:SetScript("OnClick", function(self)
         local enabled = self:GetChecked()
@@ -3077,7 +3040,7 @@ function UI:CreateSettingsTab()
     frame.autoSwapDesc:SetJustifyH("LEFT")
     frame.autoSwapDesc:SetWidth(500)
     frame.autoSwapDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to combat gear when hiding HUD. Requires gear sets to be saved.")
+    frame.autoSwapDesc:SetText("Automatically swap to fishing gear when showing HUD (right-click minimap), and swap to current gear when hiding HUD. Requires fishing gear set to be saved.")
 
     -- HUD Scale Slider
     frame.hudScaleLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -3172,28 +3135,9 @@ function UI:CreateSettingsTab()
         end
     end)
 
-    -- Show Rumsey Icon Checkbox
-    frame.showRumseyButtonCheck = CreateFrame("CheckButton", "CFCShowRumseyButtonCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.showRumseyButtonCheck:SetPoint("TOPLEFT", frame.showSwapButtonCheck, "BOTTOMLEFT", 0, -5)
-    frame.showRumseyButtonCheck.text = frame.showRumseyButtonCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.showRumseyButtonCheck.text:SetPoint("LEFT", frame.showRumseyButtonCheck, "RIGHT", 5, 0)
-    frame.showRumseyButtonCheck.text:SetText("Show Rumsey Icon on HUD")
-
-    frame.showRumseyButtonCheck:SetScript("OnClick", function(self)
-        CFC.db.profile.settings.hudShowRumseyButton = self:GetChecked()
-        if CFC.HUD and CFC.HUD.UpdateRumseyIcon then
-            CFC.HUD:UpdateRumseyIcon()
-        end
-        if CFC.db.profile.settings.hudShowRumseyButton then
-            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cff00ff00shown|r")
-        else
-            CFC:Print("|cff00ff00Classic Fishing Companion:|r HUD Rumsey icon |cffff0000hidden|r")
-        end
-    end)
-
     -- Button visibility description
     frame.hudButtonDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.hudButtonDesc:SetPoint("TOPLEFT", frame.showRumseyButtonCheck, "BOTTOMLEFT", 25, -5)
+    frame.hudButtonDesc:SetPoint("TOPLEFT", frame.showSwapButtonCheck, "BOTTOMLEFT", 25, -5)
     frame.hudButtonDesc:SetJustifyH("LEFT")
     frame.hudButtonDesc:SetWidth(500)
     frame.hudButtonDesc:SetTextColor(0.7, 0.7, 0.7)
@@ -3250,7 +3194,7 @@ function UI:CreateSettingsTab()
     frame.autoSwapCombatDesc:SetJustifyH("LEFT")
     frame.autoSwapCombatDesc:SetWidth(500)
     frame.autoSwapCombatDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.autoSwapCombatDesc:SetText("When combat starts with fishing pole equipped: if not casting, auto-swaps to combat weapons. If actively casting, a button appears to click to swap. When combat ends, auto-swaps back to fishing pole. Requires combat gear set to be saved.")
+    frame.autoSwapCombatDesc:SetText("When combat starts with fishing pole equipped: if not casting, auto-swaps to your current weapons. If actively casting, a button appears to click to swap. When combat ends, auto-swaps back to fishing pole. Current gear is auto-saved before each fishing swap.")
 
     -- =============================================
     -- ADVANCED SECTION
@@ -3505,7 +3449,6 @@ function UI:UpdateSettings()
     -- Update button visibility checkboxes
     frame.showLureButtonCheck:SetChecked(CFC.db.profile.settings.hudShowLureButton)
     frame.showSwapButtonCheck:SetChecked(CFC.db.profile.settings.hudShowSwapButton)
-    frame.showRumseyButtonCheck:SetChecked(CFC.db.profile.settings.hudShowRumseyButton)
 
     -- Update auto-swap checkbox
     frame.autoSwapCheck:SetChecked(CFC.db.profile.settings.autoSwapOnHUD)
@@ -3685,11 +3628,7 @@ StaticPopupDialogs["CFC_PERCHAR_ENABLE"] = {
     end,
     OnCancel = function(self)
         -- Show the "start fresh" confirmation
-        local totalCatches = 0
-        if ClassicFishingCompanionDB and ClassicFishingCompanionDB.profile and ClassicFishingCompanionDB.profile.statistics then
-            totalCatches = ClassicFishingCompanionDB.profile.statistics.totalCatches or 0
-        end
-        StaticPopup_Show("CFC_PERCHAR_ENABLE_FRESH", totalCatches)
+        StaticPopup_Show("CFC_PERCHAR_ENABLE_FRESH")
     end,
     OnHide = function(self)
         -- If dialog was hidden without choosing, revert checkbox
@@ -3782,9 +3721,6 @@ local whatsNewContent = {
     },
     ["1.1.6"] = {
         features = {
-            "Captain Rumsey's Lager auto-drink with Easy Cast (TBC)",
-            "Rumsey toggle icon on HUD, click to enable/disable",
-            "Rumsey +10 fishing bonus shows on the Skill line",
             "Easy Cast now allows recasting while your line is already out",
         },
         tip = "Thank you for 10,000 downloads! Your support means the world. Classic Fishing Companion started as a small passion project and thanks to you, it's grown into something special.\n\nTight lines and happy fishing!\n- Relyk"
@@ -3926,7 +3862,7 @@ local whatsNewContent = {
             "When combat ends, auto-swaps back to your fishing pole",
         },
         fixes = {},
-        tip = "TIP: Enable 'Auto-Swap Combat Weapons' in Settings!\nSave your combat gear first with /cfc savecombat, then fish safely knowing you can defend yourself."
+        tip = "TIP: Enable 'Auto-Swap Combat Weapons' in Settings!\nYour current gear is auto-saved before each fishing swap, so you can fish safely knowing you can defend yourself."
     },
     ["1.0.12"] = {
         features = {
@@ -3965,7 +3901,7 @@ local whatsNewContent = {
             "New setting in Settings tab to enable/disable",
         },
         fixes = {},
-        tip = "TIP: Enable 'Auto-Swap Gear on HUD Toggle' in Settings for one-click fishing setup!\nMake sure to save both your fishing and combat gear sets first."
+        tip = "TIP: Enable 'Auto-Swap Gear on HUD Toggle' in Settings for one-click fishing setup!\nMake sure to save your fishing gear set first. Your current gear is auto-saved on swap."
     },
     ["1.0.9"] = {
         features = {
@@ -4099,15 +4035,15 @@ StaticPopupDialogs["CFC_WHATS_NEW"] = {
 }
 
 StaticPopupDialogs["CFC_CLEAR_GEAR_SETS"] = {
-    text = "Are you sure you want to clear ALL gear sets?\n\nThis will delete:\n• Combat gear set\n• Fishing gear set\n\nYou will need to reconfigure your gear sets after this.\n\nThis action CANNOT be undone!",
+    text = "Are you sure you want to clear ALL gear sets?\n\nThis will delete:\n• Current gear set (auto-saved)\n• Fishing gear set\n\nYou will need to reconfigure your gear sets after this.\n\nThis action CANNOT be undone!",
     button1 = "Yes, Clear Gear Sets",
     button2 = "Cancel",
     OnAccept = function()
         if CFC.db and CFC.db.profile and CFC.db.profile.gearSets then
             -- Clear both gear sets
-            CFC.db.profile.gearSets.combat = {}
+            CFC.db.profile.gearSets.current = {}
             CFC.db.profile.gearSets.fishing = {}
-            CFC.db.profile.gearSets.currentMode = "combat"
+            CFC.db.profile.gearSets.currentMode = "current"
 
             CFC:Print("|cff00ff00Classic Fishing Companion:|r All gear sets have been cleared.")
 

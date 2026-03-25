@@ -58,20 +58,19 @@ function CFC:InitializeMinimap()
                 local swapBlocked = false
                 -- Check if auto-swap is enabled
                 if CFC.db and CFC.db.profile and CFC.db.profile.settings and CFC.db.profile.settings.autoSwapOnHUD then
-                    -- Check if gear sets are configured
+                    -- Check if fishing gear set is configured
                     local gearSets = CFC.db.profile.gearSets
                     local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
-                    local hasCombatGear = gearSets and gearSets.combat and next(gearSets.combat)
 
-                    if not hasFishingGear or not hasCombatGear then
-                        -- Warn if gear sets not configured
-                        CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but gear sets not configured. Please save both fishing and combat gear sets in the Gear Sets tab.")
+                    if not hasFishingGear then
+                        -- Warn if fishing gear set not configured
+                        CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but fishing gear set not configured. Please save your fishing gear set in the Gear Sets tab.")
                     else
                         local hudCurrentlyShown = CFC.db.profile.hud.show
-                        local currentMode = gearSets.currentMode or "combat"
+                        local currentMode = gearSets.currentMode or "current"
 
                         if hudCurrentlyShown then
-                            if currentMode ~= "combat" and CFC.SwapGear then
+                            if currentMode ~= "current" and CFC.SwapGear then
                                 if CFC:SwapGear() == false then
                                     swapBlocked = true
                                 end

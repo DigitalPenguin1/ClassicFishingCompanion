@@ -2,6 +2,16 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.8] - 2026-03-25
+
+### Changed
+- **Auto-Save Current Gear** - Your equipped gear is now automatically saved before each fishing swap
+  - No more manually saving a "combat" gear set — just save your fishing gear and go
+  - Supports multiple specs (healer, DPS, tank) without re-saving between spec changes
+  - Gear Sets tab renamed "Combat" to "Current" — shows auto-saved gear as read-only
+  - `/cfc savecombat` removed (shows migration notice if used)
+  - Existing combat gear set data automatically migrates to the new format
+
 ## [1.1.7] - 2026-03-16
 
 ### Added
@@ -133,7 +143,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
   - If actively fishing, a "COMBAT! Click to Swap" button appears
   - When combat ends, automatically swaps back to your fishing pole
   - Enable in Settings under the Easy Cast section
-  - Requires combat gear set to be saved (`/cfc savecombat`)
+  - Requires gear sets to be saved (current gear auto-saves as of v1.1.8)
 
 ## [1.0.12] - 2026-01-21
 

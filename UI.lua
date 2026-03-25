@@ -3712,6 +3712,14 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.8"] = {
+        features = {
+            "Auto-Save Current Gear - your equipped gear is now automatically saved before each fishing swap",
+            "Supports multiple specs - no more manually saving combat gear when switching between healer, DPS, or tank",
+            "Gear Sets tab updated - 'Current' tab shows auto-saved gear, only fishing gear needs manual saving",
+        },
+        tip = "TIP: Just save your fishing gear set and you're ready to go!\nYour current gear is auto-saved every time you swap to fishing, so it always restores exactly what you had on."
+    },
     ["1.1.7"] = {
         features = {
             "Text Only HUD - floating text with no background or border, hover to reveal controls",

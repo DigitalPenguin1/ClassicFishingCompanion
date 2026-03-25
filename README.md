@@ -8,7 +8,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Auto-Swap Combat Weapons** - Swaps to combat gear when attacked, back to fishing when combat ends
 - **Stats HUD** - Draggable display with session/total catches, fish/hour, skill, and lure timer (Default, Minimal, or Text Only appearance)
 - **Zones Tab** - Collapsible zone-based view of all fish caught with icons, counts, and tooltips
-- **Gear Sets** - Save and swap between fishing and combat equipment
+- **Gear Sets** - Save fishing gear and swap instantly; current gear auto-saves before each swap
 - **Lure Manager** - Select and apply lures from the HUD
 - **Catch List & Statistics** - Detailed tracking with fish/misc separation, top catches, and zone productivity
 - **Fishing Goals** - Set session-based catch goals for specific fish with progress bars and HUD tracking
@@ -34,7 +34,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Goals on the HUD**: Add goals in the Goals tab — up to 3 will display on the HUD automatically. They reset each session so you can set fresh targets every time you fish.
 - **Lure auto-apply**: Enable Easy Cast in Settings and the addon will automatically apply your selected lure when it expires.
 - **Captain Rumsey's Lager (TBC)**: Enable auto-drink on the Lure tab or click the drink icon on the HUD. Easy Cast will automatically drink before casting when the buff isn't active.
-- **Quick gear swap**: Save your fishing and combat gear sets in the Gear Sets tab. The addon can auto-swap when you enter/leave combat.
+- **Quick gear swap**: Save your fishing gear set in the Gear Sets tab. Your current gear is auto-saved before each swap, so it works with any spec.
 - **Text Only HUD**: Enable in Settings for a clean floating text display with no background. Hover over the HUD area to reveal controls.
 - **Quiet Mode**: Enable in Settings under Announcements to suppress all chat messages except errors.
 - **Minimap button**: Left-click opens the UI, right-click toggles the HUD, hover to see a quick stats summary.
@@ -47,8 +47,8 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - `/cfc reset` - Reset all data (with confirmation)
 - `/cfc debug` - Toggle debug mode
 - `/cfc minimap` - Toggle minimap button
-- `/cfc savefishing` / `/cfc savecombat` - Save current gear as fishing/combat set
-- `/cfc swap` - Swap between fishing and combat gear
+- `/cfc savefishing` - Save current gear as fishing set
+- `/cfc swap` - Swap between fishing and current gear (current gear auto-saves before fishing swap)
 
 ## Troubleshooting & Support
 

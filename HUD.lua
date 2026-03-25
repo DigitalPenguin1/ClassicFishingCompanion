@@ -237,11 +237,11 @@ function CFC:InitializeHUD()
             return
         end
 
-        -- Check if user has gear sets configured and is in combat mode
+        -- Check if user has gear sets configured and is in current mode
         if CFC:HasGearSets() then
             local currentMode = CFC:GetCurrentGearMode()
-            if currentMode == "combat" then
-                print("|cffff0000Classic Fishing Companion:|r You're in combat gear! Swap to fishing gear first.")
+            if currentMode == "current" then
+                print("|cffff0000Classic Fishing Companion:|r You're not in fishing gear! Swap to fishing gear first.")
                 print("|cff00ff00Tip:|r Click the 'Swap to' button or use /cfc swap")
             end
         end
@@ -294,17 +294,16 @@ function CFC:InitializeHUD()
 
         if CFC:HasGearSets() then
             local currentMode = CFC:GetCurrentGearMode()
-            local targetMode = (currentMode == "combat") and "fishing" or "combat"
+            local targetMode = (currentMode == "current") and "fishing" or "current"
 
             GameTooltip:SetText("Swap Gear", 1, 1, 1)
             GameTooltip:AddLine("Current: " .. currentMode, 0.8, 0.8, 0.8)
             GameTooltip:AddLine("Click to switch to " .. targetMode .. " gear", 0.6, 1, 0.6)
         else
             GameTooltip:SetText("Gear Swap Not Configured", 1, 0.5, 0.5)
-            GameTooltip:AddLine("1. Equip combat gear", 1, 1, 1)
-            GameTooltip:AddLine("2. Type: /cfc savecombat", 0.8, 0.8, 0.8)
-            GameTooltip:AddLine("3. Equip fishing gear", 1, 1, 1)
-            GameTooltip:AddLine("4. Type: /cfc savefishing", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("1. Equip fishing gear", 1, 1, 1)
+            GameTooltip:AddLine("2. Type: /cfc savefishing", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("Current gear auto-saves on swap", 0.6, 1, 0.6)
         end
 
         GameTooltip:Show()
@@ -506,7 +505,7 @@ function HUDModule:Update()
         local currentMode = CFC:GetCurrentGearMode()
         if CFC:HasGearSets() then
             -- Show icon of what we're swapping TO (opposite of current mode)
-            local targetIcon = (currentMode == "combat") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
+            local targetIcon = (currentMode == "current") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
             hudFrame.gearSwapButton:SetText("Swap to " .. targetIcon)
         else
             hudFrame.gearSwapButton:SetText("|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:16|t Setup")

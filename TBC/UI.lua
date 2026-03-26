@@ -2075,6 +2075,60 @@ function UI:CreateLuresTab()
     frame.easyCastHint:SetWidth(220)
     frame.easyCastHint:SetJustifyH("LEFT")
 
+    -- Captain Rumsey's Lager section (right side, below Easy Cast)
+    frame.rumseyHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.rumseyHeader:SetPoint("TOPLEFT", frame.easyCastHint, "BOTTOMLEFT", 0, -20)
+    frame.rumseyHeader:SetText("|TInterface\\Icons\\INV_Drink_03:16|t Captain Rumsey's Lager")
+    frame.rumseyHeader:SetTextColor(1, 0.82, 0)
+
+    -- Auto-drink checkbox
+    frame.autoDrinkCheck = CreateFrame("CheckButton", "CFCAutoDrinkCheck", frame, "UICheckButtonTemplate")
+    frame.autoDrinkCheck:SetPoint("TOPLEFT", frame.rumseyHeader, "BOTTOMLEFT", 0, -10)
+    frame.autoDrinkCheck.text = frame.autoDrinkCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.autoDrinkCheck.text:SetPoint("LEFT", frame.autoDrinkCheck, "RIGHT", 5, 0)
+    frame.autoDrinkCheck.text:SetText("Auto-drink before casting")
+
+    frame.autoDrinkCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.autoRumsey = self:GetChecked()
+        if CFC.db.profile.settings.autoRumsey then
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Auto-drink Captain Rumsey's Lager |cff00ff00enabled|r")
+        else
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Auto-drink Captain Rumsey's Lager |cffff0000disabled|r")
+        end
+        if CFC.HUD and CFC.HUD.UpdateRumseyIcon then CFC.HUD:UpdateRumseyIcon() end
+    end)
+
+    -- Show/hide Rumsey icon on HUD toggle button
+    frame.rumseyIconToggle = CreateFrame("Button", nil, frame)
+    frame.rumseyIconToggle:SetSize(24, 24)
+    frame.rumseyIconToggle:SetPoint("TOPLEFT", frame.autoDrinkCheck, "BOTTOMLEFT", 2, -10)
+
+    frame.rumseyIconToggle.texture = frame.rumseyIconToggle:CreateTexture(nil, "ARTWORK")
+    frame.rumseyIconToggle.texture:SetAllPoints()
+    frame.rumseyIconToggle.texture:SetTexture("Interface\\Icons\\INV_Drink_03")
+
+    frame.rumseyIconToggleLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.rumseyIconToggleLabel:SetPoint("LEFT", frame.rumseyIconToggle, "RIGHT", 8, 0)
+
+    frame.rumseyIconToggle:SetScript("OnClick", function()
+        CFC.db.profile.settings.hudShowRumseyButton = not CFC.db.profile.settings.hudShowRumseyButton
+        if CFC.HUD and CFC.HUD.UpdateRumseyIcon then CFC.HUD:UpdateRumseyIcon() end
+        UI:UpdateLuresTab()
+    end)
+
+    frame.rumseyIconToggle:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Captain Rumsey's Lager", 1, 1, 1)
+        GameTooltip:AddLine("Click to show/hide the Rumsey icon on the HUD", 0.8, 0.8, 0.8)
+        local count = GetItemCount(34832)
+        GameTooltip:AddLine("In bags: " .. count, 0.6, 1, 0.6)
+        GameTooltip:Show()
+    end)
+
+    frame.rumseyIconToggle:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     -- Store reference
     mainFrame.luresFrame = frame
 end
@@ -2111,6 +2165,20 @@ function UI:UpdateLuresTab()
         frame.easyCastStatus:SetText("Disabled")
         frame.easyCastStatus:SetTextColor(1, 0, 0)  -- Red
         frame.easyCastHint:SetText("Go to Settings tab to enable Easy Cast.")
+    end
+
+    -- Update Rumsey controls
+    frame.autoDrinkCheck:SetChecked(CFC.db.profile.settings.autoRumsey)
+
+    -- Update Rumsey icon toggle appearance
+    if CFC.db.profile.settings.hudShowRumseyButton then
+        frame.rumseyIconToggle.texture:SetDesaturated(false)
+        frame.rumseyIconToggle.texture:SetVertexColor(1, 1, 1)
+        frame.rumseyIconToggleLabel:SetText("HUD Icon: |cff00ff00Visible|r")
+    else
+        frame.rumseyIconToggle.texture:SetDesaturated(true)
+        frame.rumseyIconToggle.texture:SetVertexColor(0.5, 0.5, 0.5)
+        frame.rumseyIconToggleLabel:SetText("HUD Icon: |cffff0000Hidden|r")
     end
 end
 
@@ -3027,7 +3095,7 @@ function UI:CreateSettingsTab()
     frame.textOnlyHUDDesc:SetJustifyH("LEFT")
     frame.textOnlyHUDDesc:SetWidth(500)
     frame.textOnlyHUDDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.textOnlyHUDDesc:SetText("Show only floating text with no background or border. Hover to reveal the HUD outline and buttons.")
+    frame.textOnlyHUDDesc:SetText("Show only floating text with no background or border. Hover to reveal the HUD outline and buttons. Captain Rumsey's Lager icon will not display in this mode.")
 
     -- Auto-Swap Gear on HUD Toggle Checkbox
     frame.autoSwapCheck = CreateFrame("CheckButton", "CFCAutoSwapCheck", frame.scrollChild, "UICheckButtonTemplate")
@@ -3723,12 +3791,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
-    ["1.1.9"] = {
-        fixes = {
-            "Bug fixes and UI improvements for the Lure tab",
-            "Added missing Sharpened Fish Hook lure",
-            "Lure tab now scrollable to accommodate all lures",
+    ["1.1.10"] = {
+        features = {
+            "Auto-Save Current Gear - your equipped gear is now automatically saved before each fishing swap",
+            "Supports multiple specs - no more manually saving combat gear when switching between healer, DPS, or tank",
+            "Gear Sets tab updated - 'Current' tab shows auto-saved gear, only fishing gear needs manual saving",
         },
+        fixes = {
+            "Misc bug fixes",
+        },
+        tip = "TIP: Just save your fishing gear set and you're ready to go!\nYour current gear is auto-saved every time you swap to fishing, so it always restores exactly what you had on."
     },
     ["1.1.8"] = {
         features = {

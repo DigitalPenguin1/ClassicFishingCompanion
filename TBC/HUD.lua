@@ -199,6 +199,7 @@ function CFC:InitializeHUD()
     hudFrame.rumseyIcon = CreateFrame("Button", nil, hudFrame)
     hudFrame.rumseyIcon:SetSize(16, 16)
     hudFrame.rumseyIcon:SetPoint("RIGHT", hudFrame.lockIcon, "LEFT", -4, 0)
+    hudFrame.rumseyIcon:Hide()
 
     hudFrame.rumseyIcon.texture = hudFrame.rumseyIcon:CreateTexture(nil, "OVERLAY")
     hudFrame.rumseyIcon.texture:SetAllPoints()
@@ -911,9 +912,6 @@ function HUDModule:ShowTextOnlyHover()
         if CFC.db.profile.settings.hudShowSwapButton and hudFrame.gearSwapButton then
             hudFrame.gearSwapButton:Show()
         end
-        if CFC.db.profile.settings.hudShowRumseyButton and hudFrame.rumseyIcon then
-            hudFrame.rumseyIcon:Show()
-        end
     end
 end
 
@@ -921,11 +919,13 @@ function HUDModule:HideTextOnlyHover()
     if IsTextOnlyMode() and hudFrame then
         C_Timer.After(0, function()
             if hudFrame:IsMouseOver() then return end
+            if hudFrame.lockIcon and hudFrame.lockIcon:IsMouseOver() then return end
+            if hudFrame.applyLureButton and hudFrame.applyLureButton:IsMouseOver() then return end
+            if hudFrame.gearSwapButton and hudFrame.gearSwapButton:IsMouseOver() then return end
             hudFrame.minimalBg:Hide()
             if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
             if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
             if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end
-            if hudFrame.rumseyIcon then hudFrame.rumseyIcon:Hide() end
         end)
     end
 end
@@ -976,7 +976,11 @@ function HUDModule:ApplyButtonVisibility()
     end
 
     -- In text-only mode, hide buttons and lock icon (shown on hover)
-    if IsTextOnlyMode() then
+    -- Skip if mouse is over the HUD or any child element to avoid fighting with hover show
+    if IsTextOnlyMode() and not hudFrame:IsMouseOver()
+        and not (hudFrame.lockIcon and hudFrame.lockIcon:IsMouseOver())
+        and not (hudFrame.applyLureButton and hudFrame.applyLureButton:IsMouseOver())
+        and not (hudFrame.gearSwapButton and hudFrame.gearSwapButton:IsMouseOver()) then
         if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
         if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
         if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end

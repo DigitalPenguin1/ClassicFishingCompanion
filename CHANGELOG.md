@@ -2,14 +2,7 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [1.1.9] - 2026-03-26
-
-### Fixed
-- Bug fixes and UI improvements for the Lure tab
-- Added missing Sharpened Fish Hook lure to TBC Lure tab
-- Lure tab now scrollable to accommodate all lures
-
-## [1.1.8] - 2026-03-25
+## [1.1.10] - 2026-03-26
 
 ### Changed
 - **Auto-Save Current Gear** - Your equipped gear is now automatically saved before each fishing swap
@@ -18,6 +11,13 @@ All notable changes to Classic Fishing Companion will be documented in this file
   - Gear Sets tab renamed "Combat" to "Current" — shows auto-saved gear as read-only
   - `/cfc savecombat` removed (shows migration notice if used)
   - Existing combat gear set data automatically migrates to the new format
+
+### Fixed
+- Misc bug fixes
+- Added missing Sharpened Fish Hook lure to TBC Lure tab
+- Lure tab now scrollable to accommodate all lures
+- Restored Captain Rumsey's Lager auto-drink checkbox and HUD icon toggle on TBC Lure tab
+- Fixed Rumsey icon flickering in Text Only HUD mode
 
 ## [1.1.7] - 2026-03-16
 

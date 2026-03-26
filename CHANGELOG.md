@@ -2,6 +2,13 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.9] - 2026-03-26
+
+### Fixed
+- Bug fixes and UI improvements for the Lure tab
+- Added missing Sharpened Fish Hook lure to TBC Lure tab
+- Lure tab now scrollable to accommodate all lures
+
 ## [1.1.8] - 2026-03-25
 
 ### Changed

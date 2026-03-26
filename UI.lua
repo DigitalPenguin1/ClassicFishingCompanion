@@ -2025,11 +2025,20 @@ function UI:CreateLuresTab()
         { name = "Aquadynamic Fish Attractor", id = 6533, bonus = 100, icon = "INV_Misc_Food_26" },
     }
 
-    local yOffset = -120
+    -- Scroll frame for lure buttons
+    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame:SetPoint("TOPLEFT", frame.selectedLure, "BOTTOMLEFT", 0, -15)
+    frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 10)
+
+    frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
+    frame.scrollChild:SetSize(frame.scrollFrame:GetWidth() or 540, #lureData * 40 + 10)
+    frame.scrollFrame:SetScrollChild(frame.scrollChild)
+
+    local yOffset = 0
     for i, lure in ipairs(lureData) do
-        local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        local btn = CreateFrame("Button", nil, frame.scrollChild, "UIPanelButtonTemplate")
         btn:SetSize(250, 30)
-        btn:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+        btn:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 20, yOffset)
 
         -- Add faction icon if specified
         local buttonText = "|TInterface\\Icons\\" .. lure.icon .. ":20|t " .. lure.name .. " (+" .. lure.bonus .. ")"
@@ -2053,7 +2062,7 @@ function UI:CreateLuresTab()
 
     -- Easy Cast Status section (right side)
     frame.easyCastLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.easyCastLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 320, -120)
+    frame.easyCastLabel:SetPoint("TOPLEFT", frame.selectedLure, "BOTTOMLEFT", 310, -15)
     frame.easyCastLabel:SetText("Easy Cast Status:")
     frame.easyCastLabel:SetTextColor(1, 0.82, 0)
 
@@ -3712,6 +3721,12 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.9"] = {
+        fixes = {
+            "Bug fixes and UI improvements for the Lure tab",
+            "Lure tab now scrollable to accommodate all lures",
+        },
+    },
     ["1.1.8"] = {
         features = {
             "Auto-Save Current Gear - your equipped gear is now automatically saved before each fishing swap",

@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.10"
+CFC.VERSION = "1.1.11"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -70,6 +70,18 @@ CFC.CONSTANTS = {
         [7307] = "Flesh Eating Worm",
         [6533] = "Aquadynamic Fish Attractor",
     },
+    -- Equipped fishing gear with +fishing skill bonuses (head slot + specialty poles)
+    FISHING_GEAR_IDS = {
+        -- Head slot (+5 fishing hats)
+        [19972] = { name = "Lucky Fishing Hat",          bonus = 5,  slot = 1 },
+        [33820] = { name = "Weather-Beaten Fishing Hat", bonus = 5,  slot = 1 },
+        -- Main hand (specialty fishing poles)
+        [6365]  = { name = "Strong Fishing Pole",        bonus = 5,  slot = 16 },
+        [6366]  = { name = "Darkwood Fishing Pole",      bonus = 10, slot = 16 },
+        [6367]  = { name = "Big Iron Fishing Pole",      bonus = 20, slot = 16 },
+        [19022] = { name = "Nat Pagle's Extreme Anglin' FC-5000", bonus = 15, slot = 16 },
+        [19970] = { name = "Arcanite Fishing Pole",      bonus = 40, slot = 16 },
+    },
     -- Weapon enchant IDs for fishing lures (locale-independent detection)
     -- Classic Era uses IDs 2603-2608, TBC uses different IDs (e.g. 265 for Bright Baubles)
     LURE_ENCHANT_IDS = {
@@ -103,7 +115,21 @@ CFC.CONSTANTS = {
         [16970] = "Misty Reed Mahi Mahi",
         [16968] = "Sar'theris Striker",
         [16969] = "Savage Coast Blue Sailfin",
+        -- TBC daily quest fish (rare named catches required for Old Man Barlo dailies)
+        [34868] = "World's Largest Mudfish",       -- Nagrand: The One That Got Away
+        [34867] = "Monstrous Felblood Snapper",    -- Hellfire/Shadowmoon: Felblood Fillet
+        [34864] = "Baby Crocolisk",                -- Capital canals: Crocolisks in the City
     },
+    -- TBC fishing daily quests (Old Man Barlo, Silmyr Lake, Terokkar Forest)
+    FISHING_DAILY_QUESTS = {
+        [11665] = "Crocolisks in the City",
+        [11666] = "Bait Bandits",
+        [11667] = "The One That Got Away",
+        [11668] = "Shrimpin' Ain't Easy",
+        [11669] = "Felblood Fillet",
+    },
+    -- TBC fishing daily reward bag
+    FISHING_REWARD_BAG_ID = 34863,                 -- Bag of Fishing Treasures
     -- Sound ID for rare fish catch (Classic-compatible)
     RARE_FISH_SOUND = 2689,
 }
@@ -174,6 +200,12 @@ local defaults = {
         },
         goals = {},        -- Active fishing goals: { fishName, targetCount, sessionCatches }
         releaseList = {},  -- Catch & Release: { ["Fish Name"] = true }
+        fishingDailies = {
+            -- TBC Nat Pagle daily quest tracker
+            completions = {},      -- [questID] = { count = N, lastCompleted = timestamp }
+            totalCompletions = 0,
+            lastDailyTime = 0,     -- timestamp of most recent daily turn-in
+        },
     }
 }
 
@@ -372,6 +404,7 @@ function CFC:OnEnable()
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStart")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "OnEquipmentChanged")
+    self:RegisterEvent("QUEST_TURNED_IN", "OnQuestTurnedIn")
 
     -- Initialize Easy Cast system (double right-click to cast fishing)
     -- Called after event registration to ensure fishing detection works even if Easy Cast fails
@@ -460,6 +493,33 @@ end
 -- Handle skill updates
 function CFC:OnSkillUpdate()
     self:UpdateFishingSkill()
+end
+
+-- Track TBC fishing daily quest turn-ins (Old Man Barlo, Terokkar)
+function CFC:OnQuestTurnedIn(event, questID)
+    local questName = CFC.CONSTANTS.FISHING_DAILY_QUESTS[questID]
+    if not questName then return end
+
+    -- Defensive init in case migration left the table missing on old saves
+    if not self.db.profile.fishingDailies then
+        self.db.profile.fishingDailies = { completions = {}, totalCompletions = 0, lastDailyTime = 0 }
+    end
+    local data = self.db.profile.fishingDailies
+    data.completions = data.completions or {}
+
+    local entry = data.completions[questID]
+    if not entry then
+        entry = { count = 0, lastCompleted = 0 }
+        data.completions[questID] = entry
+    end
+    entry.count = entry.count + 1
+    entry.lastCompleted = time()
+    data.totalCompletions = (data.totalCompletions or 0) + 1
+    data.lastDailyTime = time()
+
+    CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET
+        .. " Fishing daily complete: " .. CFC.COLORS.HEADER .. questName .. CFC.COLORS.RESET
+        .. " |cffaaaaaa(lifetime: " .. data.totalCompletions .. ")|r")
 end
 
 -- Check fishing state (called every second via OnUpdate - Classic WoW compatible)
@@ -798,14 +858,40 @@ function CFC:HasFishingBuff()
     return false
 end
 
--- Check if player has Captain Rumsey's Lager buff active
-function CFC:HasRumseyBuff()
-    for i = 1, 40 do
-        local buffName = UnitBuff("player", i)
-        if buffName then
-            if string.find(string.lower(buffName), "rumsey") then
-                return true
+-- Sum +fishing bonuses from equipped gear (specialty poles + fishing hats).
+-- Returns total bonus and a list of {name, bonus} entries for display.
+function CFC:GetEquippedFishingBonus()
+    local total = 0
+    local equipped = {}
+    -- Inventory slots to check: head (1) and main hand (16)
+    local slots = { 1, 16 }
+    for _, slot in ipairs(slots) do
+        local link = GetInventoryItemLink("player", slot)
+        if link then
+            local id = tonumber(link:match("item:(%d+)"))
+            local info = id and CFC.CONSTANTS.FISHING_GEAR_IDS[id]
+            if info then
+                total = total + info.bonus
+                table.insert(equipped, info)
             end
+        end
+    end
+    return total, equipped
+end
+
+-- Check if player has Captain Rumsey's Lager buff active.
+-- Prefers spell ID match (locale-independent), falls back to name match
+-- on older clients where UnitBuff may not return spellID.
+function CFC:HasRumseyBuff()
+    local RUMSEY_SPELL_ID = 45694
+    for i = 1, 40 do
+        local buffName, _, _, _, _, _, _, _, _, spellID = UnitBuff("player", i)
+        if not buffName then break end
+        if spellID == RUMSEY_SPELL_ID then
+            return true
+        end
+        if string.find(string.lower(buffName), "rumsey") then
+            return true
         end
     end
     return false
@@ -2964,6 +3050,8 @@ SlashCmdList["CFC"] = function(msg)
         end
     elseif msg == "stats" then
         CFC:PrintStats()
+    elseif msg == "daily" or msg == "dailies" then
+        CFC:PrintDailyStats()
     elseif msg == "debug" then
         CFC.debug = not CFC.debug
         if CFC.debug then
@@ -3067,6 +3155,46 @@ function CFC:PrintStats()
     CFC:Print("|cffffcc00Fish Per Hour:|r " .. string.format("%.1f", fph))
     CFC:Print("|cffffcc00Total Fishing Time:|r " .. string.format("%.1f hours", totalTime))
     CFC:Print("|cffffcc00Unique Fish Types:|r " .. self:GetUniqueFishCount())
+
+    local baseSkill = self.db.profile.statistics.currentSkill or 0
+    local gearBonus, gearList = self:GetEquippedFishingBonus()
+    if baseSkill > 0 or gearBonus > 0 then
+        CFC:Print("|cffffcc00Fishing Skill:|r " .. baseSkill ..
+            (gearBonus > 0 and (" |cff00ff00+" .. gearBonus .. "|r from gear (effective " .. (baseSkill + gearBonus) .. ")") or ""))
+        for _, g in ipairs(gearList) do
+            CFC:Print("  |cffaaaaaa-|r " .. g.name .. " (+" .. g.bonus .. ")")
+        end
+    end
+end
+
+-- Print TBC Nat Pagle daily quest history to chat
+function CFC:PrintDailyStats()
+    local data = self.db.profile.fishingDailies
+    if not data then
+        CFC:Print("|cffff8800Classic Fishing Companion:|r No daily data yet — complete a fishing daily to start tracking.")
+        return
+    end
+
+    CFC:Print("|cff00ff00=== Nat Pagle's Fishing Dailies ===|r")
+    CFC:Print("|cffffcc00Total Completions:|r " .. (data.totalCompletions or 0))
+    if data.lastDailyTime and data.lastDailyTime > 0 then
+        CFC:Print("|cffffcc00Last Completed:|r " .. date("%Y-%m-%d %H:%M:%S", data.lastDailyTime))
+        local hoursSince = math.floor((time() - data.lastDailyTime) / 3600)
+        if hoursSince < 24 then
+            CFC:Print("|cffaaaaaa(Daily already done in the last 24h)|r")
+        end
+    end
+
+    CFC:Print("|cffaaaaaa--- By Quest ---|r")
+    for questID, name in pairs(CFC.CONSTANTS.FISHING_DAILY_QUESTS) do
+        local entry = data.completions and data.completions[questID]
+        local count = entry and entry.count or 0
+        local lastStr = ""
+        if entry and entry.lastCompleted and entry.lastCompleted > 0 then
+            lastStr = " |cffaaaaaa— last: " .. date("%m/%d", entry.lastCompleted) .. "|r"
+        end
+        CFC:Print("  " .. name .. ": |cff00ff00" .. count .. "|r" .. lastStr)
+    end
 end
 
 -- Get count of unique fish types

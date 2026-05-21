@@ -109,7 +109,9 @@ function CFC.Database:GetZoneFishSummary()
         "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
         "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
         "crawdad", "darter", "feltail", "crocolisk",
-        "ahi", "striker", "sailfin"
+        "ahi", "striker", "sailfin",
+        -- TBC-specific (most TBC fish already match "fish"; this catches the outlier)
+        "jaggal"  -- Jaggal Pike (Zangarmarsh) — no "fish" substring
     }
 
     local miscKeywords = {

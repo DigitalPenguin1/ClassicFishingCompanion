@@ -2,6 +2,21 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.11] - 2026-05-18
+
+### Added
+- **Nat Pagle's Fishing Daily tracker (TBC)** — Old Man Barlo turn-ins are now counted automatically
+  - Detects all 5 dailies: Crocolisks in the City, Bait Bandits, The One That Got Away, Shrimpin' Ain't Easy, Felblood Fillet
+  - New `/cfc daily` command prints lifetime totals, per-quest counts, and last-completed dates
+  - Chat notification on each turn-in showing quest name and running lifetime total
+- **Equipped fishing gear bonus** — `/cfc stats` now reports your effective fishing skill (base + gear)
+  - Recognizes Lucky Fishing Hat, Weather-Beaten Fishing Hat, and all specialty fishing poles (Strong, Darkwood, Big Iron, Nat Pagle's Extreme Anglin', Arcanite)
+- **Three new TBC rare-fish callouts** — rare-catch sound plays for World's Largest Mudfish, Monstrous Felblood Snapper, and Baby Crocolisk
+
+### Improved
+- **Captain Rumsey's Lager detection is now locale-independent** — buff check uses spell ID 45694 first and falls back to name match, so auto-drink works on any client locale
+- **Better TBC fish detection** — added "jaggal" keyword so Jaggal Pike (Zangarmarsh) is correctly classified as fish
+
 ## [1.1.10] - 2026-03-26
 
 ### Changed

@@ -3791,6 +3791,19 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.11"] = {
+        features = {
+            "Nat Pagle Daily Tracker - Old Man Barlo turn-ins are now counted automatically (all 5 dailies)",
+            "New /cfc daily command - shows lifetime total, per-quest counts, and last-completed dates",
+            "Effective fishing skill in /cfc stats - reports base skill + bonus from equipped hat and pole",
+            "Three new rare-fish callouts - World's Largest Mudfish, Monstrous Felblood Snapper, Baby Crocolisk",
+        },
+        fixes = {
+            "Captain Rumsey's Lager detection is now locale-independent (uses spell ID 45694)",
+            "Jaggal Pike from Zangarmarsh is now correctly classified as fish",
+        },
+        tip = "TIP: Type /cfc daily to see your Nat Pagle fishing daily history. Each turn-in is logged automatically with a chat callout."
+    },
     ["1.1.10"] = {
         features = {
             "Auto-Save Current Gear - your equipped gear is now automatically saved before each fishing swap",

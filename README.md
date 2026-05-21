@@ -15,6 +15,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 - **Catch & Release** - Mark fish for deletion via keybind to keep your bags clean while fishing
 - **Rare Fish Alerts** - Sound notification when you catch a rare fish
 - **Milestone Notifications** - Celebrate catch milestones
+- **Nat Pagle Daily Tracker (TBC)** - Automatically counts Old Man Barlo daily turn-ins; view history with `/cfc daily`
 - **Missing Lure Warnings** - On-screen alerts when fishing without a lure
 - **Automatic Backups** - Internal backups every 24 hours with one-click restore
 - **Per-Character Mode** - Optional per-character stats with account data copy
@@ -43,7 +44,8 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era and TB
 
 - `/cfc` - Open/close main UI
 - `/cfc hud` - Toggle Stats HUD (includes gear swap if enabled)
-- `/cfc stats` - Print statistics to chat
+- `/cfc stats` - Print statistics to chat (includes effective fishing skill with equipped gear bonus)
+- `/cfc daily` - Print TBC fishing daily history (Nat Pagle / Old Man Barlo)
 - `/cfc reset` - Reset all data (with confirmation)
 - `/cfc debug` - Toggle debug mode
 - `/cfc minimap` - Toggle minimap button

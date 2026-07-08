@@ -3721,6 +3721,12 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.11"] = {
+        fixes = {
+            "Updated for Classic Era 1.15.8",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.10"] = {
         features = {
             "Auto-Save Current Gear - your equipped gear is now automatically saved before each fishing swap",

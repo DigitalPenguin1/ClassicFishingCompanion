@@ -2,6 +2,18 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.11] - 2026-07-08
+
+### Changed
+- Updated interface versions for the latest game clients
+  - Classic Era: 1.15.8
+  - TBC Classic: 2.5.6
+
+### Fixed
+- **TBC** - Sharpened Fish Hook now shows correctly on the HUD as an active lure (was reported as "None", omitting its +100 from the skill readout)
+- **TBC** - Corrected the "Announce Max Skill" setting label to 375 (was showing the Classic Era cap of 300)
+- **TBC** - Fixed the per-character "Start Fresh?" prompt showing a literal "%d" instead of your account catch count
+
 ## [1.1.10] - 2026-03-26
 
 ### Changed

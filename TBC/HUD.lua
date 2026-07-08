@@ -696,6 +696,7 @@ function HUDModule:GetCurrentFishingBuff()
             buffScanTooltip:Show()
 
             local fishingBonus = nil
+            local matchedLureName = nil
             for i = 1, buffScanTooltip:NumLines() do
                 local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
                 if line then
@@ -707,6 +708,19 @@ function HUDModule:GetCurrentFishingBuff()
                         end
                         if bonus then
                             fishingBonus = tonumber(bonus)
+                            break
+                        end
+                        -- Fallback: some lures (e.g. Sharpened Fish Hook) show their
+                        -- name on the temporary-enchant line with no "+N" bonus text,
+                        -- so match the enchant line against known lure names by substring.
+                        local textLower = string.lower(text)
+                        for _, name in pairs(lureNames) do
+                            if string.find(textLower, string.lower(name), 1, true) then
+                                matchedLureName = name
+                                break
+                            end
+                        end
+                        if matchedLureName then
                             break
                         end
                     end
@@ -739,6 +753,13 @@ function HUDModule:GetCurrentFishingBuff()
                     print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as: " .. buffName)
                 end
                 return { name = buffName, expirationSeconds = expirationSeconds }
+            elseif matchedLureName then
+                -- Identified by name (enchant line carried no numeric "+N" bonus)
+                enchantIdCache[mainHandEnchantId] = matchedLureName
+                if CFC.debug then
+                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as (by name): " .. matchedLureName)
+                end
+                return { name = matchedLureName, expirationSeconds = expirationSeconds }
             else
                 -- Not a fishing lure (e.g. sharpening stone) — cache as false so we never scan again
                 enchantIdCache[mainHandEnchantId] = false

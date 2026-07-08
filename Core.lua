@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.10"
+CFC.VERSION = "1.1.11"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -87,7 +87,11 @@ CFC.CONSTANTS = {
         [266] = "Aquadynamic Fish Attractor", -- +100 fishing (TBC)
         [267] = "Flesh Eating Worm",       -- +75 fishing (TBC)
         [268] = "Aquadynamic Fish Lens",   -- +50 fishing (TBC)
-        [34861] = "Sharpened Fish Hook",   -- +100 fishing (TBC)
+        -- NOTE: 34861 is the Sharpened Fish Hook *item* ID, not its weapon-enchant ID
+        -- (the real GetWeaponEnchantInfo() ID is unconfirmed). This key never matches at
+        -- runtime; the TBC HUD identifies the hook via a tooltip name fallback instead.
+        -- Replace with the true enchant ID once confirmed via /dump GetWeaponEnchantInfo().
+        [34861] = "Sharpened Fish Hook",   -- +100 fishing (TBC) -- see note above
     },
     -- Catch milestones for notifications
     MILESTONES = {

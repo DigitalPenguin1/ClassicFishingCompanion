@@ -2821,7 +2821,7 @@ function UI:CreateSettingsTab()
     frame.maxSkillCheck:SetPoint("TOPLEFT", frame.announceSkillUpsDesc, "BOTTOMLEFT", -25, -30)
     frame.maxSkillCheck.text = frame.maxSkillCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.maxSkillCheck.text:SetPoint("LEFT", frame.maxSkillCheck, "RIGHT", 5, 0)
-    frame.maxSkillCheck.text:SetText("Announce Max Skill (300)")
+    frame.maxSkillCheck.text:SetText("Announce Max Skill (375)")
 
     frame.maxSkillCheck:SetScript("OnClick", function(self)
         local enabled = self:GetChecked()
@@ -3707,7 +3707,11 @@ StaticPopupDialogs["CFC_PERCHAR_ENABLE"] = {
     end,
     OnCancel = function(self)
         -- Show the "start fresh" confirmation
-        StaticPopup_Show("CFC_PERCHAR_ENABLE_FRESH")
+        local totalCatches = 0
+        if ClassicFishingCompanionDB and ClassicFishingCompanionDB.profile and ClassicFishingCompanionDB.profile.statistics then
+            totalCatches = ClassicFishingCompanionDB.profile.statistics.totalCatches or 0
+        end
+        StaticPopup_Show("CFC_PERCHAR_ENABLE_FRESH", totalCatches)
     end,
     OnHide = function(self)
         -- If dialog was hidden without choosing, revert checkbox
@@ -3791,6 +3795,12 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.11"] = {
+        fixes = {
+            "Updated for TBC Classic 2.5.6",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.10"] = {
         features = {
             "Auto-Save Current Gear - your equipped gear is now automatically saved before each fishing swap",

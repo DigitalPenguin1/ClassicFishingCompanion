@@ -114,6 +114,11 @@ function CFC:InitializeHUD()
     hudFrame.buffText:SetJustifyH("LEFT")
     hudFrame.buffText:SetWidth(180)
     hudFrame.buffText:SetWordWrap(true)
+    -- Seed the single-line baseline used by GetBuffLineExtraHeight (measured on a short,
+    -- guaranteed one-line string; recalibrated later from real single-line renders).
+    hudFrame.buffText:SetText("Lure")
+    hudFrame.buffSingleLineHeight = hudFrame.buffText:GetStringHeight()
+    hudFrame.buffText:SetText("")
 
     -- Buff timer
     hudFrame.buffTimerText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -378,6 +383,42 @@ function CFC:InitializeHUD()
     end)
 end
 
+-- Extra frame height needed when a long lure name (e.g. "Aquadynamic Fish Attractor")
+-- wraps the fixed-width buff line onto a second row. buffText auto-grows so the timer,
+-- goals and buttons below it shift down, but the frame height formulas assume a single
+-- line -- without this the lower rows spill past the border. buffSingleLineHeight is
+-- seeded at init and recalibrated only from genuine single-line renders (never from a
+-- wrapped one), so the baseline stays correct even if a long lure is active all session.
+function HUDModule:GetBuffLineExtraHeight()
+    if not hudFrame or not hudFrame.buffText then return 0 end
+    local fs = hudFrame.buffText
+    local h = fs:GetStringHeight() or 0
+    if h <= 0 then return 0 end
+    local lines = (fs.GetNumLines and fs:GetNumLines()) or 0
+    if lines == 1 then
+        hudFrame.buffSingleLineHeight = h  -- true single-line height
+    end
+    local oneLine = hudFrame.buffSingleLineHeight
+    if not oneLine or oneLine <= 0 then oneLine = 12 end
+    -- Detect wrap by line count (counts word-wrapped lines) OR by rendered height,
+    -- whichever fires -- guards against either signal being stale on a given tick.
+    local extraFromLines = (lines and lines > 1) and ((lines - 1) * oneLine) or 0
+    local extraFromHeight = (h > oneLine * 1.5) and (h - oneLine) or 0
+    return math.max(extraFromLines, extraFromHeight)
+end
+
+-- The skill line has no width cap and can exceed the 200px default -- e.g. when the
+-- Captain Rumsey +10 badge is appended -- spilling past the right border. Return a width
+-- that fits the widest unwrapped line (never below the 200px default). Inline icon
+-- textures are included in GetStringWidth, so the badges are accounted for.
+function HUDModule:GetRequiredWidth()
+    local minWidth = 200
+    if not hudFrame or not hudFrame.skillText then return minWidth end
+    local skillWidth = hudFrame.skillText:GetStringWidth() or 0
+    -- content is inset 10px from the left; leave a matching right margin
+    return math.max(minWidth, math.ceil(skillWidth) + 20)
+end
+
 -- Update HUD display
 function HUDModule:Update()
     if not hudFrame or not CFC.db then
@@ -523,7 +564,8 @@ function HUDModule:Update()
         goalHeight = 14 + (goalCount * 13)
     end
 
-    hudFrame:SetHeight(baseHeight + goalHeight)
+    hudFrame:SetHeight(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
+    hudFrame:SetWidth(HUDModule:GetRequiredWidth())
 end
 
 -- Format time in seconds to readable string (MM:SS)
@@ -836,7 +878,8 @@ function HUDModule:ApplyButtonVisibility()
 
     -- Resize HUD based on button visibility and goals
     local baseHeight = anyButtons and 140 or 110
-    hudFrame:SetHeight(baseHeight + goalHeight)
+    hudFrame:SetHeight(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
+    hudFrame:SetWidth(HUDModule:GetRequiredWidth())
 end
 
 -- Update lock state visual

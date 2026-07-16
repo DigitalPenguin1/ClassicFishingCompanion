@@ -3795,6 +3795,14 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.12"] = {
+        fixes = {
+            "Sharpened Fish Hook now shows by name on the HUD (follows your selected lure) instead of always displaying as Aquadynamic Fish Attractor",
+            "HUD no longer spills past its border - it grows taller when a long lure name wraps to a second line, keeping the lure timer inside the frame",
+            "HUD grows wider when the Captain Rumsey's Lager +10 bonus is shown, so the skill line no longer runs off the right edge",
+        },
+        tip = "TIP: Select Sharpened Fish Hook in the Lure tab so the HUD names it correctly.\nTight lines! - Relyk"
+    },
     ["1.1.11"] = {
         fixes = {
             "Updated for TBC Classic 2.5.6",

@@ -6,6 +6,11 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.1.12
+- **TBC** - Sharpened Fish Hook now shows by name on the HUD (named from your selected lure) instead of always as Aquadynamic Fish Attractor — both share the same +100 weapon enchant and an identical pole tooltip
+- HUD grows taller when a long lure name wraps to a second line, so the lure timer no longer falls outside the frame
+- HUD grows wider when the Captain Rumsey's Lager +10 bonus is shown, so the skill line no longer runs off the edge
+
 ### v1.1.2
 - Fixed tooltip flickering when swapping to fishing gear — lure detection now uses enchant ID lookup instead of tooltip scanning
 - Added console warning when Easy Cast cannot apply a lure due to being out of stock (shown max once per 10 minutes)

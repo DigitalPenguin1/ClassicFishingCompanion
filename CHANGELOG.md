@@ -2,6 +2,13 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.12] - 2026-07-15
+
+### Fixed
+- **TBC** - Sharpened Fish Hook now displays by name on the HUD instead of always showing as "Aquadynamic Fish Attractor". Both lures apply the same weapon enchant (ID 266) and produce an identical pole tooltip, so nothing on the equipped pole can distinguish them — the HUD now names the active +100 lure from your selected lure in the addon
+- HUD no longer overflows its frame: it grows taller when a long lure name (e.g. "Aquadynamic Fish Attractor") wraps to a second line, keeping the lure timer inside the border
+- HUD now grows wider when the Captain Rumsey's Lager +10 bonus is active, so the skill line's bonuses no longer run off the right edge
+
 ## [1.1.11] - 2026-07-08
 
 ### Changed

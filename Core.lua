@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.11"
+CFC.VERSION = "1.1.12"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -84,15 +84,19 @@ CFC.CONSTANTS = {
         [263] = "Shiny Bauble",            -- +25 fishing (TBC)
         [264] = "Nightcrawlers",           -- +50 fishing (TBC)
         [265] = "Bright Baubles",          -- +75 fishing (TBC)
-        [266] = "Aquadynamic Fish Attractor", -- +100 fishing (TBC)
+        [266] = "Aquadynamic Fish Attractor", -- +100 fishing (TBC) -- shared with Sharpened Fish Hook (see SHARED_PLUS100_ENCHANT_ID)
         [267] = "Flesh Eating Worm",       -- +75 fishing (TBC)
         [268] = "Aquadynamic Fish Lens",   -- +50 fishing (TBC)
-        -- NOTE: 34861 is the Sharpened Fish Hook *item* ID, not its weapon-enchant ID
-        -- (the real GetWeaponEnchantInfo() ID is unconfirmed). This key never matches at
-        -- runtime; the TBC HUD identifies the hook via a tooltip name fallback instead.
-        -- Replace with the true enchant ID once confirmed via /dump GetWeaponEnchantInfo().
-        [34861] = "Sharpened Fish Hook",   -- +100 fishing (TBC) -- see note above
+        -- NOTE: The Sharpened Fish Hook (item 34861) has NO enchant ID of its own.
+        -- Confirmed via /dump GetWeaponEnchantInfo(): it reports enchant ID 266 -- the
+        -- SAME temporary weapon enchant as the Aquadynamic Fish Attractor (both +100) --
+        -- and both show an identical "Fishing Lure +100" line on the pole tooltip. They
+        -- can't be told apart from the pole at all, so there is no [34861] entry here;
+        -- CFC:ResolveSharedPlus100Lure() names the active one from the selected lure.
     },
+    -- The Aquadynamic Fish Attractor and Sharpened Fish Hook both apply this +100 TBC
+    -- enchant ID, so seeing it requires a tooltip scan to know which lure is on the pole.
+    SHARED_PLUS100_ENCHANT_ID = 266,
     -- Catch milestones for notifications
     MILESTONES = {
         100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000
@@ -533,6 +537,18 @@ function CFC:CheckFishingState()
     end
 end
 
+-- The Aquadynamic Fish Attractor and Sharpened Fish Hook both apply weapon-enchant ID 266
+-- (CFC.CONSTANTS.SHARED_PLUS100_ENCHANT_ID) AND both show an identical "Fishing Lure +100
+-- Fishing Skill" line on the pole tooltip, so nothing on the equipped pole can tell them
+-- apart. Fall back to the player's selected lure to name the active one -- correct whenever
+-- they applied the lure they had selected (the normal workflow, including Easy Cast).
+function CFC:ResolveSharedPlus100Lure()
+    if CFC.db and CFC.db.profile and CFC.db.profile.selectedLure == 34861 then
+        return "Sharpened Fish Hook"
+    end
+    return "Aquadynamic Fish Attractor"
+end
+
 -- Check for lure changes (called every 2 seconds)
 function CFC:CheckLureChanges()
     -- Check if player has fishing pole equipped
@@ -552,6 +568,12 @@ function CFC:CheckLureChanges()
 
         -- Detect lure by enchant ID (locale-independent, no tooltip scan needed)
         local lureName = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantID]
+
+        -- The +100 lures Aquadynamic Fish Attractor and Sharpened Fish Hook share enchant
+        -- ID 266 and an identical tooltip, so resolve which one via the selected lure.
+        if lureName and mainHandEnchantID == CFC.CONSTANTS.SHARED_PLUS100_ENCHANT_ID then
+            lureName = CFC:ResolveSharedPlus100Lure()
+        end
 
         -- Check session cache for previously scanned unknown enchant IDs
         if not lureName and mainHandEnchantID then

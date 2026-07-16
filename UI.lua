@@ -3721,6 +3721,13 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.12"] = {
+        fixes = {
+            "HUD no longer spills past its border - it grows taller when a long lure name wraps to a second line, keeping the lure timer inside the frame",
+            "HUD grows wider when the Captain Rumsey's Lager +10 bonus is shown, so the skill line no longer runs off the right edge",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.11"] = {
         fixes = {
             "Updated for Classic Era 1.15.8",

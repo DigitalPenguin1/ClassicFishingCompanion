@@ -3782,6 +3782,8 @@ local whatsNewContent = {
         fixes = {
             "Fishing totals no longer count loot from other sources - mob loot, gathering, and items opened from your bags are no longer recorded as catches",
             "Fishing pole cast counts are no longer inflated by non-fishing loot",
+        },
+        changes = {
             "Updated for Classic Era 1.15.9",
         },
         features = {
@@ -4103,6 +4105,15 @@ local function GetWhatsNewText(version)
         text = text .. "|cffffcc00New Features:|r\n"
         for _, feature in ipairs(content.features) do
             text = text .. "• " .. feature .. "\n"
+        end
+        text = text .. "\n"
+    end
+
+    -- Add changes
+    if content.changes and #content.changes > 0 then
+        text = text .. "|cffffcc00Updates:|r\n"
+        for _, change in ipairs(content.changes) do
+            text = text .. "• " .. change .. "\n"
         end
         text = text .. "\n"
     end

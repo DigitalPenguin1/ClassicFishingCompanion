@@ -16,7 +16,7 @@ end
 local CFC = CFC
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.1.12"
+CFC.VERSION = "1.1.13"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -341,7 +341,9 @@ function CFC:OnEnable()
     self.fishingStartTime = 0
     self.isFishing = false
     self.lastSkillCheck = 0
-    self.lastLootWasFishing = false
+    self.currentLootIsFishing = false  -- True while the open loot window is confirmed fishing loot
+    self.lastFishingLootTime = 0  -- GetTime() when the last fishing loot window closed
+    self.lootWindowMarkedTime = 0  -- GetTime() when the open window was confirmed as fishing
     self.lastBuffWarningTime = 0  -- Track when we last warned about missing buff
     self.currentTrackedBuff = nil  -- Track currently active buff to detect changes
     self.currentBuffExpiration = 0  -- Track buff expiration time to detect reapplications
@@ -373,6 +375,7 @@ function CFC:OnEnable()
     self:RegisterEvent("CHAT_MSG_SKILL", "OnSkillUpdate")
 
     -- Register fishing detection events
+    self:RegisterEvent("LOOT_READY", "OnLootReady")
     self:RegisterEvent("LOOT_OPENED", "OnLootOpened")
     self:RegisterEvent("LOOT_CLOSED", "OnLootClosed")
     self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", "OnSpellChannelStart")
@@ -857,75 +860,106 @@ function CFC:ShouldDrinkRumsey()
     return true
 end
 
+-- Grace period for CHAT_MSG_LOOT messages that arrive after LOOT_CLOSED
+local FISHING_LOOT_GRACE = 2.0
+
+-- How long after the fishing channel ends a loot window can still be credited
+-- to fishing. Only used on clients without IsFishingLoot().
+local FISHING_CHANNEL_GRACE = 3.0
+
+-- Safety bound on an open fishing loot window. LOOT_CLOSED clears the flag, but
+-- if a client ever fails to fire it this stops the flag sticking indefinitely
+-- and crediting later loot to fishing.
+local FISHING_LOOT_WINDOW_MAX = 300
+
+-- Ask the client whether the open loot window is fishing loot.
+-- Returns true or false, or nil when the API is unavailable on this client.
+function CFC:QueryFishingLoot()
+    if type(IsFishingLoot) ~= "function" then
+        return nil
+    end
+
+    local ok, result = pcall(IsFishingLoot)
+    if not ok then
+        return nil
+    end
+
+    return result and true or false
+end
+
+-- Heuristic source detection, used only when IsFishingLoot() is unavailable.
+-- Fishing loot always follows the channel ending, so this keys off the channel
+-- stop rather than a wide window from the cast start.
+function CFC:GuessFishingLoot()
+    local mainHandLink = GetInventoryItemLink("player", 16)
+    if not mainHandLink then
+        return false
+    end
+
+    local itemName, _, _, _, _, _, itemSubType = GetItemInfo(mainHandLink)
+    if not itemName or not itemSubType then
+        return false
+    end
+
+    local isFishingPole = string.find(string.lower(itemSubType), "fishing") ~= nil
+    local hasDeadTarget = UnitExists("target") and UnitIsDead("target")
+    local justFinishedChannel = (GetTime() - self.easyCastChannelStopTime) < FISHING_CHANNEL_GRACE
+
+    return isFishingPole and not hasDeadTarget and justFinishedChannel
+end
+
+-- Shared handler for LOOT_READY and LOOT_OPENED.
+-- Either event can confirm fishing loot and a confirmation from one is never
+-- undone by the other, because fast auto-loot means only one may fire.
+function CFC:EvaluateLootWindow(source)
+    if self.currentLootIsFishing then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r " .. source .. ": already confirmed as fishing loot")
+        end
+        return
+    end
+
+    local native = self:QueryFishingLoot()
+    local isFishingLoot
+    if native ~= nil then
+        isFishingLoot = native
+    else
+        isFishingLoot = self:GuessFishingLoot()
+    end
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r " .. source .. ": IsFishingLoot=" .. tostring(native) ..
+            " fishingLoot=" .. tostring(isFishingLoot) ..
+            (native == nil and " (heuristic fallback)" or ""))
+    end
+
+    if not isFishingLoot then
+        -- A new loot window that is definitively not fishing cancels any pending
+        -- grace from the previous window, so loot taken moments after a catch is
+        -- not credited to fishing
+        if native ~= nil then
+            self.lastFishingLootTime = 0
+        end
+        return
+    end
+
+    self.currentLootIsFishing = true
+    self.lootWindowMarkedTime = GetTime()
+    self.isFishing = true
+    self.lastSpellTime = time()
+
+    -- Track the fishing pole cast
+    self:TrackFishingPoleCast()
+end
+
+-- Handle loot becoming available (fires even when auto-loot skips LOOT_OPENED)
+function CFC:OnLootReady()
+    self:EvaluateLootWindow("LOOT_READY")
+end
+
 -- Handle loot window opening
 function CFC:OnLootOpened()
-    -- Check if we have a fishing pole equipped
-    local mainHandLink = GetInventoryItemLink("player", 16)
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r OnLootOpened called")
-        print("|cffff8800[CFC Debug]|r  mainHandLink: " .. tostring(mainHandLink))
-    end
-
-    if mainHandLink then
-        local itemName, _, _, _, _, itemType, itemSubType = GetItemInfo(mainHandLink)
-
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r  itemName: " .. tostring(itemName))
-            print("|cffff8800[CFC Debug]|r  itemType: " .. tostring(itemType))
-            print("|cffff8800[CFC Debug]|r  itemSubType: " .. tostring(itemSubType))
-        end
-
-        -- Check if it's actually a fishing pole
-        -- In Classic WoW, fishing poles have itemSubType "Fishing Poles"
-        local isFishingPole = false
-        if itemSubType then
-            local subTypeLower = string.lower(itemSubType)
-            isFishingPole = string.find(subTypeLower, "fishing") ~= nil
-        end
-
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r  isFishingPole: " .. tostring(isFishingPole))
-        end
-
-        -- Check if it's a fishing pole AND not looting a dead mob
-        -- In Classic WoW, when looting a fishing bobber, you typically don't have a dead target
-        -- When looting a mob, UnitIsDead("target") is true
-        local hasDeadTarget = UnitExists("target") and UnitIsDead("target")
-
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r  hasDeadTarget: " .. tostring(hasDeadTarget))
-        end
-
-        local recentlyCastFishing = (GetTime() - self.lastFishingCastTime) < 30
-
-        if itemName and isFishingPole and not hasDeadTarget and recentlyCastFishing then
-            -- We have fishing pole equipped, no dead target, and recently cast Fishing
-            self.lastLootWasFishing = true
-            self.isFishing = true
-            self.lastSpellTime = time()
-
-            -- Track the fishing pole cast
-            self:TrackFishingPoleCast()
-
-            if self.debug then
-                print("|cffff8800[CFC Debug]|r Loot opened from fishing - tracking cast")
-            end
-            return
-        elseif self.debug and itemName and not isFishingPole then
-            print("|cffff8800[CFC Debug]|r Loot opened with non-fishing-pole equipped: " .. itemName)
-        elseif self.debug and itemName and isFishingPole and hasDeadTarget then
-            print("|cffff8800[CFC Debug]|r Loot opened with pole equipped but has dead target (combat loot)")
-        elseif self.debug and itemName and isFishingPole and not recentlyCastFishing then
-            print("|cffff8800[CFC Debug]|r Loot opened with pole equipped but no recent Fishing cast (ground loot?)")
-        end
-    end
-
-    -- Not fishing
-    self.lastLootWasFishing = false
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Loot opened but NOT fishing")
-    end
+    self:EvaluateLootWindow("LOOT_OPENED")
 end
 
 -- Handle loot window closing
@@ -933,6 +967,13 @@ function CFC:OnLootClosed()
     -- Reset tracked pole so next cast will count
     self.currentTrackedPole = nil
     self.isFishing = false
+
+    -- CHAT_MSG_LOOT can arrive after LOOT_CLOSED, so stamp the close time and let
+    -- OnLootReceived credit messages that land within FISHING_LOOT_GRACE
+    if self.currentLootIsFishing then
+        self.lastFishingLootTime = GetTime()
+    end
+    self.currentLootIsFishing = false
 
     -- Mark loot closed time for Easy Cast (allows quick re-cast)
     self.easyCastLootClosedTime = GetTime()
@@ -1315,32 +1356,22 @@ function CFC:OnLootReceived(event, message)
         return
     end
 
-    -- Check if this loot was obtained while fishing
-    -- Primary: LOOT_OPENED event confirmed this was fishing loot
-    -- Fallback: Check fishing conditions directly (for compatibility with fast auto-loot addons)
-    local wasFishing = self.lastLootWasFishing
+    -- Check whether this loot came from a fishing loot window.
+    -- currentLootIsFishing covers a window that is still open (manual looting),
+    -- lastFishingLootTime covers messages arriving just after LOOT_CLOSED.
+    local sinceFishingLoot = GetTime() - (self.lastFishingLootTime or 0)
+    local windowOpen = self.currentLootIsFishing
+        and (GetTime() - (self.lootWindowMarkedTime or 0)) < FISHING_LOOT_WINDOW_MAX
+    local wasFishing = windowOpen or sinceFishingLoot < FISHING_LOOT_GRACE
 
-    -- Fallback detection if LOOT_OPENED didn't fire (e.g., SpeedyAutoLoot)
-    if not wasFishing then
-        local mainHandLink = GetInventoryItemLink("player", 16)
-        if mainHandLink then
-            local _, _, _, _, _, _, itemSubType = GetItemInfo(mainHandLink)
-            if itemSubType then
-                local isFishingPole = string.find(string.lower(itemSubType), "fishing") ~= nil
-                local hasDeadTarget = UnitExists("target") and UnitIsDead("target")
-                -- Check if player recently cast Fishing (within 30 seconds - bobber lasts ~20-25 sec)
-                local recentlyCastFishing = (GetTime() - self.lastFishingCastTime) < 30
-                if isFishingPole and not hasDeadTarget and recentlyCastFishing then
-                    wasFishing = true
-                    -- Track the fishing pole cast (since OnLootOpened didn't fire)
-                    self:TrackFishingPoleCast()
-                    if self.debug then
-                        print("|cffff8800[CFC Debug]|r Fallback fishing detection: pole equipped, no dead target, recently cast Fishing")
-                    end
-                elseif isFishingPole and not hasDeadTarget and self.debug then
-                    print("|cffff8800[CFC Debug]|r Fallback detection SKIPPED: pole equipped but no recent Fishing cast (mob loot?)")
-                end
-            end
+    -- Last resort for clients without IsFishingLoot(): if no loot window event
+    -- confirmed the source, fall back to channel-timing detection
+    if not wasFishing and self:QueryFishingLoot() == nil and self:GuessFishingLoot() then
+        wasFishing = true
+        -- Track the fishing pole cast (since no loot window event fired)
+        self:TrackFishingPoleCast()
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Heuristic fallback: credited to fishing (no IsFishingLoot on this client)")
         end
     end
 
@@ -1348,7 +1379,12 @@ function CFC:OnLootReceived(event, message)
     if self.debug then
         print("|cffff8800[CFC Debug]|r Found item: " .. itemName)
         print("|cffff8800[CFC Debug]|r Was fishing: " .. tostring(wasFishing))
-        print("|cffff8800[CFC Debug]|r lastLootWasFishing: " .. tostring(self.lastLootWasFishing))
+        print("|cffff8800[CFC Debug]|r currentLootIsFishing: " .. tostring(self.currentLootIsFishing))
+        if (self.lastFishingLootTime or 0) == 0 then
+            print("|cffff8800[CFC Debug]|r Since fishing loot closed: n/a (no pending fishing loot)")
+        else
+            print(string.format("|cffff8800[CFC Debug]|r Since fishing loot closed: %.2fs (grace %.1fs)", sinceFishingLoot, FISHING_LOOT_GRACE))
+        end
     end
 
     if wasFishing then
@@ -2780,6 +2816,69 @@ function CFC:PurgeItem(itemName)
     end
 end
 
+-- Recalculate stored totals from the catch history.
+-- The catches array is the source of truth: it is only ever appended to,
+-- filtered by PurgeItem, or cleared wholesale, so counts derived from it are
+-- authoritative. Repairs totals that drifted from miscounted catches.
+function CFC:RecalculateTotals()
+    if not self.db or not self.db.profile then
+        return false
+    end
+
+    local catches = self.db.profile.catches or {}
+    local stats = self.db.profile.statistics
+
+    -- Recount total catches
+    local oldTotal = stats.totalCatches or 0
+    local newTotal = #catches
+    stats.totalCatches = newTotal
+
+    -- Recount per-item totals from the same source
+    local tally = {}
+    for _, catch in ipairs(catches) do
+        if catch.itemName then
+            tally[catch.itemName] = (tally[catch.itemName] or 0) + 1
+        end
+    end
+
+    local itemsFixed, orphaned = 0, 0
+    for itemName, data in pairs(self.db.profile.fishData or {}) do
+        local counted = tally[itemName] or 0
+        if data.count ~= counted then
+            data.count = counted
+            itemsFixed = itemsFixed + 1
+        end
+        if counted == 0 then
+            orphaned = orphaned + 1
+        end
+    end
+
+    -- Update UI if open
+    if self.UpdateUI then
+        self:UpdateUI()
+    end
+
+    -- Update HUD
+    if self.HUD and self.HUD.Update then
+        self.HUD:Update()
+    end
+
+    if oldTotal == newTotal and itemsFixed == 0 then
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Totals already match catch history (" .. newTotal .. " catches). Nothing to fix.")
+    else
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Totals recalculated: " ..
+            oldTotal .. " -> " .. newTotal .. " catches" ..
+            (itemsFixed > 0 and (", " .. itemsFixed .. " item count(s) corrected") or ""))
+    end
+
+    if orphaned > 0 then
+        CFC:Print("|cffffcc00Classic Fishing Companion:|r " .. orphaned ..
+            " item(s) have no remaining catches. Use Purge Item to remove them from your lists.")
+    end
+
+    return true
+end
+
 -- Import fishing data from a string
 function CFC:ImportData(importString)
     if not importString or importString == "" then
@@ -2988,6 +3087,8 @@ SlashCmdList["CFC"] = function(msg)
             CFC.db.profile.statistics.sessionCatches = 0
             CFC:Print("|cff00ff00Classic Fishing Companion:|r All data has been reset.")
         end
+    elseif msg == "recalc" or msg == "recalculate" then
+        CFC:RecalculateTotals()
     elseif msg == "stats" then
         CFC:PrintStats()
     elseif msg == "debug" then

@@ -12,6 +12,7 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 - Catches now track correctly with fast auto-loot addons
 - Right-click any item in the Catch List to purge it from your database
 - New **Recalculate Totals** button in Settings (`/cfc recalc`) recounts your totals from your catch history
+- Updated for Classic Era 1.15.9
 
 ### v1.1.12
 - **TBC** - Sharpened Fish Hook now shows by name on the HUD (named from your selected lure) instead of always as Aquadynamic Fish Attractor — both share the same +100 weapon enchant and an identical pole tooltip

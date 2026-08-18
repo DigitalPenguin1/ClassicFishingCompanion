@@ -9,6 +9,10 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - Fishing pole cast counts are no longer inflated by the same non-fishing loot
 - Catches are now tracked correctly with fast auto-loot addons, which can skip the `LOOT_OPENED` event entirely
 
+### Changed
+- Updated interface version for the latest game client
+  - Classic Era: 1.15.9
+
 ### Added
 - Right-click any item in the Catch List to purge it from your database, without typing the name
 - **Recalculate Totals** button in Settings recounts your total and per-item catch counts from your catch history. Repairs totals left inflated by this bug. Also available as `/cfc recalc` — your catches are not deleted

@@ -3782,6 +3782,7 @@ local whatsNewContent = {
         fixes = {
             "Fishing totals no longer count loot from other sources - mob loot, gathering, and items opened from your bags are no longer recorded as catches",
             "Fishing pole cast counts are no longer inflated by non-fishing loot",
+            "Updated for Classic Era 1.15.9",
         },
         features = {
             "Right-click any item in the Catch List to remove it from your database",

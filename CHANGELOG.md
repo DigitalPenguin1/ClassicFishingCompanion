@@ -2,6 +2,24 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.1.13] - 2026-08-18
+
+### Fixed
+- Fishing totals no longer count loot from other sources. Any item looted while a fishing pole was equipped — mob loot, gathering nodes, or containers opened from your bags (Inscribed Scrollcase, Curious Crate) — was recorded as a catch. Loot is now identified with the client's own `IsFishingLoot()` check instead of being inferred from your equipped gear and recent cast timing ([#19](https://github.com/DigitalPenguin1/ClassicFishingCompanion/issues/19))
+- Fishing pole cast counts are no longer inflated by the same non-fishing loot
+- Catches are now tracked correctly with fast auto-loot addons, which can skip the `LOOT_OPENED` event entirely
+
+### Changed
+- Updated interface version for the latest game client
+  - Classic Era: 1.15.9
+
+### Added
+- Right-click any item in the Catch List to purge it from your database, without typing the name
+- **Recalculate Totals** button in Settings recounts your total and per-item catch counts from your catch history. Repairs totals left inflated by this bug. Also available as `/cfc recalc` — your catches are not deleted
+
+### Note
+- This release stops incorrect catches from accumulating, but does not remove ones already recorded. Right-click any wrong entry in the Catch List to purge it, then use Recalculate Totals. Fishing pole cast counts cannot be repaired automatically, as nothing recorded which casts were miscounted
+
 ## [1.1.12] - 2026-07-15
 
 ### Fixed

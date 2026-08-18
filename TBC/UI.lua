@@ -662,6 +662,8 @@ function UI:UpdateFishList()
                     end
                 end
 
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("|cffff8080Right-click to purge this item|r")
                 GameTooltip:Show()
             end)
 
@@ -674,6 +676,15 @@ function UI:UpdateFishList()
 
         entry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, yOffset)
         entry.fishName = fish.name
+
+        -- Right-click purges this item. The user decides what is junk; the addon
+        -- never guesses, because nothing records whether an entry came from a
+        -- bobber or a corpse.
+        entry:SetScript("OnMouseUp", function(self, button)
+            if button == "RightButton" and self.fishName and CFC.UI and CFC.UI.ShowPurgeDialog then
+                CFC.UI:ShowPurgeDialog(self.fishName)
+            end
+        end)
 
         -- Try to get icon from cached data first (saved when fish was caught)
         local itemTexture = nil
@@ -943,6 +954,8 @@ function UI:UpdateFishList()
                     end
                 end
 
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("|cffff8080Right-click to purge this item|r")
                 GameTooltip:Show()
             end)
 
@@ -955,6 +968,15 @@ function UI:UpdateFishList()
 
         entry:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 10, yOffset)
         entry.fishName = misc.name
+
+        -- Right-click purges this item. The user decides what is junk; the addon
+        -- never guesses, because nothing records whether an entry came from a
+        -- bobber or a corpse.
+        entry:SetScript("OnMouseUp", function(self, button)
+            if button == "RightButton" and self.fishName and CFC.UI and CFC.UI.ShowPurgeDialog then
+                CFC.UI:ShowPurgeDialog(self.fishName)
+            end
+        end)
 
         -- Try to get icon from cached data first (saved when item was caught)
         local itemTexture = nil
@@ -3414,10 +3436,28 @@ function UI:CreateSettingsTab()
     frame.purgeDesc:SetTextColor(0.7, 0.7, 0.7)
     frame.purgeDesc:SetText("Remove a specific item from your catches and statistics by name.")
 
+    -- Recalculate Totals Button
+    frame.recalcButton = CreateFrame("Button", "CFCRecalcButton", frame.scrollChild, "UIPanelButtonTemplate")
+    frame.recalcButton:SetSize(200, 30)
+    frame.recalcButton:SetPoint("TOPLEFT", frame.purgeDesc, "BOTTOMLEFT", -25, -20)
+    frame.recalcButton:SetText("Recalculate Totals")
+
+    frame.recalcButton:SetScript("OnClick", function(self)
+        StaticPopup_Show("CFC_RECALC_CONFIRM")
+    end)
+
+    -- Recalculate description
+    frame.recalcDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.recalcDesc:SetPoint("TOPLEFT", frame.recalcButton, "BOTTOMLEFT", 25, -5)
+    frame.recalcDesc:SetJustifyH("LEFT")
+    frame.recalcDesc:SetWidth(500)
+    frame.recalcDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.recalcDesc:SetText("Recount your totals from your catch history. Fixes totals left inflated by miscounted catches. Your catches are not deleted.")
+
     -- Clear Statistics Button
     frame.clearStatsButton = CreateFrame("Button", "CFCClearStatsButton", frame.scrollChild, "UIPanelButtonTemplate")
     frame.clearStatsButton:SetSize(200, 30)
-    frame.clearStatsButton:SetPoint("TOPLEFT", frame.purgeDesc, "BOTTOMLEFT", -25, -20)
+    frame.clearStatsButton:SetPoint("TOPLEFT", frame.recalcDesc, "BOTTOMLEFT", -25, -20)
     frame.clearStatsButton:SetText("Clear All Statistics")
 
     frame.clearStatsButton:SetScript("OnClick", function(self)
@@ -3661,6 +3701,23 @@ StaticPopupDialogs["CFC_RESTORE_BACKUP_CONFIRM"] = {
     preferredIndex = 3,
 }
 
+
+-- Recalculate totals confirmation dialog
+StaticPopupDialogs["CFC_RECALC_CONFIRM"] = {
+    text = "Recalculate totals from your catch history?\n\nYour catches are not deleted. Your total catch count is recounted from them, which may lower the number if miscounted catches were removed.",
+    button1 = "Yes, Recalculate",
+    button2 = "Cancel",
+    OnAccept = function()
+        if CFC.RecalculateTotals then
+            CFC:RecalculateTotals()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 -- Per-character mode ENABLE dialog (with copy option)
 StaticPopupDialogs["CFC_PERCHAR_ENABLE"] = {
     text = "Enable Per-Character Statistics?\n\n|cffffcc00Choose how to start:|r\n\n|cff00ff00Copy Account Data:|r\nThis character will start with all your current catches (%d total).\n\n|cffaaaaaa[Cancel] Start Fresh:|r\nThis character will start with 0 catches.\n\n|cff888888Your account-wide data remains safe either way.|r",
@@ -3795,6 +3852,20 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.1.13"] = {
+        fixes = {
+            "Fishing totals no longer count loot from other sources - mob loot, gathering, and items opened from your bags are no longer recorded as catches",
+            "Fishing pole cast counts are no longer inflated by non-fishing loot",
+        },
+        changes = {
+            "Updated for Classic Era 1.15.9",
+        },
+        features = {
+            "Right-click any item in the Catch List to remove it from your database",
+            "New Recalculate Totals button in Settings recounts your totals from your catch history",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.12"] = {
         fixes = {
             "Sharpened Fish Hook now shows by name on the HUD (follows your selected lure) instead of always displaying as Aquadynamic Fish Attractor",
@@ -4113,6 +4184,15 @@ local function GetWhatsNewText(version)
         text = text .. "\n"
     end
 
+    -- Add changes
+    if content.changes and #content.changes > 0 then
+        text = text .. "|cffffcc00Updates:|r\n"
+        for _, change in ipairs(content.changes) do
+            text = text .. "• " .. change .. "\n"
+        end
+        text = text .. "\n"
+    end
+
     -- Add fixes
     if content.fixes and #content.fixes > 0 then
         text = text .. "|cffffcc00Bug Fixes:|r\n"
@@ -4321,7 +4401,7 @@ function UI:ShowImportDialog()
 end
 
 -- Create and show purge item dialog
-function UI:ShowPurgeDialog()
+function UI:ShowPurgeDialog(prefillName)
     -- Create simple input dialog
     local dialog = CreateFrame("Frame", "CFCPurgeDialog", UIParent, "BasicFrameTemplateWithInset")
     dialog:SetSize(400, 150)
@@ -4351,6 +4431,12 @@ function UI:ShowPurgeDialog()
     dialog.inputBox:SetPoint("TOP", dialog.instructions, "BOTTOM", 0, -10)
     dialog.inputBox:SetAutoFocus(true)
     dialog.inputBox:SetMaxLetters(100)
+
+    -- Pre-fill when opened from a Catch List row
+    if prefillName then
+        dialog.inputBox:SetText(prefillName)
+        dialog.inputBox:HighlightText()
+    end
 
     dialog.inputBox:SetScript("OnEscapePressed", function(self)
         dialog:Hide()

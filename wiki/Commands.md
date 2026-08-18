@@ -31,6 +31,7 @@ All CFC slash commands start with `/cfc`.
 | Command | Description |
 |---|---|
 | `/cfc reset` | Reset all saved data (prompts for confirmation) |
+| `/cfc recalc` | Recount totals from your catch history (does not delete catches) |
 
 ---
 

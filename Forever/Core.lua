@@ -15,6 +15,12 @@ end
 -- Local references
 local CFC = CFC
 
+-- Classic API names mapped to modern equivalents on Forever (see Compat.lua)
+local GetItemInfo = CFCCompat.GetItemInfo
+local GetItemCount = CFCCompat.GetItemCount
+local GetSpellInfo = CFCCompat.GetSpellInfo
+local UnitBuff = CFCCompat.UnitBuff
+
 -- Version constant (single source of truth)
 CFC.VERSION = "1.1.13"
 
@@ -437,33 +443,30 @@ end
 
 -- Update fishing skill from character info
 function CFC:UpdateFishingSkill()
-    -- Get fishing skill (profession ID 356 for Fishing)
-    local numSkills = GetNumSkillLines()
-    for i = 1, numSkills do
-        local skillName, _, _, skillLevel, _, _, skillMaxLevel = GetSkillLineInfo(i)
-        if skillName and string.find(skillName, "Fishing") then
-            local oldSkill = self.db.profile.statistics.currentSkill or 0
-            self.db.profile.statistics.currentSkill = skillLevel
-            self.db.profile.statistics.maxSkill = skillMaxLevel
+    local skillName, skillLevel, skillMaxLevel = CFCCompat.GetFishingSkill()
+    if not skillName then
+        return
+    end
 
-            -- Track skill level up
-            if oldSkill > 0 and skillLevel > oldSkill then
-                table.insert(self.db.profile.skillLevels, {
-                    timestamp = time(),
-                    oldLevel = oldSkill,
-                    newLevel = skillLevel,
-                    date = date("%Y-%m-%d %H:%M:%S", time()),
-                })
-                if self.db.profile.settings.announceSkillUps then
-                    CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Fishing skill increased to " .. skillLevel .. "!")
-                end
+    local oldSkill = self.db.profile.statistics.currentSkill or 0
+    self.db.profile.statistics.currentSkill = skillLevel
+    self.db.profile.statistics.maxSkill = skillMaxLevel
 
-                -- Check if just hit max skill (300 in Classic)
-                if skillLevel >= skillMaxLevel and oldSkill < skillMaxLevel then
-                    self:AnnounceMaxSkill(skillLevel)
-                end
-            end
-            break
+    -- Track skill level up
+    if oldSkill > 0 and skillLevel > oldSkill then
+        table.insert(self.db.profile.skillLevels, {
+            timestamp = time(),
+            oldLevel = oldSkill,
+            newLevel = skillLevel,
+            date = date("%Y-%m-%d %H:%M:%S", time()),
+        })
+        if self.db.profile.settings.announceSkillUps then
+            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Fishing skill increased to " .. skillLevel .. "!")
+        end
+
+        -- Check if just hit max skill (300 in Classic)
+        if skillLevel >= skillMaxLevel and oldSkill < skillMaxLevel then
+            self:AnnounceMaxSkill(skillLevel)
         end
     end
 end
@@ -1340,9 +1343,10 @@ function CFC:OnLootReceived(event, message)
     end
 
     -- Pattern for loot: "You receive loot: [Item Name]."
-    -- Extract full item link
-    local itemLink = string.match(message, "(|c%x+|Hitem:.-|h%[.-%]|h|r)")
-    local itemName = string.match(message, "|c%x+|Hitem:.-|h%[(.-)%]|h|r")
+    -- Extract full item link. Modern clients color links by quality tag
+    -- (|cnIQ2:) rather than hex (|cff1eff00), so accept anything up to the |H
+    local itemLink = string.match(message, "(|c[^|]*|Hitem:.-|h%[.-%]|h|r)")
+    local itemName = string.match(message, "|c[^|]*|Hitem:.-|h%[(.-)%]|h|r")
 
     if not itemLink or not itemName then
         return

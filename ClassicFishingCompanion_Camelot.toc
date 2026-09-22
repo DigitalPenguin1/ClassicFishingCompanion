@@ -1,5 +1,5 @@
-## Interface: 20506
-## Title: Classic Fishing Companion (TBC)
+## Interface: 16001
+## Title: Classic Fishing Companion (Forever)
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk
 ## Version: 1.1.13
@@ -17,11 +17,10 @@ Libs/AceAddon-3.0/AceAddon-3.0.lua
 Libs/AceEvent-3.0/AceEvent-3.0.lua
 Libs/AceConsole-3.0/AceConsole-3.0.lua
 
-# Core Files (Shared between Classic Era and TBC)
-Core.lua
-Database.lua
-Minimap.lua
-
-# TBC-Specific UI Files
-TBC/UI.lua
-TBC/HUD.lua
+# Forever-Specific Files (WoW Forever runs the modern API)
+Forever/Compat.lua
+Forever/Core.lua
+Forever/Database.lua
+Forever/Minimap.lua
+Forever/UI.lua
+Forever/HUD.lua

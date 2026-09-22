@@ -3,11 +3,6 @@
 
 local addonName, addon = ...
 
--- Classic API names mapped to modern equivalents on Forever (see Compat.lua)
-local GetItemCount = CFCCompat.GetItemCount
-local GetItemIcon = CFCCompat.GetItemIcon
-local UnitBuff = CFCCompat.UnitBuff
-
 CFC.HUD = {}
 local HUDModule = CFC.HUD
 

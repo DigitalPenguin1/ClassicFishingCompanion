@@ -21,6 +21,7 @@ end
 Compat.GetItemInfo = _G.GetItemInfo or C_Item.GetItemInfo
 Compat.GetItemCount = _G.GetItemCount or C_Item.GetItemCount
 Compat.GetItemIcon = _G.GetItemIcon or C_Item.GetItemIconByID
+Compat.GetItemInfoInstant = _G.GetItemInfoInstant or C_Item.GetItemInfoInstant
 
 -- Returns the legacy GetSpellInfo tuple (name, rank, icon, ...)
 Compat.GetSpellInfo = _G.GetSpellInfo or function(spell)

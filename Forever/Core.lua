@@ -20,6 +20,7 @@ local GetItemInfo = CFCCompat.GetItemInfo
 local GetItemCount = CFCCompat.GetItemCount
 local GetSpellInfo = CFCCompat.GetSpellInfo
 local UnitBuff = CFCCompat.UnitBuff
+local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
 CFC.VERSION = "1.1.13"
@@ -3818,6 +3819,17 @@ function CFC:SetupEasyCastBinding()
     end
 end
 
+-- True when a fishing pole is in the main hand. Item class IDs are
+-- locale-independent and available before the item cache has loaded.
+function CFC:IsFishingPoleEquipped()
+    local itemID = GetInventoryItemID("player", 16)
+    if not itemID then
+        return false
+    end
+    local _, _, _, _, _, classID, subclassID = GetItemInfoInstant(itemID)
+    return classID == 2 and subclassID == 20  -- Weapon, Fishing Pole
+end
+
 -- Handle first right-click (sets up binding for second click)
 function CFC:HandleFirstClick()
     if CFC.debug then
@@ -3833,6 +3845,13 @@ function CFC:HandleFirstClick()
     -- Only works when HUD is visible
     if not self.db.profile.hud.show then
         if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: HUD not visible, skipping") end
+        return false
+    end
+
+    -- Only works with a fishing pole equipped (not in a combat gear set)
+    if not self:IsFishingPoleEquipped() then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: No fishing pole equipped, skipping") end
+        self:ClearEasyCastBinding()
         return false
     end
 

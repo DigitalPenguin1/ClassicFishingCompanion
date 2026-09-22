@@ -439,6 +439,9 @@ function CFC:OnPlayerEntering()
 
     -- Update fishing skill
     self:UpdateFishingSkill()
+
+    -- Baseline for per-slot equipment history
+    self:SnapshotEquippedItems()
 end
 
 -- Update fishing skill from character info
@@ -1252,7 +1255,9 @@ end
 
 -- Handle equipment changes (detect manual weapon swaps to keep currentMode in sync)
 function CFC:OnEquipmentChanged(event, slot)
-    -- Only care about main hand slot (16)
+    self:RecordSlotChange(slot)
+
+    -- Only the main hand decides the gear mode
     if slot ~= 16 then return end
 
     self:SyncGearModeWithEquipped()
@@ -1809,6 +1814,48 @@ local GEAR_SLOTS = {
     TABARDSLOT = 19,
 }
 
+-- Per-slot equipment history for this session. When the fishing set is saved
+-- while already wearing it, the item each slot held before its last change is
+-- the best record of the player's normal gear.
+CFC.equippedSlotItems = {}
+CFC.previousSlotItems = {}
+
+function CFC:SnapshotEquippedItems()
+    for _, slotID in pairs(GEAR_SLOTS) do
+        self.equippedSlotItems[slotID] = GetInventoryItemLink("player", slotID)
+    end
+end
+
+function CFC:RecordSlotChange(slotID)
+    local link = GetInventoryItemLink("player", slotID)
+    if link ~= self.equippedSlotItems[slotID] then
+        self.previousSlotItems[slotID] = self.equippedSlotItems[slotID]
+        self.equippedSlotItems[slotID] = link
+    end
+end
+
+-- Build the normal ("current") gear set from what was worn before the fishing
+-- gear went on. Returns false when there's no history to build from.
+function CFC:SaveCurrentSetFromHistory()
+    if not next(self.previousSlotItems) then
+        return false
+    end
+
+    local gearSet = {}
+    for _, slotID in pairs(GEAR_SLOTS) do
+        local link = self.previousSlotItems[slotID] or GetInventoryItemLink("player", slotID)
+        if link then
+            gearSet[slotID] = link
+        end
+    end
+    self.db.profile.gearSets.current = gearSet
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Built normal gear set from equipment history (" .. self:CountTableEntries(gearSet) .. " items)")
+    end
+    return true
+end
+
 -- Helper function to count table entries
 function CFC:CountTableEntries(tbl)
     local count = 0
@@ -1868,6 +1915,17 @@ function CFC:SaveGearSet(setName)
     -- instead of waiting for the next weapon change
     if setName == "fishing" then
         self:SyncGearModeWithEquipped()
+
+        -- No normal set yet: rebuild it from what was worn before the fishing gear
+        local current = self.db.profile.gearSets.current
+        if self.db.profile.gearSets.currentMode == "fishing" and not (current and next(current)) then
+            if self:SaveCurrentSetFromHistory() then
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Normal gear remembered from what you wore before.")
+            else
+                CFC:Print("|cffffcc00Classic Fishing Companion:|r Put your normal gear back on by hand once. After that, swaps save it automatically.")
+            end
+        end
+
         if self.HUD and self.HUD.Update then
             self.HUD:Update()
         end

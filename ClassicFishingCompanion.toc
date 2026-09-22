@@ -1,4 +1,4 @@
-## Interface: 11509
+## Interface: 11509, 16001
 ## Title: Classic Fishing Companion
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk
@@ -17,6 +17,7 @@ Libs/AceEvent-3.0/AceEvent-3.0.lua
 Libs/AceConsole-3.0/AceConsole-3.0.lua
 
 # Core Files
+Compat.lua
 Core.lua
 Database.lua
 UI.lua

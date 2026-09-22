@@ -3,6 +3,9 @@
 
 local addonName, addon = ...
 
+-- Classic API names mapped to modern equivalents on Forever (see Compat.lua)
+local EasyMenu = CFCCompat.EasyMenu
+
 CFC.Minimap = {}
 local MinimapModule = CFC.Minimap
 

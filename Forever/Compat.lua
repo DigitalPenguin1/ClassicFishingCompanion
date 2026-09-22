@@ -18,6 +18,16 @@ local function IsSecret(value)
     return issecretvalue ~= nil and issecretvalue(value)
 end
 
+-- While auras are locked (in combat), reading one from addon code throws
+-- instead of returning a secret, so check before asking.
+local function AurasLocked()
+    if not (C_Secrets and C_Secrets.ShouldAurasBeSecret) then
+        return false
+    end
+    local ok, locked = pcall(C_Secrets.ShouldAurasBeSecret)
+    return not ok or locked
+end
+
 Compat.GetItemInfo = _G.GetItemInfo or C_Item.GetItemInfo
 Compat.GetItemCount = _G.GetItemCount or C_Item.GetItemCount
 Compat.GetItemIcon = _G.GetItemIcon or C_Item.GetItemIconByID
@@ -32,9 +42,13 @@ Compat.GetSpellInfo = _G.GetSpellInfo or function(spell)
 end
 
 -- Returns the legacy UnitBuff tuple (name, icon, count, debuffType, duration, expirationTime, ...)
+-- Returns nil while auras are locked, same as "no buff at this index".
 Compat.UnitBuff = _G.UnitBuff or function(unit, index, filter)
-    local aura = C_UnitAuras.GetBuffDataByIndex(unit, index, filter)
-    if not aura or IsSecret(aura.name) or IsSecret(aura.expirationTime) then
+    if AurasLocked() then
+        return nil
+    end
+    local ok, aura = pcall(C_UnitAuras.GetBuffDataByIndex, unit, index, filter)
+    if not ok or not aura or IsSecret(aura.name) or IsSecret(aura.expirationTime) then
         return nil
     end
     return aura.name, aura.icon, aura.applications, aura.dispelName, aura.duration,

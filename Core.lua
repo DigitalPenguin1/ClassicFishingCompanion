@@ -436,6 +436,17 @@ function CFC:OnPlayerEntering()
 
     -- Baseline for per-slot equipment history
     self:SnapshotEquippedItems()
+
+    -- The saved gear mode can be stale (e.g. logged out mid-swap), so match it
+    -- to what's actually equipped. Re-check shortly after in case equipment
+    -- wasn't fully loaded yet.
+    self:SyncGearModeWithEquipped()
+    C_Timer.After(2, function()
+        self:SyncGearModeWithEquipped()
+        if self.HUD and self.HUD.Update then
+            self.HUD:Update()
+        end
+    end)
 end
 
 -- Update fishing skill from character info
@@ -1265,17 +1276,7 @@ function CFC:SyncGearModeWithEquipped()
     -- Don't process if gear sets aren't configured
     if not self.db or not self.db.profile or not self.db.profile.gearSets then return end
 
-    -- Check what's now in the main hand
-    local mainHandLink = GetInventoryItemLink("player", 16)
-    local isFishingPole = false
-
-    if mainHandLink then
-        local _, _, _, _, _, _, itemSubType = GetItemInfo(mainHandLink)
-        if itemSubType then
-            isFishingPole = string.find(string.lower(itemSubType), "fishing") ~= nil
-        end
-    end
-
+    local isFishingPole = self:IsFishingPoleEquipped()
     local currentMode = self.db.profile.gearSets.currentMode or "current"
 
     -- Update mode if it's out of sync

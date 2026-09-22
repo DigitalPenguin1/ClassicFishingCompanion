@@ -3538,6 +3538,16 @@ function UI:FormatTime(seconds)
     end
 end
 
+-- Open the main window on a specific tab
+function CFC:OpenUITab(tabName)
+    currentTab = tabName
+    if mainFrame and mainFrame:IsShown() then
+        UI:ShowTab(tabName)
+    else
+        self:ToggleUI()
+    end
+end
+
 -- Toggle UI
 function CFC:ToggleUI()
     if not mainFrame then

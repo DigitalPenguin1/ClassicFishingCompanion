@@ -1255,6 +1255,11 @@ function CFC:OnEquipmentChanged(event, slot)
     -- Only care about main hand slot (16)
     if slot ~= 16 then return end
 
+    self:SyncGearModeWithEquipped()
+end
+
+-- Set currentMode from whether a fishing pole is in the main hand
+function CFC:SyncGearModeWithEquipped()
     -- Don't process if gear sets aren't configured
     if not self.db or not self.db.profile or not self.db.profile.gearSets then return end
 
@@ -1857,6 +1862,15 @@ function CFC:SaveGearSet(setName)
 
     if self.debug then
         print("|cffff8800[CFC Debug]|r Saved " .. itemCount .. " items to " .. setName .. " gear set")
+    end
+
+    -- The fishing set is usually saved while wearing it, so sync the mode now
+    -- instead of waiting for the next weapon change
+    if setName == "fishing" then
+        self:SyncGearModeWithEquipped()
+        if self.HUD and self.HUD.Update then
+            self.HUD:Update()
+        end
     end
 
     return true

@@ -309,6 +309,10 @@ function CFC:InitializeHUD()
 
     -- Click handler for gear swap
     hudFrame.gearSwapButton:SetScript("OnClick", function(self)
+        if not CFC:HasGearSets() then
+            CFC:OpenUITab("gearsets")
+            return
+        end
         CFC:SwapGear()
         HUDModule:Update()  -- Update to reflect new gear mode
     end)
@@ -327,8 +331,8 @@ function CFC:InitializeHUD()
             GameTooltip:AddLine("Click to switch to " .. targetMode .. " gear", 0.6, 1, 0.6)
         else
             GameTooltip:SetText("Gear Swap Not Configured", 1, 0.5, 0.5)
-            GameTooltip:AddLine("1. Equip fishing gear", 1, 1, 1)
-            GameTooltip:AddLine("2. Type: /cfc savefishing", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("Click to open the Gear Sets tab", 1, 1, 1)
+            GameTooltip:AddLine("Equip your fishing gear, then click Save Set", 0.8, 0.8, 0.8)
             GameTooltip:AddLine("Current gear auto-saves on swap", 0.6, 1, 0.6)
         end
 

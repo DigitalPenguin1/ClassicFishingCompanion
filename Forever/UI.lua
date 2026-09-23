@@ -3791,6 +3791,19 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.0"] = {
+        features = {
+            "World of Warcraft: Forever support",
+            "The HUD Setup button now opens the Gear Sets tab",
+            "Your normal gear is remembered automatically when you save a fishing set while already wearing it",
+        },
+        fixes = {
+            "Double right-click no longer tries to cast Fishing when you don't have a fishing pole equipped",
+            "The HUD gear button now matches the gear you're wearing when you log in, even if you logged out mid-swap",
+            "Saving your fishing set while wearing it now updates the HUD right away, instead of offering to swap to fishing gear you already have on",
+        },
+        tip = "Note: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.13"] = {
         fixes = {
             "Fishing totals no longer count loot from other sources - mob loot, gathering, and items opened from your bags are no longer recorded as catches",

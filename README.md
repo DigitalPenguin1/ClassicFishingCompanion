@@ -1,6 +1,6 @@
 # Classic Fishing Companion
 
-A comprehensive fishing companion addon for World of Warcraft Classic Era and TBC.
+A comprehensive fishing companion addon for World of Warcraft Classic Era, TBC, and WoW: Forever.
 
 ## Features
 

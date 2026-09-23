@@ -3,6 +3,11 @@
 
 local addonName, addon = ...
 
+-- Classic API names mapped to modern equivalents on Forever (see Compat.lua)
+local GetItemCount = CFCCompat.GetItemCount
+local GetItemIcon = CFCCompat.GetItemIcon
+local UnitBuff = CFCCompat.UnitBuff
+
 CFC.HUD = {}
 local HUDModule = CFC.HUD
 
@@ -11,7 +16,6 @@ local hudFrame = nil
 -- Lure bonus mapping (constant table to avoid recreation every update)
 local lureBonus = {
     ["Aquadynamic Fish Attractor"] = 100,
-    ["Sharpened Fish Hook"] = 100,
     ["Bright Baubles"] = 75,
     ["Flesh Eating Worm"] = 75,
     ["Nightcrawlers"] = 50,
@@ -27,7 +31,6 @@ local lureNames = {
     [7307] = "Flesh Eating Worm",
     [6533] = "Aquadynamic Fish Attractor",
     [6811] = "Aquadynamic Fish Lens",
-    [34861] = "Sharpened Fish Hook",
 }
 
 -- Lure ID to name with bonus (constant table)
@@ -38,7 +41,6 @@ local lureNamesWithBonus = {
     [7307] = "Flesh Eating Worm (+75)",
     [6533] = "Aquadynamic Fish Attractor (+100)",
     [6811] = "Aquadynamic Fish Lens (+50)",
-    [34861] = "Sharpened Fish Hook (+100)",
 }
 
 -- Bonus amount to lure name mapping (constant table)
@@ -47,17 +49,6 @@ local bonusToLureName = {
     [75] = "Bright Baubles",
     [50] = "Nightcrawlers",
     [25] = "Shiny Bauble",
-}
-
--- Lure ID to icon mapping (constant table)
-local lureIcons = {
-    [6529] = "INV_Misc_Orb_03",              -- Shiny Bauble
-    [6530] = "INV_Misc_MonsterTail_03",      -- Nightcrawlers
-    [6532] = "INV_Misc_Gem_Variety_02",      -- Bright Baubles
-    [7307] = "INV_Misc_MonsterTail_03",      -- Flesh Eating Worm
-    [6533] = "INV_Misc_Food_26",             -- Aquadynamic Fish Attractor
-    [6811] = "INV_Misc_Spyglass_01",         -- Aquadynamic Fish Lens
-    [34861] = "INV_Misc_Hook_01",             -- Sharpened Fish Hook
 }
 
 -- Initialize HUD
@@ -200,79 +191,73 @@ function CFC:InitializeHUD()
         GameTooltip:Hide()
     end)
 
-    -- Rumsey toggle icon (top-right, next to lock icon)
-    hudFrame.rumseyIcon = CreateFrame("Button", nil, hudFrame)
-    hudFrame.rumseyIcon:SetSize(16, 16)
-    hudFrame.rumseyIcon:SetPoint("RIGHT", hudFrame.lockIcon, "LEFT", -4, 0)
-    hudFrame.rumseyIcon:Hide()
-
-    hudFrame.rumseyIcon.texture = hudFrame.rumseyIcon:CreateTexture(nil, "OVERLAY")
-    hudFrame.rumseyIcon.texture:SetAllPoints()
-    hudFrame.rumseyIcon.texture:SetTexture("Interface\\Icons\\INV_Drink_03")
-
-    hudFrame.rumseyIcon:SetScript("OnClick", function(self)
-        CFC.db.profile.settings.autoRumsey = not CFC.db.profile.settings.autoRumsey
-        HUDModule:UpdateRumseyIcon()
-        if CFC.db.profile.settings.autoRumsey then
-            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.SUCCESS .. "enabled|r")
-        else
-            CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion:" .. CFC.COLORS.RESET .. " Auto-Drink Rumsey's " .. CFC.COLORS.ERROR .. "disabled|r")
-        end
-    end)
-
-    hudFrame.rumseyIcon:SetScript("OnEnter", function(self)
-        HUDModule:ShowTextOnlyHover()
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        if CFC.db.profile.settings.autoRumsey then
-            GameTooltip:SetText("Captain Rumsey's Lager", 0, 0.8, 1)
-            GameTooltip:AddLine("Auto-Drink: Enabled", 0, 1, 0)
-            GameTooltip:AddLine("Click to disable", 0.8, 0.8, 0.8)
-        else
-            GameTooltip:SetText("Captain Rumsey's Lager", 0, 0.8, 1)
-            GameTooltip:AddLine("Auto-Drink: Disabled", 1, 0, 0)
-            GameTooltip:AddLine("Click to enable", 0.8, 0.8, 0.8)
-        end
-        local count = GetItemCount(34832)
-        if count > 0 then
-            GameTooltip:AddLine("In bags: " .. count, 0.7, 0.7, 0.7)
-        else
-            GameTooltip:AddLine("None in bags", 1, 0.5, 0)
-        end
-        GameTooltip:Show()
-    end)
-
-    hudFrame.rumseyIcon:SetScript("OnLeave", function(self)
-        HUDModule:HideTextOnlyHover()
-        GameTooltip:Hide()
-    end)
-
-    -- Lure button (opens Lure tab in UI)
-    hudFrame.applyLureButton = CreateFrame("Button", "CFCLureButton", hudFrame, "UIPanelButtonTemplate")
+    -- Apply lure button (using SecureActionButton for macro execution)
+    hudFrame.applyLureButton = CreateFrame("Button", "CFCApplyLureButton", hudFrame, "SecureActionButtonTemplate, UIPanelButtonTemplate")
     hudFrame.applyLureButton:SetSize(88, 22)
     hudFrame.applyLureButton:SetPoint("BOTTOMLEFT", hudFrame, "BOTTOMLEFT", 10, 5)
-    hudFrame.applyLureButton:SetText("Lure |TInterface\\Icons\\INV_Misc_Food_26:16|t")
+    hudFrame.applyLureButton:SetText("Apply Lure")
 
     -- Set button font
     local applyLureFont = hudFrame.applyLureButton:GetFontString()
     applyLureFont:SetFont("Fonts\\FRIZQT__.TTF", 10)
 
-    -- Click handler to open Lure tab
-    hudFrame.applyLureButton:SetScript("OnClick", function(self)
-        -- Open main UI
-        if CFC.ToggleUI then
-            -- If UI is hidden, show it
-            if not CFC.mainFrame or not CFC.mainFrame:IsShown() then
-                CFC:ToggleUI()
-            end
+    -- Set up secure button to execute a macro
+    hudFrame.applyLureButton:SetAttribute("type", "macro")
+
+    -- Function to update the macro based on selected lure
+    hudFrame.UpdateApplyLureMacro = function()
+        if InCombatLockdown() then
+            -- Cannot update secure buttons during combat
+            return
         end
 
-        -- Switch to Lure tab
-        if CFC.UI and CFC.UI.ShowTab then
-            CFC.UI:ShowTab("lures")
+        local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
+        if not selectedLureID then
+            hudFrame.applyLureButton:SetAttribute("macrotext", "/print You haven't selected a lure yet!")
+            return
+        end
+
+        local lureName = lureNames[selectedLureID]
+        if lureName then
+            -- Create macro text that uses the lure by name
+            local macroText = "/use " .. lureName .. "\n/use 16"
+            hudFrame.applyLureButton:SetAttribute("macrotext", macroText)
+        end
+    end
+
+    -- Initial macro setup
+    hudFrame.UpdateApplyLureMacro()
+
+    -- PreClick handler to check gear mode and lure availability
+    hudFrame.applyLureButton:SetScript("PreClick", function(self, button, down)
+        local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
+
+        -- Check if a lure is selected
+        if not selectedLureID then
+            print("|cffff0000Classic Fishing Companion:|r No lure selected!")
+            print("|cff00ff00Tip:|r Open the Lure tab to select a lure first.")
+            return
+        end
+
+        -- Check if the lure is in the player's bags
+        local lureCount = GetItemCount(selectedLureID)
+        if lureCount == 0 then
+            local lureName = lureNames[selectedLureID] or "Unknown Lure"
+            print("|cffff0000Classic Fishing Companion:|r You don't have any " .. lureName .. " in your bags!")
+            return
+        end
+
+        -- Check if user has gear sets configured and is in current mode
+        if CFC:HasGearSets() then
+            local currentMode = CFC:GetCurrentGearMode()
+            if currentMode == "current" then
+                print("|cffff0000Classic Fishing Companion:|r You're not in fishing gear! Swap to fishing gear first.")
+                print("|cff00ff00Tip:|r Click the 'Swap to' button or use /cfc swap")
+            end
         end
     end)
 
-    -- Tooltip for lure button
+    -- Tooltip for apply lure button
     hudFrame.applyLureButton:SetScript("OnEnter", function(self)
         HUDModule:ShowTextOnlyHover()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -280,13 +265,12 @@ function CFC:InitializeHUD()
         local selectedLureID = CFC.db.profile.selectedLure
         if selectedLureID then
             local lureName = lureNamesWithBonus[selectedLureID] or "Unknown Lure"
-            GameTooltip:SetText("Lure Manager", 1, 1, 1)
+            GameTooltip:SetText("Apply Lure", 1, 1, 1)
             GameTooltip:AddLine("Selected: " .. lureName, 0.8, 0.8, 0.8)
-            GameTooltip:AddLine("Click to open Lure tab", 0.6, 1, 0.6)
+            GameTooltip:AddLine("Click to apply lure to fishing pole", 0.6, 1, 0.6)
         else
-            GameTooltip:SetText("Lure Manager", 1, 1, 1)
-            GameTooltip:AddLine("No lure selected", 1, 0.5, 0.5)
-            GameTooltip:AddLine("Click to open Lure tab", 0.6, 1, 0.6)
+            GameTooltip:SetText("No Lure Selected", 1, 0.5, 0.5)
+            GameTooltip:AddLine("Open Lure Manager tab to select a lure", 0.8, 0.8, 0.8)
         end
 
         GameTooltip:Show()
@@ -381,12 +365,6 @@ function CFC:InitializeHUD()
 
     -- Initial update
     HUDModule:Update()
-
-    -- Update lure button icon
-    HUDModule:UpdateLureButton()
-
-    -- Update Rumsey icon
-    HUDModule:UpdateRumseyIcon()
 
     -- Show or hide based on settings
     if CFC.db.profile.hud.show then
@@ -510,12 +488,6 @@ function HUDModule:Update()
             end
         end
 
-        -- Check for Captain Rumsey's Lager buff and add to skill display
-        local rumseyBuff = HUDModule:GetRumseyBuff()
-        if rumseyBuff then
-            skillText = skillText .. " |cff00ccff+10|r |TInterface\\Icons\\INV_Drink_03:14|t"
-        end
-
         hudFrame.skillText:SetText(skillText)
     else
         hudFrame.skillText:SetText("Skill: |cffaaaaaa--/--|r")
@@ -542,10 +514,6 @@ function HUDModule:Update()
         hudFrame.buffText:SetText("Lure: |cffff0000None|r")
         hudFrame.buffTimerText:SetText("")
     end
-
-
-    -- Update Rumsey icon state
-    HUDModule:UpdateRumseyIcon()
 
     -- Update goals display
     local goalCount = 0
@@ -607,22 +575,6 @@ function HUDModule:Update()
 
     hudFrame:SetHeight(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
     hudFrame:SetWidth(HUDModule:GetRequiredWidth())
-end
-
--- Update lure button with selected lure icon
-function HUDModule:UpdateLureButton()
-    if not hudFrame or not hudFrame.applyLureButton or not CFC.db then
-        return
-    end
-
-    local selectedLureID = CFC.db.profile.selectedLure
-    if selectedLureID and lureIcons[selectedLureID] then
-        local iconPath = lureIcons[selectedLureID]
-        hudFrame.applyLureButton:SetText("Lure |TInterface\\Icons\\" .. iconPath .. ":16|t")
-    else
-        -- Default icon if no lure selected
-        hudFrame.applyLureButton:SetText("Lure |TInterface\\Icons\\INV_Misc_Food_26:16|t")
-    end
 end
 
 -- Format time in seconds to readable string (MM:SS)
@@ -704,11 +656,6 @@ function HUDModule:GetFishingPoleBonus()
     return result
 end
 
--- Session cache for enchant IDs not in the static table (scanned once via tooltip, then cached)
-local enchantIdCache = {}
-local buffScanTooltip = nil
-
-
 -- Get current fishing buff (lure)
 -- Returns: { name = "Buff Name", expirationSeconds = 123 } or nil
 function HUDModule:GetCurrentFishingBuff()
@@ -718,108 +665,12 @@ function HUDModule:GetCurrentFishingBuff()
     if hasMainHandEnchant then
         local expirationSeconds = math.floor(mainHandExpiration / 1000)
 
-        -- First: try direct enchant ID lookup (instant, no tooltip)
+        -- Use direct enchant ID lookup (no tooltip scan needed, avoids tooltip flashing)
         if mainHandEnchantId and CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId] then
-            local name = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId]
-            -- Attractor and Sharpened Fish Hook share enchant ID 266 -- resolve which one.
-            if mainHandEnchantId == CFC.CONSTANTS.SHARED_PLUS100_ENCHANT_ID then
-                name = CFC:ResolveSharedPlus100Lure()
-            end
-            return { name = name, expirationSeconds = expirationSeconds }
+            return { name = CFC.CONSTANTS.LURE_ENCHANT_IDS[mainHandEnchantId], expirationSeconds = expirationSeconds }
         end
 
-        -- Second: check session cache (previously scanned unknown enchant IDs)
-        if mainHandEnchantId and enchantIdCache[mainHandEnchantId] ~= nil then
-            if enchantIdCache[mainHandEnchantId] == false then
-                -- Cached as not-a-lure, skip
-            else
-                return { name = enchantIdCache[mainHandEnchantId], expirationSeconds = expirationSeconds }
-            end
-        elseif mainHandEnchantId then
-            -- Unknown enchant ID — do a ONE-TIME tooltip scan and cache the result
-            if not buffScanTooltip then
-                buffScanTooltip = CreateFrame("GameTooltip", "CFCHUDBuffScanTooltip", nil, "GameTooltipTemplate")
-            end
-
-            buffScanTooltip:Hide()
-            buffScanTooltip:ClearLines()
-            buffScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
-            buffScanTooltip:SetInventoryItem("player", 16)
-            buffScanTooltip:Show()
-
-            local fishingBonus = nil
-            local matchedLureName = nil
-            for i = 1, buffScanTooltip:NumLines() do
-                local line = _G["CFCHUDBuffScanTooltipTextLeft" .. i]
-                if line then
-                    local text = line:GetText()
-                    if text then
-                        local bonus = string.match(text, "Lure.*%(%+(%d+)")
-                        if not bonus then
-                            bonus = string.match(text, "Fishing Lure %+(%d+)")
-                        end
-                        if bonus then
-                            fishingBonus = tonumber(bonus)
-                            break
-                        end
-                        -- Fallback: some lures (e.g. Sharpened Fish Hook) show their
-                        -- name on the temporary-enchant line with no "+N" bonus text,
-                        -- so match the enchant line against known lure names by substring.
-                        local textLower = string.lower(text)
-                        for _, name in pairs(lureNames) do
-                            if string.find(textLower, string.lower(name), 1, true) then
-                                matchedLureName = name
-                                break
-                            end
-                        end
-                        if matchedLureName then
-                            break
-                        end
-                    end
-                end
-            end
-
-            buffScanTooltip:Hide()
-
-            if fishingBonus then
-                -- Prefer selected lure name if bonus matches
-                local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
-                local selectedLureName = selectedLureID and lureNames[selectedLureID]
-                local selectedLureBonus = selectedLureID and (
-                    selectedLureID == 34861 and 100 or
-                    selectedLureID == 6533 and 100 or
-                    selectedLureID == 6532 and 75 or
-                    selectedLureID == 7307 and 75 or
-                    selectedLureID == 6530 and 50 or
-                    selectedLureID == 6811 and 50 or
-                    selectedLureID == 6529 and 25
-                )
-                local buffName
-                if selectedLureName and selectedLureBonus == fishingBonus then
-                    buffName = selectedLureName
-                else
-                    buffName = bonusToLureName[fishingBonus] or ("Lure (+" .. fishingBonus .. ")")
-                end
-                enchantIdCache[mainHandEnchantId] = buffName
-                if CFC.debug then
-                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as: " .. buffName)
-                end
-                return { name = buffName, expirationSeconds = expirationSeconds }
-            elseif matchedLureName then
-                -- Identified by name (enchant line carried no numeric "+N" bonus)
-                enchantIdCache[mainHandEnchantId] = matchedLureName
-                if CFC.debug then
-                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as (by name): " .. matchedLureName)
-                end
-                return { name = matchedLureName, expirationSeconds = expirationSeconds }
-            else
-                -- Not a fishing lure (e.g. sharpening stone) — cache as false so we never scan again
-                enchantIdCache[mainHandEnchantId] = false
-                if CFC.debug then
-                    print("|cffff8800[CFC Debug]|r Cached enchant ID " .. mainHandEnchantId .. " as: not a lure")
-                end
-            end
-        end
+        -- Unknown enchant ID — not a fishing lure (e.g. sharpening stone), skip it
     end
 
     -- Check for fishing-related buffs
@@ -845,24 +696,6 @@ function HUDModule:GetCurrentFishingBuff()
         end
     end
 
-    return nil
-end
-
--- Get Captain Rumsey's Lager buff status
--- Returns: { name = "Rumsey Rum Black Label", expirationSeconds = 123 } or nil
-function HUDModule:GetRumseyBuff()
-    for i = 1, 40 do
-        local buffName, _, _, _, _, expirationTime = UnitBuff("player", i)
-        if buffName then
-            if string.find(string.lower(buffName), "rumsey") then
-                local remainingSeconds = 0
-                if expirationTime and expirationTime > 0 then
-                    remainingSeconds = math.floor(expirationTime - GetTime())
-                end
-                return { name = buffName, expirationSeconds = remainingSeconds }
-            end
-        end
-    end
     return nil
 end
 
@@ -992,9 +825,6 @@ function HUDModule:HideTextOnlyHover()
     if IsTextOnlyMode() and hudFrame then
         C_Timer.After(0, function()
             if hudFrame:IsMouseOver() then return end
-            if hudFrame.lockIcon and hudFrame.lockIcon:IsMouseOver() then return end
-            if hudFrame.applyLureButton and hudFrame.applyLureButton:IsMouseOver() then return end
-            if hudFrame.gearSwapButton and hudFrame.gearSwapButton:IsMouseOver() then return end
             hudFrame.minimalBg:Hide()
             if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
             if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
@@ -1049,15 +879,10 @@ function HUDModule:ApplyButtonVisibility()
     end
 
     -- In text-only mode, hide buttons and lock icon (shown on hover)
-    -- Skip if mouse is over the HUD or any child element to avoid fighting with hover show
-    if IsTextOnlyMode() and not hudFrame:IsMouseOver()
-        and not (hudFrame.lockIcon and hudFrame.lockIcon:IsMouseOver())
-        and not (hudFrame.applyLureButton and hudFrame.applyLureButton:IsMouseOver())
-        and not (hudFrame.gearSwapButton and hudFrame.gearSwapButton:IsMouseOver()) then
+    if IsTextOnlyMode() then
         if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
         if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
         if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end
-        if hudFrame.rumseyIcon then hudFrame.rumseyIcon:Hide() end
     end
 
     -- Resize HUD based on button visibility and goals
@@ -1067,33 +892,12 @@ function HUDModule:ApplyButtonVisibility()
 end
 
 -- Update lock state visual
--- Update Rumsey icon appearance based on enabled/disabled state
-function HUDModule:UpdateRumseyIcon()
-    if not hudFrame or not hudFrame.rumseyIcon then return end
-
-    -- Show/hide based on setting
-    if not CFC.db.profile.settings.hudShowRumseyButton or IsTextOnlyMode() then
-        hudFrame.rumseyIcon:Hide()
-        return
-    end
-    hudFrame.rumseyIcon:Show()
-
-    if CFC.db.profile.settings.autoRumsey then
-        hudFrame.rumseyIcon.texture:SetDesaturated(false)
-        hudFrame.rumseyIcon.texture:SetVertexColor(1, 1, 1)
-    else
-        hudFrame.rumseyIcon.texture:SetDesaturated(true)
-        hudFrame.rumseyIcon.texture:SetVertexColor(0.5, 0.5, 0.5)
-    end
-end
-
 function HUDModule:UpdateLockState()
     if not hudFrame or not CFC.db then
         return
     end
 
     if CFC.db.profile.hud.locked then
-        -- Locked icon (red padlock)
         hudFrame.lockIcon.texture:SetTexture("Interface\\Buttons\\LockButton-Locked-Up")
         -- In text-only mode, keep mouse enabled for hover-reveal (drag is still blocked)
         if IsTextOnlyMode() then
@@ -1102,7 +906,6 @@ function HUDModule:UpdateLockState()
             hudFrame:EnableMouse(false)
         end
     else
-        -- Unlocked icon (open padlock)
         hudFrame.lockIcon.texture:SetTexture("Interface\\Buttons\\LockButton-Unlocked-Up")
         hudFrame:EnableMouse(true)
     end

@@ -2,6 +2,22 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.0] - 2026-09-22
+
+### Added
+- **World of Warcraft: Forever support (beta testing).** This build is for testing on the Forever beta; expect rough edges, and fixes will follow as the beta changes. Forever runs on the modern game API, so it gets its own copy of the addon (`Forever/`, loaded by `ClassicFishingCompanion_Camelot.toc`). Classic Era and TBC files are unchanged by the port
+- The HUD **Setup** button now opens the Gear Sets tab when no fishing set is saved, instead of printing a chat tip
+- Your normal gear is remembered automatically on first setup. If you put your fishing gear on before saving the fishing set, the addon rebuilds your normal set from what you were wearing earlier in the session, so the first swap back works
+
+### Fixed
+- Easy Cast no longer activates without a fishing pole equipped. Double right-clicking in a combat gear set tried to cast Fishing and the game answered "Must have a Fishing Pole equipped"
+- The HUD gear button no longer gets out of sync after logging out mid-swap. On login the addon checks your main hand and sets fishing or normal mode to match
+- Saving your fishing set while wearing it now updates the HUD immediately. Previously it kept offering "Swap to fishing", and clicking it saved your fishing gear as your normal set
+- Fishing pole detection for gear swaps now uses the item's type instead of its name text, so it works before item details have loaded
+
+### Known Issues
+- **Forever beta:** the client writes addon SavedVariables on exit but doesn't load them back, so catches and settings reset after a restart. This is a Blizzard client bug ([forum report](https://eu.forums.blizzard.com/en/wow/t/wow-forever-game-not-save-any-addons-settings/629470)); the addon will keep your data normally once it's fixed
+
 ## [1.1.13] - 2026-08-18
 
 ### Fixed

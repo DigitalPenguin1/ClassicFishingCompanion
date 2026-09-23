@@ -3605,6 +3605,16 @@ function UI:FormatTime(seconds)
     end
 end
 
+-- Open the main window on a specific tab
+function CFC:OpenUITab(tabName)
+    currentTab = tabName
+    if mainFrame and mainFrame:IsShown() then
+        UI:ShowTab(tabName)
+    else
+        self:ToggleUI()
+    end
+end
+
 -- Toggle UI
 function CFC:ToggleUI()
     if not mainFrame then
@@ -3852,6 +3862,18 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.0"] = {
+        features = {
+            "The HUD Setup button now opens the Gear Sets tab",
+            "Your normal gear is remembered automatically when you save a fishing set while already wearing it",
+        },
+        fixes = {
+            "Double right-click no longer tries to cast Fishing when you don't have a fishing pole equipped",
+            "The HUD gear button now matches the gear you're wearing when you log in, even if you logged out mid-swap",
+            "Saving your fishing set while wearing it now updates the HUD right away, instead of offering to swap to fishing gear you already have on",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.1.13"] = {
         fixes = {
             "Fishing totals no longer count loot from other sources - mob loot, gathering, and items opened from your bags are no longer recorded as catches",

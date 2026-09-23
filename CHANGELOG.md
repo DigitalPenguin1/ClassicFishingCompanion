@@ -5,7 +5,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
 ## [1.2.0] - 2026-09-22
 
 ### Added
-- **World of Warcraft: Forever support.** Forever runs on the modern game API, so it gets its own copy of the addon (`Forever/`, loaded by `ClassicFishingCompanion_Camelot.toc`). Classic Era and TBC files are unchanged by the port
+- **World of Warcraft: Forever support (beta testing).** This build is for testing on the Forever beta; expect rough edges, and fixes will follow as the beta changes. Forever runs on the modern game API, so it gets its own copy of the addon (`Forever/`, loaded by `ClassicFishingCompanion_Camelot.toc`). Classic Era and TBC files are unchanged by the port
 - The HUD **Setup** button now opens the Gear Sets tab when no fishing set is saved, instead of printing a chat tip
 - Your normal gear is remembered automatically on first setup. If you put your fishing gear on before saving the fishing set, the addon rebuilds your normal set from what you were wearing earlier in the session, so the first swap back works
 

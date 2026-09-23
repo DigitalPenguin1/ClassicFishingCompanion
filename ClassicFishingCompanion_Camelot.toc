@@ -1,6 +1,6 @@
 ## Interface: 16001
-## Title: Classic Fishing Companion (Forever)
-## Notes: Track your fishing catches, fish per hour, locations, and statistics
+## Title: Classic Fishing Companion (Forever Beta)
+## Notes: Track your fishing catches, fish per hour, locations, and statistics. Forever support is for testing on the Forever beta; fixes will follow.
 ## Author: Relyk
 ## Version: 1.2.0
 ## SavedVariables: ClassicFishingCompanionDB

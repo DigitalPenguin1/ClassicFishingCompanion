@@ -3793,7 +3793,7 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 local whatsNewContent = {
     ["1.2.0"] = {
         features = {
-            "World of Warcraft: Forever support",
+            "World of Warcraft: Forever support (beta testing build)",
             "The HUD Setup button now opens the Gear Sets tab",
             "Your normal gear is remembered automatically when you save a fishing set while already wearing it",
         },
@@ -3802,7 +3802,7 @@ local whatsNewContent = {
             "The HUD gear button now matches the gear you're wearing when you log in, even if you logged out mid-swap",
             "Saving your fishing set while wearing it now updates the HUD right away, instead of offering to swap to fishing gear you already have on",
         },
-        tip = "Note: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nNote: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.1.13"] = {
         fixes = {

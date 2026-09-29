@@ -6,6 +6,22 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.1
+- HUD swap button shows gauntlets instead of a sword when swapping back to your normal gear, since your normal set might be healing or caster gear
+- **Forever** - HUD and all windows now use gold and bronze to match the Forever action bar
+- **Forever** - Classic Fishing Companion is listed in the addon list next to the minimap (left-click opens the window, right-click toggles the HUD)
+- **Forever** - New page under Esc > Options > AddOns to open the main window or its Settings
+- **Forever** - HUD Apply Lure button now applies your lure
+
+### v1.2.0
+- **World of Warcraft: Forever support (beta testing)** - loaded by its own TOC; Classic Era and TBC are unchanged
+- HUD **Setup** button opens the Gear Sets tab when no fishing set is saved
+- Your normal gear is remembered automatically when you save a fishing set while already wearing it
+- Double right-click no longer tries to cast Fishing without a fishing pole equipped
+- HUD gear button matches the gear you're wearing at login, even after logging out mid-swap
+- Saving your fishing set while wearing it updates the HUD right away
+- **Forever beta known issue:** the client doesn't load addon saved data after a restart, so catches and settings reset. This is a Blizzard bug
+
 ### v1.1.13
 - Fishing totals no longer count loot from other sources — mob loot, gathering, and containers opened from your bags are no longer recorded as catches ([#19](https://github.com/DigitalPenguin1/ClassicFishingCompanion/issues/19))
 - Fishing pole cast counts are no longer inflated by non-fishing loot

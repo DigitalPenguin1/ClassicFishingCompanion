@@ -9,7 +9,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - **Forever:** the HUD and every window now use gold and bronze to match the Forever action bar, replacing the grey borders and red buttons. The selected tab and gear set are highlighted in brighter gold
 
 ### Added
-- **Forever:** Classic Fishing Companion is listed in the addon compartment next to the minimap. Left-click opens the window, right-click toggles the HUD
+- **Forever:** Classic Fishing Companion is listed in the addon compartment next to the minimap. Left-click opens the window, right-click toggles the HUD. If you'd rather not have both, untick Settings > Show Minimap Icon; the compartment entry stays
 - **Forever:** an Esc > Options > AddOns page with buttons to open the main window or its Settings tab
 
 ### Fixed

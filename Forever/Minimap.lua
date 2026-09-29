@@ -285,7 +285,7 @@ function MinimapModule:ToggleButton()
 
     if CFC.db.profile.minimap.hide then
         minimapButton:Hide()
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden. Use /cfc to open.")
+        CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden. Open it from the addon list next to the minimap, or with /cfc.")
     else
         minimapButton:Show()
         CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")

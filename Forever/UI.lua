@@ -2632,7 +2632,7 @@ function UI:CreateSettingsTab()
                 CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button shown.")
             else
                 CFC.minimapButton:Hide()
-                CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden.")
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Minimap button hidden. Open it from the addon list next to the minimap, or with /cfc.")
             end
         end
     end)
@@ -2643,7 +2643,7 @@ function UI:CreateSettingsTab()
     frame.minimapDesc:SetJustifyH("LEFT")
     frame.minimapDesc:SetWidth(500)
     frame.minimapDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.minimapDesc:SetText("Display the fishing companion icon on the minimap for quick access.")
+    frame.minimapDesc:SetText("Display the fishing companion icon on the minimap for quick access. Hidden or not, Classic Fishing Companion is always in the addon list next to the minimap.")
 
     -- Per-Character Mode Checkbox
     frame.perCharacterCheck = CreateFrame("CheckButton", "CFCPerCharacterCheck", frame.scrollChild, "UICheckButtonTemplate")
@@ -3811,7 +3811,7 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 local whatsNewContent = {
     ["1.2.1"] = {
         features = {
-            "Classic Fishing Companion is now in the addon list next to the minimap: left-click opens the window, right-click toggles the HUD",
+            "Classic Fishing Companion is now in the addon list next to the minimap: left-click opens the window, right-click toggles the HUD. You can hide the minimap icon in Settings and use this instead",
             "New page under Esc > Options > AddOns to open the main window or its Settings",
         },
         changes = {

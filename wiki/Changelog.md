@@ -9,7 +9,7 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 ### v1.2.1
 - HUD swap button shows gauntlets instead of a sword when swapping back to your normal gear, since your normal set might be healing or caster gear
 - **Forever** - HUD and all windows now use gold and bronze to match the Forever action bar
-- **Forever** - Classic Fishing Companion is listed in the addon list next to the minimap (left-click opens the window, right-click toggles the HUD)
+- **Forever** - Classic Fishing Companion is listed in the addon list next to the minimap (left-click opens the window, right-click toggles the HUD). Hide the minimap icon in Settings if you only want one
 - **Forever** - New page under Esc > Options > AddOns to open the main window or its Settings
 - **Forever** - HUD Apply Lure button now applies your lure
 

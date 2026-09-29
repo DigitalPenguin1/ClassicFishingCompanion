@@ -138,3 +138,103 @@ function Theme.SetSelected(button, selected)
         UpdateButtonBorder(button)
     end
 end
+
+-- Draw a 1px border around a region, using textures on the region's frame
+function Theme.AddBorder(frame, region, color, alpha)
+    local r, g, b, a = Theme.Color(color or Theme.GOLD, alpha)
+    local edges = {}
+    for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+        local edge = frame:CreateTexture(nil, "OVERLAY")
+        edge:SetColorTexture(r, g, b, a)
+        edges[side] = edge
+    end
+    edges.TOP:SetPoint("TOPLEFT", region, "TOPLEFT", -1, 1)
+    edges.TOP:SetPoint("TOPRIGHT", region, "TOPRIGHT", 1, 1)
+    edges.TOP:SetHeight(1)
+    edges.BOTTOM:SetPoint("BOTTOMLEFT", region, "BOTTOMLEFT", -1, -1)
+    edges.BOTTOM:SetPoint("BOTTOMRIGHT", region, "BOTTOMRIGHT", 1, -1)
+    edges.BOTTOM:SetHeight(1)
+    edges.LEFT:SetPoint("TOPLEFT", region, "TOPLEFT", -1, 1)
+    edges.LEFT:SetPoint("BOTTOMLEFT", region, "BOTTOMLEFT", -1, -1)
+    edges.LEFT:SetWidth(1)
+    edges.RIGHT:SetPoint("TOPRIGHT", region, "TOPRIGHT", 1, 1)
+    edges.RIGHT:SetPoint("BOTTOMRIGHT", region, "BOTTOMRIGHT", 1, -1)
+    edges.RIGHT:SetWidth(1)
+
+    function edges:SetColor(cr, cg, cb, ca)
+        for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+            self[side]:SetColorTexture(cr, cg, cb, ca or 1)
+        end
+    end
+    function edges:SetShown(shown)
+        for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+            self[side]:SetShown(shown)
+        end
+    end
+    return edges
+end
+
+-- Glossy status bar fill, tinted. Replaces a flat SetColorTexture on bar fills.
+local STATUSBAR_TEXTURE = "Interface\\TargetingFrame\\UI-StatusBar"
+function Theme.SetBarFill(texture, r, g, b, a)
+    texture:SetTexture(STATUSBAR_TEXTURE)
+    texture:SetVertexColor(r, g, b, a or 1)
+end
+
+-- Crop the default icon edge and give it a 1px border colored by item quality
+function Theme.StyleIcon(frame, icon)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    icon.cfcBorder = Theme.AddBorder(frame, icon, Theme.GOLD, 0.6)
+end
+
+-- Quality 2 (green) and up get their quality color; common and unknown stay gold
+function Theme.SetIconQuality(icon, quality)
+    if not icon.cfcBorder then
+        return
+    end
+    if quality and quality >= 2 and C_Item and C_Item.GetItemQualityColor then
+        local r, g, b = C_Item.GetItemQualityColor(quality)
+        if r then
+            icon.cfcBorder:SetColor(r, g, b, 1)
+            return
+        end
+    end
+    icon.cfcBorder:SetColor(Theme.Color(Theme.GOLD, 0.6))
+end
+
+-- Modern dropdown (WowStyle1DropdownTemplate) with one radio option per choice.
+--   opts.getOptions()      -> { { text = "...", value = ... }, ... }
+--   opts.getSelected()     -> the selected value, or nil
+--   opts.onSelect(value)   -> called when the player picks an option
+--   opts.defaultText       -> shown while nothing is selected
+--   opts.emptyText         -> shown (disabled) when there are no options
+-- Call dropdown:GenerateMenu() after changing the selection from outside.
+function Theme.CreateDropdown(parent, width, opts)
+    local dropdown = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
+    dropdown:SetWidth(width)
+    if opts.defaultText then
+        dropdown:SetDefaultText(opts.defaultText)
+    end
+
+    local function IsSelected(value)
+        return opts.getSelected() == value
+    end
+    local function SetSelected(value)
+        opts.onSelect(value)
+    end
+
+    dropdown:SetupMenu(function(_, rootDescription)
+        local options = opts.getOptions()
+        if #options == 0 and opts.emptyText then
+            rootDescription:CreateTitle(opts.emptyText)
+        end
+        -- Long catch lists scroll instead of running off the screen
+        if #options > 20 and rootDescription.SetScrollMode then
+            rootDescription:SetScrollMode(20 * 20)
+        end
+        for _, option in ipairs(options) do
+            rootDescription:CreateRadio(option.text, IsSelected, SetSelected, option.value)
+        end
+    end)
+    return dropdown
+end

@@ -14,6 +14,7 @@ CFC.UI = {}
 local UI = CFC.UI
 
 -- UI State
+local RECENT_ROW_HEIGHT = 22
 local mainFrame = nil
 local currentTab = "overview"
 local historyExpandedZones = {}
@@ -91,6 +92,21 @@ function UI:IsFishItem(itemName, itemType, itemSubType)
     end
 
     return isFish
+end
+
+-- Caught fish as dropdown options, sorted by name (Goals and Release tabs)
+local function GetFishDropdownOptions()
+    local options = {}
+    for _, item in ipairs(CFC.Database:GetFishList()) do
+        local fishData = CFC.db.profile.fishData[item.name]
+        local itemType = item.itemType or (fishData and fishData.itemType)
+        local itemSubType = item.itemSubType or (fishData and fishData.itemSubType)
+        if UI:IsFishItem(item.name, itemType, itemSubType) then
+            table.insert(options, { text = item.name, value = item.name })
+        end
+    end
+    table.sort(options, function(a, b) return a.text < b.text end)
+    return options
 end
 
 -- Initialize UI
@@ -308,13 +324,11 @@ function UI:CreateOverviewTab()
     frame.recentContent:SetSize(530, 1)
     frame.recentList:SetScrollChild(frame.recentContent)
 
-    frame.recentText = frame.recentContent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.recentText:SetPoint("TOPLEFT", frame.recentContent, "TOPLEFT", 5, -5)
-    frame.recentText:SetJustifyH("LEFT")
-    frame.recentText:SetJustifyV("TOP")
-    frame.recentText:SetWidth(510)
-    frame.recentText:SetNonSpaceWrap(false)
-    frame.recentText:SetWordWrap(true)
+    -- One row per recent catch (created on demand in UpdateOverview)
+    frame.recentRows = {}
+    frame.recentEmpty = frame.recentContent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.recentEmpty:SetPoint("TOPLEFT", frame.recentContent, "TOPLEFT", 5, -5)
+    frame.recentEmpty:SetText("No catches yet. Go fishing!")
 
     mainFrame.overviewFrame = frame
 end
@@ -345,27 +359,108 @@ function UI:UpdateOverview()
 
     -- Recent catches
     local recent = CFC.Database:GetRecentCatches(10)
-    local recentText = ""
+    for i, catch in ipairs(recent) do
+        local row = frame.recentRows[i] or UI:CreateRecentCatchRow(frame.recentContent, i)
+        frame.recentRows[i] = row
+        UI:SetRecentCatchRow(row, catch)
+        row:Show()
+    end
+    for i = #recent + 1, #frame.recentRows do
+        frame.recentRows[i]:Hide()
+    end
+    frame.recentEmpty:SetShown(#recent == 0)
 
-    for _, catch in ipairs(recent) do
-        local itemName = catch.itemName or "Unknown"
-        local coloredName = CFC:GetColoredItemName(itemName)
-        local location = catch.zone or "Unknown Zone"
-        if catch.subzone and catch.subzone ~= "" then
-            location = location .. " - " .. catch.subzone
+    frame.recentContent:SetHeight(math.max(150, #recent * RECENT_ROW_HEIGHT + 10))
+end
+
+-- "5m ago", "3h ago", "2d ago"
+local function FormatTimeAgo(timestamp)
+    local seconds = math.max(0, time() - (timestamp or 0))
+    if seconds < 60 then
+        return "just now"
+    elseif seconds < 3600 then
+        return math.floor(seconds / 60) .. "m ago"
+    elseif seconds < 86400 then
+        return math.floor(seconds / 3600) .. "h ago"
+    end
+    return math.floor(seconds / 86400) .. "d ago"
+end
+
+-- Recent Catches row: icon, quality-colored name, location, and how long ago
+function UI:CreateRecentCatchRow(parent, index)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetSize(520, RECENT_ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -(index - 1) * RECENT_ROW_HEIGHT)
+
+    -- Alternate rows get a faint stripe
+    if index % 2 == 1 then
+        row.stripe = row:CreateTexture(nil, "BACKGROUND")
+        row.stripe:SetAllPoints()
+        row.stripe:SetColorTexture(Theme.Color(Theme.BRONZE, 0.35))
+    end
+
+    row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    row.highlight:SetAllPoints()
+    row.highlight:SetColorTexture(Theme.Color(Theme.GOLD_LIGHT, 0.12))
+
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(18, 18)
+    row.icon:SetPoint("LEFT", row, "LEFT", 5, 0)
+    Theme.StyleIcon(row, row.icon)
+
+    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+    row.name:SetWidth(200)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+
+    row.location = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.location:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
+    row.location:SetWidth(210)
+    row.location:SetJustifyH("LEFT")
+    row.location:SetWordWrap(false)
+    row.location:SetTextColor(Theme.Color(Theme.GOLD_LIGHT))
+
+    row.ago = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.ago:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+    row.ago:SetJustifyH("RIGHT")
+
+    row:EnableMouse(true)
+    row:SetScript("OnEnter", function(self)
+        if not self.itemName then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        local _, itemLink = GetItemInfo(self.itemName)
+        if itemLink then
+            GameTooltip:SetHyperlink(itemLink)
+        else
+            GameTooltip:SetText(self.itemName, 1, 1, 1)
         end
-        recentText = recentText .. coloredName .. " - " .. location .. "\n"
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return row
+end
+
+function UI:SetRecentCatchRow(row, catch)
+    local itemName = catch.itemName or "Unknown"
+    row.itemName = itemName
+
+    local _, _, quality, _, _, _, _, _, _, texture = GetItemInfo(itemName)
+    local fishData = CFC.db.profile.fishData[itemName]
+    row.icon:SetTexture((fishData and fishData.icon) or texture or "Interface\\Icons\\INV_Misc_Fish_02")
+    Theme.SetIconQuality(row.icon, quality)
+
+    row.name:SetText(CFC:GetColoredItemName(itemName))
+
+    local location = catch.zone or "Unknown Zone"
+    if catch.subzone and catch.subzone ~= "" then
+        location = location .. " - " .. catch.subzone
     end
-
-    if recentText == "" then
-        recentText = "No catches yet. Go fishing!"
-    end
-
-    frame.recentText:SetText(recentText)
-
-    -- Update scroll child height based on text content
-    local textHeight = frame.recentText:GetStringHeight()
-    frame.recentContent:SetHeight(math.max(150, textHeight + 10))
+    row.location:SetText(location)
+    row.ago:SetText(FormatTimeAgo(catch.timestamp))
 end
 
 -- Create Catch List Tab
@@ -521,6 +616,7 @@ function UI:UpdateFishList()
 
             -- Icon texture
             entry.icon = entry:CreateTexture(nil, "ARTWORK")
+            Theme.StyleIcon(entry, entry.icon)
             entry.icon:SetSize(24, 24)
             entry.icon:SetPoint("LEFT", entry, "LEFT", 10, 0)
 
@@ -758,6 +854,7 @@ function UI:UpdateFishList()
 
         -- Set icon (itemTexture is guaranteed to exist at this point)
         entry.icon:SetTexture(itemTexture)
+        Theme.SetIconQuality(entry.icon, (select(3, GetItemInfo(fish.name))))
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r   ✓ Icon set to: " .. tostring(itemTexture))
         end
@@ -813,6 +910,7 @@ function UI:UpdateFishList()
 
             -- Icon texture
             entry.icon = entry:CreateTexture(nil, "ARTWORK")
+            Theme.StyleIcon(entry, entry.icon)
             entry.icon:SetSize(24, 24)
             entry.icon:SetPoint("LEFT", entry, "LEFT", 10, 0)
 
@@ -1050,6 +1148,7 @@ function UI:UpdateFishList()
 
         -- Set icon (itemTexture is guaranteed to exist at this point)
         entry.icon:SetTexture(itemTexture)
+        Theme.SetIconQuality(entry.icon, (select(3, GetItemInfo(misc.name))))
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r   ✓ Icon set to: " .. tostring(itemTexture))
         end
@@ -1212,6 +1311,7 @@ function UI:GetFishEntry(parent, index)
 
     -- Fish icon
     entry.icon = entry:CreateTexture(nil, "ARTWORK")
+    Theme.StyleIcon(entry, entry.icon)
     entry.icon:SetSize(24, 24)
     entry.icon:SetPoint("LEFT", entry, "LEFT", 10, 0)
 
@@ -1406,6 +1506,7 @@ function UI:UpdateHistory()
                 -- Icon
                 local iconTexture = self:GetFishIcon(fishInfo.name)
                 entry.icon:SetTexture(iconTexture)
+                Theme.SetIconQuality(entry.icon, (select(3, GetItemInfo(fishInfo.name))))
                 entry.icon:Show()
 
                 -- Color-coded name
@@ -1442,12 +1543,13 @@ function UI:CreateBar(parent, index)
     bar.bg:SetPoint("LEFT", bar.label, "RIGHT", 5, 0)
     bar.bg:SetSize(200, 14)
     bar.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
+    Theme.AddBorder(bar, bar.bg, Theme.GOLD, 0.8)
 
     -- Bar fill
     bar.fill = bar:CreateTexture(nil, "ARTWORK")
     bar.fill:SetPoint("LEFT", bar.bg, "LEFT", 0, 0)
     bar.fill:SetHeight(14)
-    bar.fill:SetColorTexture(0.0, 0.8, 0.4, 1.0)  -- Green fill
+    Theme.SetBarFill(bar.fill, 0.0, 0.8, 0.4)  -- Green fill
 
     -- Value text
     bar.value = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -1494,7 +1596,7 @@ function UI:CreateStatsTab()
     for i = 1, 5 do
         local bar = UI:CreateBar(frame.hourlyContainer, i)
         bar:SetPoint("TOPLEFT", frame.hourlyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
-        bar.fill:SetColorTexture(1.0, 0.6, 0.0, 1.0)  -- Orange fill for hourly
+        Theme.SetBarFill(bar.fill, 1.0, 0.6, 0.0)  -- Orange fill for hourly
         frame.hourlyBars[i] = bar
     end
 
@@ -1523,7 +1625,7 @@ function UI:CreateStatsTab()
     for i = 1, 4 do
         local bar = UI:CreateBar(frame.weeklyContainer, i)
         bar:SetPoint("TOPLEFT", frame.weeklyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
-        bar.fill:SetColorTexture(0.2, 0.6, 1.0, 1.0)  -- Blue fill for weekly
+        Theme.SetBarFill(bar.fill, 0.2, 0.6, 1.0)  -- Blue fill for weekly
         frame.weeklyBars[i] = bar
     end
 
@@ -2115,49 +2217,20 @@ function UI:CreateGoalsTab()
     frame.fishLabel:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -15)
     frame.fishLabel:SetText("Fish:")
 
-    frame.fishDropdown = CreateFrame("Frame", "CFCGoalFishDropdown", frame, "UIDropDownMenuTemplate")
-    frame.fishDropdown:SetPoint("LEFT", frame.fishLabel, "RIGHT", -10, -2)
-    UIDropDownMenu_SetWidth(frame.fishDropdown, 180)
-
     frame.selectedFish = nil
 
-    local function GoalFishDropdown_Initialize(self, level)
-        local allItems = CFC.Database:GetFishList()
-        table.sort(allItems, function(a, b) return a.name < b.name end)
-        local found = false
-
-        for _, item in ipairs(allItems) do
-            local itemType = item.itemType or (CFC.db.profile.fishData[item.name] and CFC.db.profile.fishData[item.name].itemType)
-            local itemSubType = item.itemSubType or (CFC.db.profile.fishData[item.name] and CFC.db.profile.fishData[item.name].itemSubType)
-            if UI:IsFishItem(item.name, itemType, itemSubType) then
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = item.name
-                info.value = item.name
-                info.notCheckable = true
-                info.func = function()
-                    frame.selectedFish = item.name
-                    UIDropDownMenu_SetText(frame.fishDropdown, item.name)
-                end
-                UIDropDownMenu_AddButton(info, level)
-                found = true
-            end
-        end
-
-        if not found then
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "No fish caught yet"
-            info.disabled = true
-            info.notCheckable = true
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end
-
-    UIDropDownMenu_Initialize(frame.fishDropdown, GoalFishDropdown_Initialize)
-    UIDropDownMenu_SetText(frame.fishDropdown, "Choose fish...")
+    frame.fishDropdown = Theme.CreateDropdown(frame, 180, {
+        defaultText = "Choose fish...",
+        emptyText = "No fish caught yet",
+        getOptions = GetFishDropdownOptions,
+        getSelected = function() return frame.selectedFish end,
+        onSelect = function(value) frame.selectedFish = value end,
+    })
+    frame.fishDropdown:SetPoint("LEFT", frame.fishLabel, "RIGHT", 8, 0)
 
     -- Target count input
     frame.targetLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.targetLabel:SetPoint("LEFT", frame.fishDropdown, "RIGHT", 5, 2)
+    frame.targetLabel:SetPoint("LEFT", frame.fishDropdown, "RIGHT", 10, 0)
     frame.targetLabel:SetText("Target:")
 
     frame.targetInput = CreateFrame("EditBox", "CFCGoalTargetInput", frame, "InputBoxTemplate")
@@ -2205,7 +2278,7 @@ function UI:CreateGoalsTab()
         -- Reset inputs
         frame.selectedFish = nil
         frame.targetInput:SetText("")
-        UIDropDownMenu_SetText(frame.fishDropdown, "Choose fish...")
+        frame.fishDropdown:GenerateMenu()
 
         UI:UpdateGoals()
         if CFC.HUD and CFC.HUD.Update then CFC.HUD:Update() end
@@ -2250,6 +2323,7 @@ function UI:UpdateGoals()
 
             -- Icon
             entry.icon = entry:CreateTexture(nil, "ARTWORK")
+            Theme.StyleIcon(entry, entry.icon)
             entry.icon:SetSize(32, 32)
             entry.icon:SetPoint("LEFT", entry, "LEFT", 5, 0)
 
@@ -2264,12 +2338,13 @@ function UI:UpdateGoals()
             entry.barBg:SetPoint("LEFT", entry.icon, "RIGHT", 8, -8)
             entry.barBg:SetSize(200, 16)
             entry.barBg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
+            Theme.AddBorder(entry, entry.barBg, Theme.GOLD, 0.8)
 
             -- Progress bar fill
             entry.barFill = entry:CreateTexture(nil, "BORDER")
             entry.barFill:SetPoint("LEFT", entry.barBg, "LEFT", 0, 0)
             entry.barFill:SetHeight(16)
-            entry.barFill:SetColorTexture(0.2, 0.8, 0.2, 0.8)
+            Theme.SetBarFill(entry.barFill, Theme.Color(Theme.GOLD))
 
             -- Progress text
             entry.progress = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -2290,6 +2365,7 @@ function UI:UpdateGoals()
         -- Icon
         local iconTexture = self:GetFishIcon(goal.fishName)
         entry.icon:SetTexture(iconTexture)
+        Theme.SetIconQuality(entry.icon, (select(3, GetItemInfo(goal.fishName))))
 
         -- Name
         local coloredName = CFC:GetColoredItemName(goal.fishName)
@@ -2301,10 +2377,10 @@ function UI:UpdateGoals()
         entry.barFill:SetWidth(math.max(1, pct * 200))
 
         if current >= goal.targetCount then
-            entry.barFill:SetColorTexture(0.2, 0.8, 0.2, 0.8)
+            Theme.SetBarFill(entry.barFill, 0.2, 0.8, 0.2)  -- Green when complete
             entry.progress:SetText("|cff00ff00" .. current .. " / " .. goal.targetCount .. " (Complete!)|r")
         else
-            entry.barFill:SetColorTexture(0.2, 0.8, 0.2, 0.8)
+            Theme.SetBarFill(entry.barFill, Theme.Color(Theme.GOLD))
             entry.progress:SetText(current .. " / " .. goal.targetCount)
         end
 
@@ -2355,51 +2431,22 @@ function UI:CreateReleaseTab()
     frame.fishLabel:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -15)
     frame.fishLabel:SetText("Fish:")
 
-    frame.fishDropdown = CreateFrame("Frame", "CFCReleaseFishDropdown", frame, "UIDropDownMenuTemplate")
-    frame.fishDropdown:SetPoint("LEFT", frame.fishLabel, "RIGHT", -10, -2)
-    UIDropDownMenu_SetWidth(frame.fishDropdown, 200)
-
     frame.selectedFish = nil
 
-    local function ReleaseFishDropdown_Initialize(self, level)
-        local allItems = CFC.Database:GetFishList()
-        table.sort(allItems, function(a, b) return a.name < b.name end)
-        local found = false
-
-        for _, item in ipairs(allItems) do
-            local itemType = item.itemType or (CFC.db.profile.fishData[item.name] and CFC.db.profile.fishData[item.name].itemType)
-            local itemSubType = item.itemSubType or (CFC.db.profile.fishData[item.name] and CFC.db.profile.fishData[item.name].itemSubType)
-            if UI:IsFishItem(item.name, itemType, itemSubType) then
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = item.name
-                info.value = item.name
-                info.notCheckable = true
-                info.func = function()
-                    frame.selectedFish = item.name
-                    UIDropDownMenu_SetText(frame.fishDropdown, item.name)
-                end
-                UIDropDownMenu_AddButton(info, level)
-                found = true
-            end
-        end
-
-        if not found then
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "No fish caught yet"
-            info.disabled = true
-            info.notCheckable = true
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end
-
-    UIDropDownMenu_Initialize(frame.fishDropdown, ReleaseFishDropdown_Initialize)
-    UIDropDownMenu_SetText(frame.fishDropdown, "Choose fish...")
+    frame.fishDropdown = Theme.CreateDropdown(frame, 200, {
+        defaultText = "Choose fish...",
+        emptyText = "No fish caught yet",
+        getOptions = GetFishDropdownOptions,
+        getSelected = function() return frame.selectedFish end,
+        onSelect = function(value) frame.selectedFish = value end,
+    })
+    frame.fishDropdown:SetPoint("LEFT", frame.fishLabel, "RIGHT", 8, 0)
 
     -- Add to Release List button
     frame.addButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     Theme.SkinButton(frame.addButton)
     frame.addButton:SetSize(120, 25)
-    frame.addButton:SetPoint("LEFT", frame.fishDropdown, "RIGHT", 5, 2)
+    frame.addButton:SetPoint("LEFT", frame.fishDropdown, "RIGHT", 10, 0)
     frame.addButton:SetText("Add to List")
     frame.addButton:SetScript("OnClick", function()
         local fishName = frame.selectedFish
@@ -2417,7 +2464,7 @@ function UI:CreateReleaseTab()
         CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. fishName .. " added to release list.")
 
         frame.selectedFish = nil
-        UIDropDownMenu_SetText(frame.fishDropdown, "Choose fish...")
+        frame.fishDropdown:GenerateMenu()
         UI:UpdateReleaseList()
     end)
 
@@ -2467,6 +2514,7 @@ function UI:UpdateReleaseList()
 
             -- Icon
             entry.icon = entry:CreateTexture(nil, "ARTWORK")
+            Theme.StyleIcon(entry, entry.icon)
             entry.icon:SetSize(24, 24)
             entry.icon:SetPoint("LEFT", entry, "LEFT", 5, 0)
 
@@ -2491,6 +2539,7 @@ function UI:UpdateReleaseList()
         -- Icon
         local iconTexture = UI:GetFishIcon(fishName)
         entry.icon:SetTexture(iconTexture)
+        Theme.SetIconQuality(entry.icon, (select(3, GetItemInfo(fishName))))
 
         -- Name
         local coloredName = CFC:GetColoredItemName(fishName)
@@ -2682,30 +2731,20 @@ function UI:CreateSettingsTab()
     frame.lureIntervalLabel:SetPoint("TOPLEFT", frame.announceLuresDesc, "BOTTOMLEFT", 0, -15)
     frame.lureIntervalLabel:SetText("Warning Interval:")
 
-    frame.lureIntervalDropdown = CreateFrame("Frame", "CFCLureIntervalDropdown", frame.scrollChild, "UIDropDownMenuTemplate")
-    frame.lureIntervalDropdown:SetPoint("LEFT", frame.lureIntervalLabel, "RIGHT", -10, -2)
-    UIDropDownMenu_SetWidth(frame.lureIntervalDropdown, 100)
-
-    local function LureIntervalDropdown_Initialize(self, level)
-        local info = UIDropDownMenu_CreateInfo()
-        local intervals = {30, 60, 90}
-        local labels = {"30 seconds", "60 seconds", "90 seconds"}
-
-        for i, interval in ipairs(intervals) do
-            info.text = labels[i]
-            info.value = interval
-            info.func = function()
-                CFC.db.profile.settings.lureWarningInterval = interval
-                UIDropDownMenu_SetSelectedValue(frame.lureIntervalDropdown, interval)
-                UIDropDownMenu_SetText(frame.lureIntervalDropdown, labels[i])
-                CFC:Print("|cff00ff00Classic Fishing Companion:|r Lure warning interval set to |cffffff00" .. interval .. " seconds|r")
-            end
-            info.checked = (CFC.db.profile.settings.lureWarningInterval == interval)
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end
-
-    UIDropDownMenu_Initialize(frame.lureIntervalDropdown, LureIntervalDropdown_Initialize)
+    local lureIntervals = {
+        { text = "30 seconds", value = 30 },
+        { text = "60 seconds", value = 60 },
+        { text = "90 seconds", value = 90 },
+    }
+    frame.lureIntervalDropdown = Theme.CreateDropdown(frame.scrollChild, 120, {
+        getOptions = function() return lureIntervals end,
+        getSelected = function() return CFC.db.profile.settings.lureWarningInterval or 30 end,
+        onSelect = function(interval)
+            CFC.db.profile.settings.lureWarningInterval = interval
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Lure warning interval set to |cffffff00" .. interval .. " seconds|r")
+        end,
+    })
+    frame.lureIntervalDropdown:SetPoint("LEFT", frame.lureIntervalLabel, "RIGHT", 8, 0)
 
     -- Announce Skill Ups Checkbox
     frame.announceSkillUpsCheck = CreateFrame("CheckButton", "CFCAnnounceSkillUpsCheck", frame.scrollChild, "UICheckButtonTemplate")
@@ -2744,10 +2783,7 @@ function UI:CreateSettingsTab()
 
         -- Enable/disable the dropdown
         if frame.maxSkillDropdown then
-            UIDropDownMenu_EnableDropDown(frame.maxSkillDropdown)
-            if not enabled then
-                UIDropDownMenu_DisableDropDown(frame.maxSkillDropdown)
-            end
+            frame.maxSkillDropdown:SetEnabled(enabled)
         end
 
         if enabled then
@@ -2763,9 +2799,6 @@ function UI:CreateSettingsTab()
     frame.maxSkillLabel:SetText("Announce to:")
     frame.maxSkillLabel:SetTextColor(0.7, 0.7, 0.7)
 
-    frame.maxSkillDropdown = CreateFrame("Frame", "CFCMaxSkillDropdown", frame.scrollChild, "UIDropDownMenuTemplate")
-    frame.maxSkillDropdown:SetPoint("LEFT", frame.maxSkillLabel, "RIGHT", -10, -2)
-
     local maxSkillChannels = {
         { text = "Say", value = "SAY" },
         { text = "Party", value = "PARTY" },
@@ -2773,21 +2806,12 @@ function UI:CreateSettingsTab()
         { text = "Emote", value = "EMOTE" },
     }
 
-    UIDropDownMenu_SetWidth(frame.maxSkillDropdown, 150)
-    UIDropDownMenu_Initialize(frame.maxSkillDropdown, function(self, level)
-        for _, channel in ipairs(maxSkillChannels) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = channel.text
-            info.value = channel.value
-            info.func = function(self)
-                CFC.db.profile.settings.maxSkillAnnounce = self.value
-                UIDropDownMenu_SetSelectedValue(frame.maxSkillDropdown, self.value)
-                UIDropDownMenu_SetText(frame.maxSkillDropdown, self:GetText())
-            end
-            info.checked = (CFC.db.profile.settings.maxSkillAnnounce == channel.value)
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
+    frame.maxSkillDropdown = Theme.CreateDropdown(frame.scrollChild, 150, {
+        getOptions = function() return maxSkillChannels end,
+        getSelected = function() return CFC.db.profile.settings.maxSkillAnnounce end,
+        onSelect = function(channel) CFC.db.profile.settings.maxSkillAnnounce = channel end,
+    })
+    frame.maxSkillDropdown:SetPoint("LEFT", frame.maxSkillLabel, "RIGHT", 8, 0)
 
     frame.maxSkillDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.maxSkillDesc:SetPoint("TOPLEFT", frame.maxSkillLabel, "BOTTOMLEFT", 10, -30)
@@ -2809,10 +2833,7 @@ function UI:CreateSettingsTab()
 
         -- Enable/disable the dropdown
         if frame.milestonesDropdown then
-            UIDropDownMenu_EnableDropDown(frame.milestonesDropdown)
-            if not enabled then
-                UIDropDownMenu_DisableDropDown(frame.milestonesDropdown)
-            end
+            frame.milestonesDropdown:SetEnabled(enabled)
         end
 
         if enabled then
@@ -2828,9 +2849,6 @@ function UI:CreateSettingsTab()
     frame.milestonesLabel:SetText("Announce to:")
     frame.milestonesLabel:SetTextColor(0.7, 0.7, 0.7)
 
-    frame.milestonesDropdown = CreateFrame("Frame", "CFCMilestonesDropdown", frame.scrollChild, "UIDropDownMenuTemplate")
-    frame.milestonesDropdown:SetPoint("LEFT", frame.milestonesLabel, "RIGHT", -10, -2)
-
     local milestonesChannels = {
         { text = "Say", value = "SAY" },
         { text = "Party", value = "PARTY" },
@@ -2838,21 +2856,12 @@ function UI:CreateSettingsTab()
         { text = "Emote", value = "EMOTE" },
     }
 
-    UIDropDownMenu_SetWidth(frame.milestonesDropdown, 150)
-    UIDropDownMenu_Initialize(frame.milestonesDropdown, function(self, level)
-        for _, channel in ipairs(milestonesChannels) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = channel.text
-            info.value = channel.value
-            info.func = function(self)
-                CFC.db.profile.settings.milestonesAnnounce = self.value
-                UIDropDownMenu_SetSelectedValue(frame.milestonesDropdown, self.value)
-                UIDropDownMenu_SetText(frame.milestonesDropdown, self:GetText())
-            end
-            info.checked = (CFC.db.profile.settings.milestonesAnnounce == channel.value)
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
+    frame.milestonesDropdown = Theme.CreateDropdown(frame.scrollChild, 150, {
+        getOptions = function() return milestonesChannels end,
+        getSelected = function() return CFC.db.profile.settings.milestonesAnnounce end,
+        onSelect = function(channel) CFC.db.profile.settings.milestonesAnnounce = channel end,
+    })
+    frame.milestonesDropdown:SetPoint("LEFT", frame.milestonesLabel, "RIGHT", 8, 0)
 
     frame.milestonesDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.milestonesDesc:SetPoint("TOPLEFT", frame.milestonesCheck, "BOTTOMLEFT", 25, -35)
@@ -3396,14 +3405,7 @@ function UI:UpdateSettings()
     frame.announceSkillUpsCheck:SetChecked(CFC.db.profile.settings.announceSkillUps)
 
     -- Update lure warning interval dropdown
-    local intervalLabels = {
-        [30] = "30 seconds",
-        [60] = "60 seconds",
-        [90] = "90 seconds",
-    }
-    local currentInterval = CFC.db.profile.settings.lureWarningInterval or 30
-    UIDropDownMenu_SetSelectedValue(frame.lureIntervalDropdown, currentInterval)
-    UIDropDownMenu_SetText(frame.lureIntervalDropdown, intervalLabels[currentInterval] or "30 seconds")
+    frame.lureIntervalDropdown:GenerateMenu()
 
     -- Update max skill checkbox and dropdown
     local maxSkillEnabled = CFC.db.profile.settings.maxSkillAnnounceEnabled
@@ -3413,37 +3415,23 @@ function UI:UpdateSettings()
     end
     frame.maxSkillCheck:SetChecked(maxSkillEnabled)
 
-    local channelNames = {
-        SAY = "Say",
-        PARTY = "Party",
-        GUILD = "Guild",
-        EMOTE = "Emote",
-    }
     local currentChannel = CFC.db.profile.settings.maxSkillAnnounce
     if currentChannel == "OFF" or currentChannel == nil then
         currentChannel = "GUILD"
         CFC.db.profile.settings.maxSkillAnnounce = currentChannel
     end
-    UIDropDownMenu_SetSelectedValue(frame.maxSkillDropdown, currentChannel)
-    UIDropDownMenu_SetText(frame.maxSkillDropdown, channelNames[currentChannel] or "Guild")
-
-    -- Disable dropdown if checkbox is unchecked
-    if not maxSkillEnabled then
-        UIDropDownMenu_DisableDropDown(frame.maxSkillDropdown)
-    end
+    frame.maxSkillDropdown:GenerateMenu()
+    frame.maxSkillDropdown:SetEnabled(maxSkillEnabled)
 
     -- Update milestones checkbox and dropdown
     local milestonesEnabled = CFC.db.profile.settings.milestonesAnnounceEnabled or false
     frame.milestonesCheck:SetChecked(milestonesEnabled)
 
-    local milestonesChannel = CFC.db.profile.settings.milestonesAnnounce or "GUILD"
-    UIDropDownMenu_SetSelectedValue(frame.milestonesDropdown, milestonesChannel)
-    UIDropDownMenu_SetText(frame.milestonesDropdown, channelNames[milestonesChannel] or "Guild")
-
-    -- Disable dropdown if checkbox is unchecked
-    if not milestonesEnabled then
-        UIDropDownMenu_DisableDropDown(frame.milestonesDropdown)
+    if not CFC.db.profile.settings.milestonesAnnounce then
+        CFC.db.profile.settings.milestonesAnnounce = "GUILD"
     end
+    frame.milestonesDropdown:GenerateMenu()
+    frame.milestonesDropdown:SetEnabled(milestonesEnabled)
 
     -- Update HUD checkboxes
     frame.showHUDCheck:SetChecked(CFC.db.profile.hud.show)

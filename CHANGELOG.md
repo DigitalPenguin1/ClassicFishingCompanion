@@ -4,6 +4,13 @@ All notable changes to Classic Fishing Companion will be documented in this file
 
 ## [Unreleased]
 
+### Changed
+- **Forever:** Recent Catches on the Overview tab is now a list of rows with each catch's icon, its name in quality color, where you caught it, and how long ago. Hover a row for the item tooltip
+- **Forever:** item icons in the Catch List, Zones, Goals and Release tabs get a thin border in the item's quality color (green, blue, purple) so uncommon catches stand out
+- **Forever:** Statistics and Goals progress bars use a glossy status-bar fill with a gold border. Goals in progress fill gold and turn green when complete
+- **Forever:** the HUD shows a lure countdown bar behind the Time Left line. It drains as the lure runs down and turns red in the last minute (hidden in text-only mode)
+- **Forever:** dropdowns on the Goals, Release and Settings tabs use the modern game dropdown. Long fish lists scroll
+
 ### Fixed
 - **Forever:** the Catch List and Zones tab now use the same fish rules as the Goals and Release dropdowns, and recognize raw fish by their item category (Trade Goods > Cooking). A Forever fish whose name doesn't contain a known fish word no longer lands under Miscellaneous or goes missing from the Zones tab. This only changes where items are listed; no catches are changed or removed
 

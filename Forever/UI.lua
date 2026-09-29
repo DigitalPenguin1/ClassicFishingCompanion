@@ -175,7 +175,7 @@ function UI:CreateTabs()
         { name = "gearsets", label = "Gear Sets", icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs",
           texCoord = { 0.015625, 0.53125, 0.46875, 0.60546875 }, fallbackIcon = "Interface\\Icons\\INV_Fishingpole_02" },
         { name = "lures", label = "Lure", icon = "Interface\\Icons\\INV_Misc_Orb_03" },
-        { name = "goals", label = "Goals", icon = "Interface\\Icons\\Achievement_Profession_Fishing_JourneymanFisher" },
+        { name = "goals", label = "Goals", icon = "Interface\\Icons\\Ability_Hunter_MarkedForDeath" },
         { name = "release", label = "Release", icon = "Interface\\Icons\\Spell_Frost_SummonWaterElemental" },
         { name = "settings", label = "Settings", icon = "Interface\\Icons\\Trade_Engineering" },
     }

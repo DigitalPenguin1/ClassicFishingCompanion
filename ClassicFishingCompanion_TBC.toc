@@ -1,5 +1,5 @@
 ## Interface: 20506
-## Title: Classic Fishing Companion (TBC)
+## Title: |cff33ccffClassic|r |cffffd100Fishing Companion|r |cff1eff00(TBC)|r
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk
 ## Version: 1.2.2

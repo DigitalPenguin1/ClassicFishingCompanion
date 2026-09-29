@@ -144,7 +144,7 @@ function CFC:InitializeUI()
 
     -- Create content area
     mainFrame.content = CreateFrame("Frame", nil, mainFrame)
-    mainFrame.content:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 10, -95)
+    mainFrame.content:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 10, -35)
     mainFrame.content:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -10, 10)
 
     -- Create tab content
@@ -164,60 +164,32 @@ function CFC:InitializeUI()
     CFC.mainFrame = mainFrame
 end
 
--- Create tab buttons (2 rows)
+-- Create the icon tabs down the right edge of the window
 function UI:CreateTabs()
-    local row1 = {
-        { name = "overview", label = "Overview" },
-        { name = "fishlist", label = "Catch List" },
-        { name = "history", label = "Zones" },
-        { name = "stats", label = "Statistics" },
-        { name = "gearsets", label = "Gear Sets" },
-        { name = "lures", label = "Lure" },
-        { name = "goals", label = "Goals" },
+    local tabs = {
+        { name = "overview", label = "Overview", icon = "Interface\\Icons\\Trade_Fishing" },
+        { name = "fishlist", label = "Catch List", icon = "Interface\\Icons\\INV_Misc_Fish_02" },
+        { name = "history", label = "Zones", icon = "Interface\\Icons\\INV_Misc_Map_01" },
+        { name = "stats", label = "Statistics", icon = "Interface\\Icons\\INV_Misc_Note_01" },
+        -- Equipment Manager tab icon from the character sheet sidebar
+        { name = "gearsets", label = "Gear Sets", icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs",
+          texCoord = { 0.015625, 0.53125, 0.46875, 0.60546875 }, fallbackIcon = "Interface\\Icons\\INV_Fishingpole_02" },
+        { name = "lures", label = "Lure", icon = "Interface\\Icons\\INV_Misc_Orb_03" },
+        { name = "goals", label = "Goals", icon = "Interface\\Icons\\Ability_Hunter_MarkedForDeath" },
+        { name = "release", label = "Release", icon = "Interface\\Icons\\Spell_Frost_SummonWaterElemental" },
+        { name = "settings", label = "Settings", icon = "Interface\\Icons\\Trade_Engineering" },
     }
 
-    local row2 = {
-        { name = "release", label = "Release" },
-        { name = "settings", label = "Settings" },
-    }
+    local tabSpacing = 44
 
-    local buttonWidth = 80
-    local spacing = 3
-    local allTabs = {}
-
-    -- Row 1
-    local totalWidth1 = (#row1 * buttonWidth) + ((#row1 - 1) * spacing)
-    local startX1 = (600 - totalWidth1) / 2
-
-    for i, tab in ipairs(row1) do
-        local button = CreateFrame("Button", "CFCTab" .. tab.name, mainFrame, "UIPanelButtonTemplate")
-        Theme.SkinButton(button)
-        button:SetSize(buttonWidth, 25)
-        button:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", startX1 + (i - 1) * (buttonWidth + spacing), -35)
-        button:SetText(tab.label)
+    for i, tab in ipairs(tabs) do
+        local button = Theme.CreateSideTab(mainFrame, tab)
+        button:SetPoint("TOPLEFT", mainFrame, "TOPRIGHT", -2, -30 - (i - 1) * tabSpacing)
         button:SetScript("OnClick", function() UI:ShowTab(tab.name) end)
         tab.button = button
-        mainFrame["tab" .. tab.name] = button
-        table.insert(allTabs, tab)
     end
 
-    -- Row 2
-    local totalWidth2 = (#row2 * buttonWidth) + ((#row2 - 1) * spacing)
-    local startX2 = (600 - totalWidth2) / 2
-
-    for i, tab in ipairs(row2) do
-        local button = CreateFrame("Button", "CFCTab" .. tab.name, mainFrame, "UIPanelButtonTemplate")
-        Theme.SkinButton(button)
-        button:SetSize(buttonWidth, 25)
-        button:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", startX2 + (i - 1) * (buttonWidth + spacing), -62)
-        button:SetText(tab.label)
-        button:SetScript("OnClick", function() UI:ShowTab(tab.name) end)
-        tab.button = button
-        mainFrame["tab" .. tab.name] = button
-        table.insert(allTabs, tab)
-    end
-
-    mainFrame.tabs = allTabs
+    mainFrame.tabs = tabs
 end
 
 -- Show specific tab

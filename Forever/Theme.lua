@@ -126,8 +126,55 @@ function Theme.SkinButton(button)
     UpdateButtonBorder(button)
 end
 
--- Mark a skinned button as the active one (used for the tab row)
+-- Icon tab that hangs off a window's right edge, like the spellbook and
+-- profession side tabs. Shows its label as a tooltip on hover.
+local SIDE_TAB_ART = "Interface\\SpellBook\\SpellBook-SkillLineTab"
+function Theme.CreateSideTab(parent, icon, label)
+    local tab = CreateFrame("Button", nil, parent)
+    tab:SetSize(32, 32)
+
+    local art = tab:CreateTexture(nil, "BACKGROUND")
+    art:SetSize(64, 64)
+    art:SetPoint("TOPLEFT", -3, 11)
+    if not art:SetTexture(SIDE_TAB_ART) then
+        -- Art missing from this client: fall back to a gold-bordered bronze tab
+        art:Hide()
+        local frame = CreateFrame("Frame", nil, tab)
+        frame:SetPoint("TOPLEFT", -5, 5)
+        frame:SetPoint("BOTTOMRIGHT", 5, -5)
+        frame:SetFrameLevel(tab:GetFrameLevel())
+        AddBackdrop(frame, BUTTON_BACKDROP)
+        frame:SetBackdropColor(Theme.Color(Theme.BRONZE_DARK, Theme.WINDOW_ALPHA))
+        frame:SetBackdropBorderColor(Theme.Color(Theme.GOLD))
+    end
+
+    tab:SetNormalTexture(icon)
+    tab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+
+    tab.cfcChecked = tab:CreateTexture(nil, "OVERLAY")
+    tab.cfcChecked:SetAllPoints()
+    tab.cfcChecked:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+    tab.cfcChecked:SetBlendMode("ADD")
+    tab.cfcChecked:Hide()
+
+    tab:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(label, 1, 0.82, 0)
+        GameTooltip:Show()
+    end)
+    tab:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return tab
+end
+
+-- Mark a skinned button or side tab as the active one
 function Theme.SetSelected(button, selected)
+    if button.cfcChecked then
+        button.cfcChecked:SetShown(selected)
+        return
+    end
     button.cfcSelected = selected
     if selected then
         button:LockHighlight()

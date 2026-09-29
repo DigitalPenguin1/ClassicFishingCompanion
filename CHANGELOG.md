@@ -11,6 +11,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - **Forever:** the HUD shows a lure countdown bar behind the Time Left line. It drains as the lure runs down and turns red in the last minute (hidden in text-only mode)
 - **Forever:** dropdowns on the Goals, Release and Settings tabs use the modern game dropdown. Long fish lists scroll
 - **Forever:** scrollable lists use the modern thin scrollbar instead of the old grey arrow buttons
+- **Forever:** the HUD Skill line shows fishing bonus from gear other than your pole and lure (a hat, boots or glove enchant) as its own "+N" badge
 
 ### Fixed
 - **Forever:** the Catch List and Zones tab now use the same fish rules as the Goals and Release dropdowns, and recognize raw fish by their item category (Trade Goods > Cooking). A Forever fish whose name doesn't contain a known fish word no longer lands under Miscellaneous or goes missing from the Zones tab. This only changes where items are listed; no catches are changed or removed

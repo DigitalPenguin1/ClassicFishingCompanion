@@ -16,6 +16,7 @@ local HUDModule = CFC.HUD
 
 local hudFrame = nil
 local LURE_BAR_WIDTH = 150
+local GEAR_BONUS_ICON = "Interface\\Icons\\INV_Helmet_31"  -- Fishing bonus from gear other than the pole
 
 -- Lure bonus mapping (constant table to avoid recreation every update)
 local lureBonus = {
@@ -493,6 +494,7 @@ function HUDModule:Update()
         end
 
         -- Check for active fishing lure buff and add to skill display
+        local lureAmount = 0
         if currentBuff then
             -- Extract buff amount from the lure name
             local buffAmount = string.match(currentBuff.name, "%+(%d+)")
@@ -513,7 +515,16 @@ function HUDModule:Update()
                 end
 
                 skillText = skillText .. " |cffffff00+" .. buffAmount .. "|r |T" .. lureIcon .. ":14|t"
+                lureAmount = tonumber(buffAmount) or 0
             end
+        end
+
+        -- Other fishing gear (hat, boots, glove enchant): the game's total bonus
+        -- minus what the pole and lure badges already show
+        local _, _, _, skillModifier = CFCCompat.GetFishingSkill()
+        local gearBonus = (skillModifier or 0) - (poleBonus or 0) - lureAmount
+        if gearBonus > 0 then
+            skillText = skillText .. " |cff00ff00+" .. gearBonus .. "|r |T" .. GEAR_BONUS_ICON .. ":14|t"
         end
 
         hudFrame.skillText:SetText(skillText)

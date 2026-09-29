@@ -6,6 +6,14 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.2
+Forever-only update; Classic Era and TBC are unchanged.
+- **Forever** - HUD Skill line shows fishing bonus from gear other than your pole and lure as its own +N badge
+- **Forever** - HUD lure countdown bar behind Time Left, red in the last minute
+- **Forever** - Recent Catches rows with icon, zone and time ago; quality-colored icon borders; new progress bar look; modern dropdowns and scrollbars
+- **Forever** - Fish without a known fish word in the name now sort under Fish in the Catch List and show in the Zones tab
+- **Forever** - Fixed a Lua error on the Zones tab and the Statistics tab scrolling past its content
+
 ### v1.2.1
 - HUD swap button shows gauntlets instead of a sword when swapping back to your normal gear, since your normal set might be healing or caster gear
 - **Forever** - HUD and all windows now use gold and bronze to match the Forever action bar

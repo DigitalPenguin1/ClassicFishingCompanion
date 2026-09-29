@@ -3751,6 +3751,24 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.2"] = {
+        features = {
+            "The HUD Skill line shows fishing bonus from gear other than your pole and lure (hat, boots, glove enchant) as its own +N badge",
+            "The HUD shows a lure countdown bar behind Time Left that turns red in the last minute",
+        },
+        changes = {
+            "Recent Catches shows each catch with its icon, zone, and how long ago",
+            "Item icons get a border in the item's quality color",
+            "Statistics and Goals progress bars have a new look; finished goals turn green",
+            "Modern dropdowns and thin scrollbars throughout",
+        },
+        fixes = {
+            "Fish without a known fish word in the name now show under Fish in the Catch List and in the Zones tab",
+            "The Zones tab no longer stops with a Lua error for some catches",
+            "The Statistics tab no longer scrolls far past its last line",
+        },
+        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nNote: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.1"] = {
         features = {
             "Classic Fishing Companion is now in the addon list next to the minimap: left-click opens the window, right-click toggles the HUD. You can hide the minimap icon in Settings and use this instead",

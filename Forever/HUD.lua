@@ -345,8 +345,8 @@ function CFC:InitializeHUD()
         else
             GameTooltip:SetText("Gear Swap Not Configured", 1, 0.5, 0.5)
             GameTooltip:AddLine("Click to open the Gear Sets tab", 1, 1, 1)
-            GameTooltip:AddLine("Equip your fishing gear, then click Save Set", 0.8, 0.8, 0.8)
-            GameTooltip:AddLine("Current gear auto-saves on swap", 0.6, 1, 0.6)
+            GameTooltip:AddLine("Equip your fishing gear, then click Save Fishing Set", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("Normal gear saves to '" .. CFC.NORMAL_SET_NAME .. "' on swap", 0.6, 1, 0.6)
         end
 
         GameTooltip:Show()

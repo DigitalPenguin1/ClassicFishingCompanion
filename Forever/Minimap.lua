@@ -114,15 +114,12 @@ function MinimapModule:OnClick(button)
             -- Check if auto-swap is enabled
             if CFC.db and CFC.db.profile and CFC.db.profile.settings and CFC.db.profile.settings.autoSwapOnHUD then
                 -- Check if fishing gear set is configured
-                local gearSets = CFC.db.profile.gearSets
-                local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
-
-                if not hasFishingGear then
+                if not CFC:HasGearSets() then
                     -- Warn if fishing gear set not configured
-                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but fishing gear set not configured. Please save your fishing gear set in the Gear Sets tab.")
+                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but no fishing equipment set found. Save one in the Gear Sets tab.")
                 else
                     local hudCurrentlyShown = CFC.db.profile.hud.show
-                    local currentMode = gearSets.currentMode or "current"
+                    local currentMode = CFC:GetCurrentGearMode()
 
                     if hudCurrentlyShown then
                         if currentMode ~= "current" and CFC.SwapGear then

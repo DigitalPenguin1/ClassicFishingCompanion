@@ -1810,6 +1810,8 @@ function UI:UpdateStats()
 end
 
 -- Create Gear Sets Tab
+-- Both sets live in the game's Equipment Manager; this tab shows them and can
+-- save the fishing set, swap, or open the Equipment Manager.
 function UI:CreateGearSetsTab()
     local frame = CreateFrame("Frame", nil, mainFrame.content)
     frame:SetAllPoints()
@@ -1818,14 +1820,15 @@ function UI:CreateGearSetsTab()
     -- Title
     frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
-    frame.title:SetText("Gear Sets Manager")
+    frame.title:SetText("Gear Sets")
 
     -- Description
     frame.desc = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -4)
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
-    frame.desc:SetText("Equip the gear you want, then click Save. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
+    frame.desc:SetText("Gear sets use the game's Equipment Manager. Your fishing set is the one named |cff00ccffFishing|r or |cff00ccffCFC|r. "
+        .. "When you swap to fishing, what you're wearing is saved to |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, and swapping back equips it.")
 
     -- Slot display order
     local slotOrder = { 16, 17, 1, 3, 5, 10, 7, 8, 9, 6, 15, 2, 11, 12, 13, 14 }
@@ -1838,23 +1841,22 @@ function UI:CreateGearSetsTab()
     }
     frame.slotOrder = slotOrder
     frame.slotNames = slotNames
-    frame.activeSet = "current"
+    frame.activeSet = "fishing"
 
     -- Toggle buttons
     frame.combatToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     Theme.SkinButton(frame.combatToggle)
-    frame.combatToggle:SetSize(100, 22)
+    frame.combatToggle:SetSize(80, 22)
     frame.combatToggle:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -8)
-    frame.combatToggle:SetText("|cffff8000Current|r")
+    frame.combatToggle:SetText("|cffff8000Normal|r")
     frame.combatToggle:SetScript("OnClick", function()
         frame.activeSet = "current"
         UI:UpdateGearSetsTab()
     end)
 
     frame.fishingToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-
     Theme.SkinButton(frame.fishingToggle)
-    frame.fishingToggle:SetSize(100, 22)
+    frame.fishingToggle:SetSize(80, 22)
     frame.fishingToggle:SetPoint("LEFT", frame.combatToggle, "RIGHT", 4, 0)
     frame.fishingToggle:SetText("|cff00ccffFishing|r")
     frame.fishingToggle:SetScript("OnClick", function()
@@ -1862,44 +1864,47 @@ function UI:CreateGearSetsTab()
         UI:UpdateGearSetsTab()
     end)
 
-    -- Save button (only for fishing set)
-    frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    Theme.SkinButton(frame.saveBtn)
-    frame.saveBtn:SetSize(120, 22)
-    frame.saveBtn:SetPoint("LEFT", frame.fishingToggle, "RIGHT", 4, 0)
-    frame.saveBtn:SetText("Save Set")
-    frame.saveBtn:SetScript("OnClick", function()
-        CFC:SaveGearSet("fishing")
-        UI:UpdateGearSetsTab()
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing Gear saved!")
-    end)
-
     -- Swap Gear Button
     frame.swapGearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     Theme.SkinButton(frame.swapGearBtn)
     frame.swapGearBtn:SetSize(90, 22)
-    frame.swapGearBtn:SetPoint("LEFT", frame.saveBtn, "RIGHT", 4, 0)
+    frame.swapGearBtn:SetPoint("LEFT", frame.fishingToggle, "RIGHT", 4, 0)
     frame.swapGearBtn:SetText("Swap Gear")
     frame.swapGearBtn:SetScript("OnClick", function()
         CFC:SwapGear()
-        UI:UpdateGearSetsTab()
     end)
 
-    -- Clear All Button
-    frame.clearSetsBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    Theme.SkinButton(frame.clearSetsBtn)
-    frame.clearSetsBtn:SetSize(70, 22)
-    frame.clearSetsBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
-    frame.clearSetsBtn:SetText("Clear All")
-    local clearFont = frame.clearSetsBtn:GetFontString()
-    clearFont:SetFont("Fonts\\FRIZQT__.TTF", 9)
-    frame.clearSetsBtn:SetScript("OnClick", function()
-        StaticPopup_Show("CFC_CLEAR_GEAR_SETS")
+    -- Open the Equipment Manager in the character window
+    frame.managerBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.managerBtn)
+    frame.managerBtn:SetSize(140, 22)
+    frame.managerBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
+    frame.managerBtn:SetText("Equipment Manager")
+    frame.managerBtn:SetScript("OnClick", function()
+        if not (PaperDollFrame and PaperDollFrame:IsVisible()) then
+            ToggleCharacter("PaperDollFrame")
+        end
+        -- Sidebar tab 3 is the Equipment Manager
+        if PaperDollFrame_SetSidebar then
+            pcall(PaperDollFrame_SetSidebar, PaperDollFrame, 3)
+        end
+    end)
+
+    -- Save button (fishing view only). Last in the row so hiding it leaves no gap.
+    frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.saveBtn)
+    frame.saveBtn:SetSize(120, 22)
+    frame.saveBtn:SetPoint("LEFT", frame.managerBtn, "RIGHT", 4, 0)
+    frame.saveBtn:SetText("Save Fishing Set")
+    frame.saveBtn:SetScript("OnClick", function()
+        CFC:SaveFishingSet()
     end)
 
     -- Status line
     frame.statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     frame.statusText:SetPoint("TOPLEFT", frame.combatToggle, "BOTTOMLEFT", 0, -6)
+    frame.statusText:SetWidth(560)
+    frame.statusText:SetJustifyH("LEFT")
 
     -- Item rows (single list, full width)
     local ROW_HEIGHT = 15
@@ -1944,29 +1949,18 @@ end
 
 -- Update Gear Sets Tab
 function UI:UpdateGearSetsTab()
-    local frame = mainFrame.gearsets
+    local frame = mainFrame and mainFrame.gearsets
     if not frame or not frame:IsVisible() then
         return
     end
 
-    local activeSet = frame.activeSet or "current"
-    local gearData = CFC.db.profile.gearSets[activeSet] or {}
-    local isEmpty = not next(gearData)
+    local activeSet = frame.activeSet or "fishing"
+    local validation = CFC:ValidateGearSet(activeSet)
 
     -- Update toggle highlights
     Theme.SetSelected(frame.combatToggle, activeSet == "current")
     Theme.SetSelected(frame.fishingToggle, activeSet ~= "current")
-
-    -- Update save button and description based on active set
-    if activeSet == "current" then
-        frame.saveBtn:Hide()
-        frame.desc:SetText("Your current gear is |cff00ff00auto-saved|r before each fishing swap. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
-    else
-        frame.saveBtn:SetText("Save Fishing Gear")
-        frame.saveBtn:Enable()
-        frame.saveBtn:Show()
-        frame.desc:SetText("Equip your fishing gear, then click Save. |cff00ff00Green|r = available, |cffff0000Red|r = missing from bags.")
-    end
+    frame.saveBtn:SetShown(activeSet ~= "current")
 
     -- Hide all rows
     for i = 1, #frame.rows do
@@ -1976,21 +1970,19 @@ function UI:UpdateGearSetsTab()
         frame.rows[i].avail:Hide()
     end
 
-    if isEmpty then
+    if not validation.setName then
         if activeSet == "current" then
-            frame.statusText:SetText("|cffff0000No gear saved yet|r - Gear will be auto-saved when you swap to fishing.")
+            frame.statusText:SetText("|cffff0000No '" .. CFC.NORMAL_SET_NAME .. "' set yet|r - it's saved automatically the next time you swap to fishing.")
         else
-            frame.statusText:SetText("|cffff0000No gear saved|r - Equip your fishing gear, then click Save.")
+            frame.statusText:SetText("|cffff0000No fishing set found|r - equip your fishing gear and click Save Fishing Set, or name a set 'Fishing' in the Equipment Manager.")
         end
     else
-        -- Validate the active set
-        local validation = CFC:ValidateGearSet(activeSet)
-
         -- Status line
+        local setLabel = "Set: |cffffd100" .. validation.setName .. "|r   "
         if validation.missing > 0 then
-            frame.statusText:SetText("|cff00ff00" .. validation.available .. "|r/" .. validation.total .. " items available  |cffff0000(" .. validation.missing .. " missing)|r")
+            frame.statusText:SetText(setLabel .. "|cff00ff00" .. validation.available .. "|r/" .. validation.total .. " items available  |cffff0000(" .. validation.missing .. " missing)|r")
         else
-            frame.statusText:SetText("|cff00ff00" .. validation.total .. "/" .. validation.total .. " items available|r")
+            frame.statusText:SetText(setLabel .. "|cff00ff00" .. validation.total .. "/" .. validation.total .. " items available|r")
         end
 
         -- Populate rows
@@ -4143,36 +4135,6 @@ StaticPopupDialogs["CFC_WHATS_NEW"] = {
             CFC.db.profile.whatsNewDismissed = CFC.VERSION
         end
     end,
-}
-
-StaticPopupDialogs["CFC_CLEAR_GEAR_SETS"] = {
-    text = "Are you sure you want to clear ALL gear sets?\n\nThis will delete:\n• Current gear set (auto-saved)\n• Fishing gear set\n\nYou will need to reconfigure your gear sets after this.\n\nThis action CANNOT be undone!",
-    button1 = "Yes, Clear Gear Sets",
-    button2 = "Cancel",
-    OnAccept = function()
-        if CFC.db and CFC.db.profile and CFC.db.profile.gearSets then
-            -- Clear both gear sets
-            CFC.db.profile.gearSets.current = {}
-            CFC.db.profile.gearSets.fishing = {}
-            CFC.db.profile.gearSets.currentMode = "current"
-
-            CFC:Print("|cff00ff00Classic Fishing Companion:|r All gear sets have been cleared.")
-
-            -- Update UI if it's open
-            if CFC.UI and CFC.UI.UpdateGearSetsTab then
-                CFC.UI:UpdateGearSetsTab()
-            end
-
-            -- Update HUD
-            if CFC.HUD and CFC.HUD.Update then
-                CFC.HUD:Update()
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
 }
 
 -- Create custom export/import dialog

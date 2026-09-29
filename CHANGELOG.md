@@ -5,7 +5,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
 ## [Unreleased]
 
 ### Fixed
-- The Catch List now sorts fish and miscellaneous items with the same rules as the Goals and Release dropdowns. Raw fish are also recognized by their item category (Trade Goods > Cooking), so a fish whose name doesn't contain a known fish word no longer lands under Miscellaneous. This only changes where items are listed; no catches are changed or removed
+- **Forever:** the Catch List and Zones tab now use the same fish rules as the Goals and Release dropdowns, and recognize raw fish by their item category (Trade Goods > Cooking). A Forever fish whose name doesn't contain a known fish word no longer lands under Miscellaneous or goes missing from the Zones tab. This only changes where items are listed; no catches are changed or removed
 
 ## [1.2.1] - 2026-09-28
 

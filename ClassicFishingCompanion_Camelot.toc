@@ -6,6 +6,9 @@
 ## SavedVariables: ClassicFishingCompanionDB
 ## SavedVariablesPerCharacter: ClassicFishingCompanionCharDB
 ## IconTexture: Interface\AddOns\ClassicFishingCompanion\Textures\icon
+## AddonCompartmentFunc: CFC_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: CFC_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: CFC_OnAddonCompartmentLeave
 
 # Keybinding Localization
 Bindings_Locale.lua
@@ -19,6 +22,7 @@ Libs/AceConsole-3.0/AceConsole-3.0.lua
 
 # Forever-Specific Files (WoW Forever runs the modern API)
 Forever/Compat.lua
+Forever/Theme.lua
 Forever/Core.lua
 Forever/Database.lua
 Forever/Minimap.lua

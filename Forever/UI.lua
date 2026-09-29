@@ -6,6 +6,9 @@ local addonName, addon = ...
 -- Classic API names mapped to modern equivalents on Forever (see Compat.lua)
 local GetItemInfo = CFCCompat.GetItemInfo
 
+-- Gold/bronze styling for Forever (see Theme.lua)
+local Theme = CFCTheme
+
 CFC.UI = {}
 local UI = CFC.UI
 
@@ -91,6 +94,7 @@ function CFC:InitializeUI()
 
     -- Create main frame
     mainFrame = CreateFrame("Frame", "CFCMainFrame", UIParent, "BasicFrameTemplateWithInset")
+    Theme.SkinWindow(mainFrame)
     mainFrame:SetSize(600, 450)
     mainFrame:SetPoint("CENTER")
     mainFrame:SetMovable(true)
@@ -103,8 +107,9 @@ function CFC:InitializeUI()
 
     -- Title
     mainFrame.title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    mainFrame.title:SetPoint("TOP", mainFrame, "TOP", 0, -5)
+    mainFrame.title:SetPoint("TOP", mainFrame, "TOP", 0, -10)
     mainFrame.title:SetText("Classic Fishing Companion")
+    Theme.StyleTitle(mainFrame.title)
 
     -- Close button (use built-in from template)
     mainFrame.CloseButton:SetScript("OnClick", function()
@@ -163,6 +168,7 @@ function UI:CreateTabs()
 
     for i, tab in ipairs(row1) do
         local button = CreateFrame("Button", "CFCTab" .. tab.name, mainFrame, "UIPanelButtonTemplate")
+        Theme.SkinButton(button)
         button:SetSize(buttonWidth, 25)
         button:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", startX1 + (i - 1) * (buttonWidth + spacing), -35)
         button:SetText(tab.label)
@@ -178,6 +184,7 @@ function UI:CreateTabs()
 
     for i, tab in ipairs(row2) do
         local button = CreateFrame("Button", "CFCTab" .. tab.name, mainFrame, "UIPanelButtonTemplate")
+        Theme.SkinButton(button)
         button:SetSize(buttonWidth, 25)
         button:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", startX2 + (i - 1) * (buttonWidth + spacing), -62)
         button:SetText(tab.label)
@@ -196,11 +203,7 @@ function UI:ShowTab(tabName)
 
     -- Update button states
     for _, tab in ipairs(mainFrame.tabs) do
-        if tab.name == tabName then
-            tab.button:LockHighlight()
-        else
-            tab.button:UnlockHighlight()
-        end
+        Theme.SetSelected(tab.button, tab.name == tabName)
     end
 
     -- Hide all content frames
@@ -366,6 +369,7 @@ function UI:CreateFishListTab()
 
     -- Add "Refresh Icons" button at the top
     local refreshButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+    Theme.SkinButton(refreshButton)
     refreshButton:SetSize(120, 25)
     refreshButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -30, -5)
     refreshButton:SetText("Refresh Icons")
@@ -565,7 +569,7 @@ function UI:UpdateFishList()
 
             entry.bg = entry:CreateTexture(nil, "BACKGROUND")
             entry.bg:SetAllPoints()
-            entry.bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+            entry.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.5))
 
             -- Icon texture
             entry.icon = entry:CreateTexture(nil, "ARTWORK")
@@ -857,7 +861,7 @@ function UI:UpdateFishList()
 
             entry.bg = entry:CreateTexture(nil, "BACKGROUND")
             entry.bg:SetAllPoints()
-            entry.bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+            entry.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.5))
 
             -- Icon texture
             entry.icon = entry:CreateTexture(nil, "ARTWORK")
@@ -1156,7 +1160,7 @@ function UI:GetZoneHeader(parent, index)
     -- Background
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints()
-    frame.bg:SetColorTexture(0.15, 0.15, 0.15, 0.6)
+    frame.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.6))
 
     -- Expand/collapse indicator
     frame.indicator = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1179,7 +1183,7 @@ function UI:GetZoneHeader(parent, index)
     frame.separator = frame:CreateTexture(nil, "ARTWORK")
     frame.separator:SetSize(540, 1)
     frame.separator:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
-    frame.separator:SetColorTexture(0.3, 0.3, 0.3, 0.8)
+    frame.separator:SetColorTexture(Theme.Color(Theme.GOLD, 0.5))
 
     -- Highlight on hover
     frame:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
@@ -1256,7 +1260,7 @@ function UI:GetFishEntry(parent, index)
     -- Subtle background
     entry.bg = entry:CreateTexture(nil, "BACKGROUND")
     entry.bg:SetAllPoints()
-    entry.bg:SetColorTexture(0.08, 0.08, 0.08, 0.4)
+    entry.bg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.4))
 
     -- Fish icon
     entry.icon = entry:CreateTexture(nil, "ARTWORK")
@@ -1489,7 +1493,7 @@ function UI:CreateBar(parent, index)
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetPoint("LEFT", bar.label, "RIGHT", 5, 0)
     bar.bg:SetSize(200, 14)
-    bar.bg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
+    bar.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
 
     -- Bar fill
     bar.fill = bar:CreateTexture(nil, "ARTWORK")
@@ -1810,6 +1814,7 @@ function UI:CreateGearSetsTab()
 
     -- Toggle buttons
     frame.combatToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.combatToggle)
     frame.combatToggle:SetSize(100, 22)
     frame.combatToggle:SetPoint("TOPLEFT", frame.desc, "BOTTOMLEFT", 0, -8)
     frame.combatToggle:SetText("|cffff8000Current|r")
@@ -1819,6 +1824,8 @@ function UI:CreateGearSetsTab()
     end)
 
     frame.fishingToggle = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+
+    Theme.SkinButton(frame.fishingToggle)
     frame.fishingToggle:SetSize(100, 22)
     frame.fishingToggle:SetPoint("LEFT", frame.combatToggle, "RIGHT", 4, 0)
     frame.fishingToggle:SetText("|cff00ccffFishing|r")
@@ -1829,6 +1836,7 @@ function UI:CreateGearSetsTab()
 
     -- Save button (only for fishing set)
     frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.saveBtn)
     frame.saveBtn:SetSize(120, 22)
     frame.saveBtn:SetPoint("LEFT", frame.fishingToggle, "RIGHT", 4, 0)
     frame.saveBtn:SetText("Save Set")
@@ -1840,6 +1848,7 @@ function UI:CreateGearSetsTab()
 
     -- Swap Gear Button
     frame.swapGearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.swapGearBtn)
     frame.swapGearBtn:SetSize(90, 22)
     frame.swapGearBtn:SetPoint("LEFT", frame.saveBtn, "RIGHT", 4, 0)
     frame.swapGearBtn:SetText("Swap Gear")
@@ -1850,6 +1859,7 @@ function UI:CreateGearSetsTab()
 
     -- Clear All Button
     frame.clearSetsBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.clearSetsBtn)
     frame.clearSetsBtn:SetSize(70, 22)
     frame.clearSetsBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
     frame.clearSetsBtn:SetText("Clear All")
@@ -1916,13 +1926,8 @@ function UI:UpdateGearSetsTab()
     local isEmpty = not next(gearData)
 
     -- Update toggle highlights
-    if activeSet == "current" then
-        frame.combatToggle:LockHighlight()
-        frame.fishingToggle:UnlockHighlight()
-    else
-        frame.combatToggle:UnlockHighlight()
-        frame.fishingToggle:LockHighlight()
-    end
+    Theme.SetSelected(frame.combatToggle, activeSet == "current")
+    Theme.SetSelected(frame.fishingToggle, activeSet ~= "current")
 
     -- Update save button and description based on active set
     if activeSet == "current" then
@@ -2027,6 +2032,7 @@ function UI:CreateLuresTab()
 
     -- Clear selection button (positioned next to label)
     frame.clearBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.clearBtn)
     frame.clearBtn:SetSize(100, 22)
     frame.clearBtn:SetPoint("LEFT", frame.selectedLureLabel, "RIGHT", 10, 0)
     frame.clearBtn:SetText("Clear")
@@ -2062,6 +2068,7 @@ function UI:CreateLuresTab()
     local yOffset = 0
     for i, lure in ipairs(lureData) do
         local btn = CreateFrame("Button", nil, frame.scrollChild, "UIPanelButtonTemplate")
+        Theme.SkinButton(btn)
         btn:SetSize(250, 30)
         btn:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 20, yOffset)
 
@@ -2214,6 +2221,7 @@ function UI:CreateGoalsTab()
 
     -- Add Goal button
     frame.addButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.addButton)
     frame.addButton:SetSize(80, 25)
     frame.addButton:SetPoint("LEFT", frame.targetInput, "RIGHT", 8, 0)
     frame.addButton:SetText("Add Goal")
@@ -2307,7 +2315,7 @@ function UI:UpdateGoals()
             entry.barBg = entry:CreateTexture(nil, "BACKGROUND")
             entry.barBg:SetPoint("LEFT", entry.icon, "RIGHT", 8, -8)
             entry.barBg:SetSize(200, 16)
-            entry.barBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
+            entry.barBg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
 
             -- Progress bar fill
             entry.barFill = entry:CreateTexture(nil, "BORDER")
@@ -2321,6 +2329,7 @@ function UI:UpdateGoals()
 
             -- Remove button
             entry.removeBtn = CreateFrame("Button", nil, entry, "UIPanelButtonTemplate")
+            Theme.SkinButton(entry.removeBtn)
             entry.removeBtn:SetSize(65, 22)
             entry.removeBtn:SetPoint("LEFT", entry.barBg, "RIGHT", 10, 0)
             entry.removeBtn:SetText("Remove")
@@ -2440,6 +2449,7 @@ function UI:CreateReleaseTab()
 
     -- Add to Release List button
     frame.addButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.addButton)
     frame.addButton:SetSize(120, 25)
     frame.addButton:SetPoint("LEFT", frame.fishDropdown, "RIGHT", 5, 2)
     frame.addButton:SetText("Add to List")
@@ -2520,6 +2530,7 @@ function UI:UpdateReleaseList()
 
             -- Remove button
             entry.removeBtn = CreateFrame("Button", nil, entry, "UIPanelButtonTemplate")
+            Theme.SkinButton(entry.removeBtn)
             entry.removeBtn:SetSize(65, 22)
             entry.removeBtn:SetPoint("RIGHT", entry, "RIGHT", -5, 0)
             entry.removeBtn:SetText("Remove")
@@ -2579,7 +2590,7 @@ function UI:CreateSettingsTab()
         line:SetHeight(1)
         line:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -3)
         line:SetPoint("RIGHT", frame.scrollChild, "RIGHT", -20, 0)
-        line:SetColorTexture(0.5, 0.5, 0.5, 0.5)
+        line:SetColorTexture(Theme.Color(Theme.GOLD, 0.5))
 
         return header
     end
@@ -2591,6 +2602,7 @@ function UI:CreateSettingsTab()
 
     -- About Button (top right)
     frame.aboutButton = CreateFrame("Button", "CFCAboutButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.aboutButton)
     frame.aboutButton:SetSize(80, 25)
     frame.aboutButton:SetPoint("TOPRIGHT", frame.scrollChild, "TOPRIGHT", -10, -5)
     frame.aboutButton:SetText("About")
@@ -3094,13 +3106,13 @@ function UI:CreateSettingsTab()
     trackBg:SetHeight(8)
     trackBg:SetPoint("LEFT", frame.hudScaleSlider, "LEFT", 0, 0)
     trackBg:SetPoint("RIGHT", frame.hudScaleSlider, "RIGHT", 0, 0)
-    trackBg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
+    trackBg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
 
     -- Add filled portion of the track
     frame.hudScaleSlider.fill = frame.hudScaleSlider:CreateTexture(nil, "ARTWORK")
     frame.hudScaleSlider.fill:SetHeight(8)
     frame.hudScaleSlider.fill:SetPoint("LEFT", frame.hudScaleSlider, "LEFT", 0, 0)
-    frame.hudScaleSlider.fill:SetColorTexture(0.3, 0.6, 0.9, 0.8)
+    frame.hudScaleSlider.fill:SetColorTexture(Theme.Color(Theme.GOLD_LIGHT, 0.8))
 
     frame.hudScaleSlider.Low = frame.hudScaleSlider.Low or _G["CFCHUDScaleSliderLow"]
     frame.hudScaleSlider.High = frame.hudScaleSlider.High or _G["CFCHUDScaleSliderHigh"]
@@ -3291,6 +3303,7 @@ function UI:CreateSettingsTab()
 
     -- Export Data Button
     frame.exportButton = CreateFrame("Button", "CFCExportButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.exportButton)
     frame.exportButton:SetSize(200, 30)
     frame.exportButton:SetPoint("TOPLEFT", frame.autoBackupDesc, "BOTTOMLEFT", -25, -15)
     frame.exportButton:SetText("Export Data")
@@ -3311,6 +3324,7 @@ function UI:CreateSettingsTab()
 
     -- Import Data Button
     frame.importButton = CreateFrame("Button", "CFCImportButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.importButton)
     frame.importButton:SetSize(200, 30)
     frame.importButton:SetPoint("TOPLEFT", frame.exportDesc, "BOTTOMLEFT", -25, -15)
     frame.importButton:SetText("Import Data")
@@ -3331,6 +3345,7 @@ function UI:CreateSettingsTab()
 
     -- Restore from Backup Button
     frame.restoreBackupButton = CreateFrame("Button", "CFCRestoreBackupButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.restoreBackupButton)
     frame.restoreBackupButton:SetSize(200, 30)
     frame.restoreBackupButton:SetPoint("TOPLEFT", frame.importDesc, "BOTTOMLEFT", -25, -15)
     frame.restoreBackupButton:SetText("Restore from Backup")
@@ -3351,6 +3366,7 @@ function UI:CreateSettingsTab()
 
     -- Purge Item Button
     frame.purgeButton = CreateFrame("Button", "CFCPurgeButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.purgeButton)
     frame.purgeButton:SetSize(200, 30)
     frame.purgeButton:SetPoint("TOPLEFT", frame.restoreBackupDesc, "BOTTOMLEFT", -25, -15)
     frame.purgeButton:SetText("Purge Item")
@@ -3371,6 +3387,7 @@ function UI:CreateSettingsTab()
 
     -- Recalculate Totals Button
     frame.recalcButton = CreateFrame("Button", "CFCRecalcButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.recalcButton)
     frame.recalcButton:SetSize(200, 30)
     frame.recalcButton:SetPoint("TOPLEFT", frame.purgeDesc, "BOTTOMLEFT", -25, -20)
     frame.recalcButton:SetText("Recalculate Totals")
@@ -3389,6 +3406,7 @@ function UI:CreateSettingsTab()
 
     -- Clear Statistics Button
     frame.clearStatsButton = CreateFrame("Button", "CFCClearStatsButton", frame.scrollChild, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.clearStatsButton)
     frame.clearStatsButton:SetSize(200, 30)
     frame.clearStatsButton:SetPoint("TOPLEFT", frame.recalcDesc, "BOTTOMLEFT", -25, -20)
     frame.clearStatsButton:SetText("Clear All Statistics")
@@ -4221,6 +4239,7 @@ function UI:CreateExportImportDialog()
 
     -- Create frame
     local frame = CreateFrame("Frame", "CFCExportImportFrame", UIParent, "BasicFrameTemplateWithInset")
+    Theme.SkinWindow(frame)
     frame:SetSize(500, 400)
     frame:SetPoint("CENTER")
     frame:SetMovable(true)
@@ -4233,8 +4252,9 @@ function UI:CreateExportImportDialog()
 
     -- Title
     frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.title:SetPoint("TOP", frame, "TOP", 0, -5)
+    frame.title:SetPoint("TOP", frame, "TOP", 0, -10)
     frame.title:SetText("Export/Import Data")
+    Theme.StyleTitle(frame.title)
 
     -- Close button
     frame.CloseButton:SetScript("OnClick", function()
@@ -4256,7 +4276,7 @@ function UI:CreateExportImportDialog()
     -- Create background texture
     frame.bg = frame.bgContainer:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame.bgContainer)
-    frame.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+    frame.bg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.9))
 
     -- Scroll frame for the edit box
     frame.scrollFrame = CreateFrame("ScrollFrame", "CFCExportScrollFrame", frame.bgContainer, "UIPanelScrollFrameTemplate")
@@ -4285,6 +4305,7 @@ function UI:CreateExportImportDialog()
 
     -- Copy All button
     frame.copyButton = CreateFrame("Button", "CFCCopyAllButton", frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.copyButton)
     frame.copyButton:SetSize(120, 25)
     frame.copyButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 15)
     frame.copyButton:SetText("Select All")
@@ -4295,6 +4316,7 @@ function UI:CreateExportImportDialog()
 
     -- Import button
     frame.importButton = CreateFrame("Button", "CFCImportButton", frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.importButton)
     frame.importButton:SetSize(120, 25)
     frame.importButton:SetPoint("BOTTOM", frame, "BOTTOM", 0, 15)
     frame.importButton:SetText("Import Data")
@@ -4312,6 +4334,7 @@ function UI:CreateExportImportDialog()
 
     -- Close button
     frame.closeButton = CreateFrame("Button", "CFCCloseButton", frame, "UIPanelButtonTemplate")
+    Theme.SkinButton(frame.closeButton)
     frame.closeButton:SetSize(120, 25)
     frame.closeButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 15)
     frame.closeButton:SetText("Close")
@@ -4355,6 +4378,7 @@ end
 function UI:ShowPurgeDialog(prefillName)
     -- Create simple input dialog
     local dialog = CreateFrame("Frame", "CFCPurgeDialog", UIParent, "BasicFrameTemplateWithInset")
+    Theme.SkinWindow(dialog)
     dialog:SetSize(400, 150)
     dialog:SetPoint("CENTER")
     dialog:SetFrameStrata("DIALOG")
@@ -4366,8 +4390,9 @@ function UI:ShowPurgeDialog(prefillName)
 
     -- Title
     dialog.title = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    dialog.title:SetPoint("TOP", dialog, "TOP", 0, -5)
+    dialog.title:SetPoint("TOP", dialog, "TOP", 0, -10)
     dialog.title:SetText("Purge Item")
+    Theme.StyleTitle(dialog.title)
 
     -- Instructions
     dialog.instructions = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -4409,6 +4434,7 @@ function UI:ShowPurgeDialog(prefillName)
 
     -- Purge button
     dialog.purgeButton = CreateFrame("Button", "CFCPurgeConfirmButton", dialog, "UIPanelButtonTemplate")
+    Theme.SkinButton(dialog.purgeButton)
     dialog.purgeButton:SetSize(120, 25)
     dialog.purgeButton:SetPoint("BOTTOM", dialog, "BOTTOM", -65, 15)
     dialog.purgeButton:SetText("Purge Item")
@@ -4428,6 +4454,7 @@ function UI:ShowPurgeDialog(prefillName)
 
     -- Cancel button
     dialog.cancelButton = CreateFrame("Button", "CFCPurgeCancelButton", dialog, "UIPanelButtonTemplate")
+    Theme.SkinButton(dialog.cancelButton)
     dialog.cancelButton:SetSize(120, 25)
     dialog.cancelButton:SetPoint("BOTTOM", dialog, "BOTTOM", 65, 15)
     dialog.cancelButton:SetText("Cancel")
@@ -4452,4 +4479,44 @@ function UI:ShowPurgeDialog(prefillName)
             dialog.inputBox:SetFocus()
         end
     end)
+end
+
+-- Entry under Esc > Options > AddOns. The addon's settings live in the main
+-- window, so this page just points there.
+if Settings and Settings.RegisterCanvasLayoutCategory then
+    local optionsPanel = CreateFrame("Frame")
+
+    optionsPanel.title = optionsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    optionsPanel.title:SetPoint("TOPLEFT", optionsPanel, "TOPLEFT", 16, -16)
+    optionsPanel.title:SetText("Classic Fishing Companion")
+
+    optionsPanel.desc = optionsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    optionsPanel.desc:SetPoint("TOPLEFT", optionsPanel.title, "BOTTOMLEFT", 0, -8)
+    optionsPanel.desc:SetText("Stats, gear sets, lures and settings are in the main window. You can also open it with /cfc.")
+
+    local function OpenFromOptions(tabName)
+        if SettingsPanel and SettingsPanel:IsShown() then
+            HideUIPanel(SettingsPanel)
+        end
+        CFC:OpenUITab(tabName)
+    end
+
+    optionsPanel.openButton = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
+
+    Theme.SkinButton(optionsPanel.openButton)
+    optionsPanel.openButton:SetSize(180, 25)
+    optionsPanel.openButton:SetPoint("TOPLEFT", optionsPanel.desc, "BOTTOMLEFT", 0, -16)
+    optionsPanel.openButton:SetText("Open Main Window")
+    optionsPanel.openButton:SetScript("OnClick", function() OpenFromOptions("overview") end)
+
+    optionsPanel.settingsButton = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
+
+    Theme.SkinButton(optionsPanel.settingsButton)
+    optionsPanel.settingsButton:SetSize(180, 25)
+    optionsPanel.settingsButton:SetPoint("LEFT", optionsPanel.openButton, "RIGHT", 8, 0)
+    optionsPanel.settingsButton:SetText("Open Settings")
+    optionsPanel.settingsButton:SetScript("OnClick", function() OpenFromOptions("settings") end)
+
+    local category = Settings.RegisterCanvasLayoutCategory(optionsPanel, "Classic Fishing Companion")
+    Settings.RegisterAddOnCategory(category)
 end

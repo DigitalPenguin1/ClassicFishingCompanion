@@ -1062,7 +1062,8 @@ function CFC:CreateCombatSwapButton()
         tile = true, tileSize = 32, edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 }
     })
-    btn:SetBackdropColor(0.8, 0.1, 0.1, 0.95)
+    btn:SetBackdropColor(CFCTheme.Color(CFCTheme.BRONZE_DARK, 0.95))
+    btn:SetBackdropBorderColor(CFCTheme.Color(CFCTheme.GOLD))
 
     -- Text
     local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

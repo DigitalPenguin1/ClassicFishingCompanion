@@ -53,45 +53,7 @@ function CFC:InitializeMinimap()
 
     -- Click handler
     minimapButton:SetScript("OnClick", function(self, button)
-        if button == "LeftButton" then
-            CFC:ToggleUI()
-        elseif button == "RightButton" then
-            -- Toggle HUD visibility on right-click
-            if CFC.HUD and CFC.HUD.ToggleShow then
-                local swapBlocked = false
-                -- Check if auto-swap is enabled
-                if CFC.db and CFC.db.profile and CFC.db.profile.settings and CFC.db.profile.settings.autoSwapOnHUD then
-                    -- Check if fishing gear set is configured
-                    local gearSets = CFC.db.profile.gearSets
-                    local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
-
-                    if not hasFishingGear then
-                        -- Warn if fishing gear set not configured
-                        CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but fishing gear set not configured. Please save your fishing gear set in the Gear Sets tab.")
-                    else
-                        local hudCurrentlyShown = CFC.db.profile.hud.show
-                        local currentMode = gearSets.currentMode or "current"
-
-                        if hudCurrentlyShown then
-                            if currentMode ~= "current" and CFC.SwapGear then
-                                if CFC:SwapGear() == false then
-                                    swapBlocked = true
-                                end
-                            end
-                        else
-                            if currentMode ~= "fishing" and CFC.SwapGear then
-                                if CFC:SwapGear() == false then
-                                    swapBlocked = true
-                                end
-                            end
-                        end
-                    end
-                end
-                if not swapBlocked then
-                    CFC.HUD:ToggleShow()
-                end
-            end
-        end
+        MinimapModule:OnClick(button)
     end)
 
     -- Drag handler
@@ -115,26 +77,7 @@ function CFC:InitializeMinimap()
 
     -- Tooltip
     minimapButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText("Classic Fishing Companion", 1, 1, 1)
-        GameTooltip:AddLine("Left-click to open", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("Right-click to toggle HUD", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("Drag to move", 0.8, 0.8, 0.8)
-
-        -- Add quick stats
-        if CFC.db and CFC.db.profile then
-            GameTooltip:AddLine(" ", 1, 1, 1)
-            GameTooltip:AddLine("Session: " .. CFC.db.profile.statistics.sessionCatches .. " fish", 0, 1, 0)
-            local fph = CFC:GetFishPerHour()
-            GameTooltip:AddLine("Fish/Hour: " .. string.format("%.1f", fph), 0, 1, 0)
-
-            -- Show fishing skill if available
-            if CFC.db.profile.statistics.currentSkill and CFC.db.profile.statistics.currentSkill > 0 then
-                GameTooltip:AddLine("Skill: " .. CFC.db.profile.statistics.currentSkill .. "/" .. CFC.db.profile.statistics.maxSkill, 0.5, 0.8, 1)
-            end
-        end
-
-        GameTooltip:Show()
+        MinimapModule:ShowTooltip(self, true)
     end)
 
     minimapButton:SetScript("OnLeave", function(self)
@@ -157,6 +100,76 @@ function CFC:InitializeMinimap()
     if not success then
         print("|cffff0000[CFC Error]|r Failed to create minimap button: " .. tostring(err))
     end
+end
+
+-- Left-click opens the main window, right-click toggles the HUD.
+-- Shared by the minimap button and the addon compartment entry.
+function MinimapModule:OnClick(button)
+    if button == "LeftButton" then
+        CFC:ToggleUI()
+    elseif button == "RightButton" then
+        -- Toggle HUD visibility on right-click
+        if CFC.HUD and CFC.HUD.ToggleShow then
+            local swapBlocked = false
+            -- Check if auto-swap is enabled
+            if CFC.db and CFC.db.profile and CFC.db.profile.settings and CFC.db.profile.settings.autoSwapOnHUD then
+                -- Check if fishing gear set is configured
+                local gearSets = CFC.db.profile.gearSets
+                local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
+
+                if not hasFishingGear then
+                    -- Warn if fishing gear set not configured
+                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but fishing gear set not configured. Please save your fishing gear set in the Gear Sets tab.")
+                else
+                    local hudCurrentlyShown = CFC.db.profile.hud.show
+                    local currentMode = gearSets.currentMode or "current"
+
+                    if hudCurrentlyShown then
+                        if currentMode ~= "current" and CFC.SwapGear then
+                            if CFC:SwapGear() == false then
+                                swapBlocked = true
+                            end
+                        end
+                    else
+                        if currentMode ~= "fishing" and CFC.SwapGear then
+                            if CFC:SwapGear() == false then
+                                swapBlocked = true
+                            end
+                        end
+                    end
+                end
+            end
+            if not swapBlocked then
+                CFC.HUD:ToggleShow()
+            end
+        end
+    end
+end
+
+-- Tooltip with usage hints and quick stats
+function MinimapModule:ShowTooltip(owner, draggable)
+    GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
+    GameTooltip:SetText("Classic Fishing Companion", 1, 1, 1)
+    GameTooltip:AddLine("Left-click to open", 0.8, 0.8, 0.8)
+    GameTooltip:AddLine("Right-click to toggle HUD", 0.8, 0.8, 0.8)
+    if draggable then
+        GameTooltip:AddLine("Drag to move", 0.8, 0.8, 0.8)
+    end
+
+    -- Add quick stats
+    if CFC.db and CFC.db.profile then
+        GameTooltip:AddLine(" ", 1, 1, 1)
+        GameTooltip:AddLine("Session: " .. CFC.db.profile.statistics.sessionCatches .. " fish", 0, 1, 0)
+        local fph = CFC:GetFishPerHour()
+        GameTooltip:AddLine("Fish/Hour: " .. string.format("%.1f", fph), 0, 1, 0)
+
+        -- Show fishing skill if available
+        if CFC.db.profile.statistics.currentSkill and CFC.db.profile.statistics.currentSkill > 0 then
+            GameTooltip:AddLine("Skill: " .. CFC.db.profile.statistics.currentSkill .. "/" .. CFC.db.profile.statistics.maxSkill, 0.5, 0.8, 1)
+        end
+    end
+
+    GameTooltip:Show()
 end
 
 -- Update button position around minimap
@@ -312,3 +325,17 @@ StaticPopupDialogs["CFC_RESET_CONFIRM"] = {
     hideOnEscape = true,
     preferredIndex = 3,
 }
+
+-- Addon compartment (the addon list next to the minimap on modern clients).
+-- The TOC points AddonCompartmentFunc/OnEnter/OnLeave at these globals.
+function CFC_OnAddonCompartmentClick(_, buttonName)
+    MinimapModule:OnClick(buttonName)
+end
+
+function CFC_OnAddonCompartmentEnter(_, menuButtonFrame)
+    MinimapModule:ShowTooltip(menuButtonFrame, false)
+end
+
+function CFC_OnAddonCompartmentLeave()
+    GameTooltip:Hide()
+end

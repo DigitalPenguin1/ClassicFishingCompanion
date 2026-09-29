@@ -3862,6 +3862,12 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.1"] = {
+        changes = {
+            "The HUD swap button now shows gauntlets instead of a sword when swapping back to your normal gear, since your normal set might be healing or caster gear",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.0"] = {
         features = {
             "The HUD Setup button now opens the Gear Sets tab",

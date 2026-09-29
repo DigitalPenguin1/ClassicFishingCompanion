@@ -2,10 +2,13 @@
 ## Title: Classic Fishing Companion (Forever Beta)
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics. Forever support is for testing on the Forever beta; fixes will follow.
 ## Author: Relyk
-## Version: 1.2.0
+## Version: 1.2.1
 ## SavedVariables: ClassicFishingCompanionDB
 ## SavedVariablesPerCharacter: ClassicFishingCompanionCharDB
 ## IconTexture: Interface\AddOns\ClassicFishingCompanion\Textures\icon
+## AddonCompartmentFunc: CFC_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: CFC_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: CFC_OnAddonCompartmentLeave
 
 # Keybinding Localization
 Bindings_Locale.lua
@@ -19,6 +22,7 @@ Libs/AceConsole-3.0/AceConsole-3.0.lua
 
 # Forever-Specific Files (WoW Forever runs the modern API)
 Forever/Compat.lua
+Forever/Theme.lua
 Forever/Core.lua
 Forever/Database.lua
 Forever/Minimap.lua

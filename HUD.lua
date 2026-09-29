@@ -550,7 +550,7 @@ function HUDModule:Update()
         local currentMode = CFC:GetCurrentGearMode()
         if CFC:HasGearSets() then
             -- Show icon of what we're swapping TO (opposite of current mode)
-            local targetIcon = (currentMode == "current") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
+            local targetIcon = (currentMode == "current") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Gauntlets_19:16|t"
             hudFrame.gearSwapButton:SetText("Swap to " .. targetIcon)
         else
             hudFrame.gearSwapButton:SetText("|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:16|t Setup")

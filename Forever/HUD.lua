@@ -8,6 +8,9 @@ local GetItemCount = CFCCompat.GetItemCount
 local GetItemIcon = CFCCompat.GetItemIcon
 local UnitBuff = CFCCompat.UnitBuff
 
+-- Gold/bronze styling for Forever (see Theme.lua)
+local Theme = CFCTheme
+
 CFC.HUD = {}
 local HUDModule = CFC.HUD
 
@@ -84,14 +87,14 @@ function CFC:InitializeHUD()
         edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
-    hudFrame.border:SetBackdropColor(0, 0, 0, 0.35)
-    hudFrame.border:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+    hudFrame.border:SetBackdropColor(Theme.Color(Theme.BRONZE_DARK, Theme.HUD_ALPHA))
+    hudFrame.border:SetBackdropBorderColor(Theme.Color(Theme.GOLD))
 
     -- Title
     hudFrame.title = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     hudFrame.title:SetPoint("TOP", hudFrame, "TOP", 0, -4)
     hudFrame.title:SetText("Fishing Stats")
-    hudFrame.title:SetTextColor(0.4, 0.8, 1)
+    Theme.StyleTitle(hudFrame.title)
 
     -- Session catches
     hudFrame.sessionText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -193,6 +196,7 @@ function CFC:InitializeHUD()
 
     -- Apply lure button (using SecureActionButton for macro execution)
     hudFrame.applyLureButton = CreateFrame("Button", "CFCApplyLureButton", hudFrame, "SecureActionButtonTemplate, UIPanelButtonTemplate")
+    Theme.SkinButton(hudFrame.applyLureButton)
     hudFrame.applyLureButton:SetSize(88, 22)
     hudFrame.applyLureButton:SetPoint("BOTTOMLEFT", hudFrame, "BOTTOMLEFT", 10, 5)
     hudFrame.applyLureButton:SetText("Apply Lure")
@@ -203,6 +207,10 @@ function CFC:InitializeHUD()
 
     -- Set up secure button to execute a macro
     hudFrame.applyLureButton:SetAttribute("type", "macro")
+
+    -- Modern clients only run a secure action on the press that matches the
+    -- ActionButtonUseKeyDown CVar (on by default), so listen for both halves
+    hudFrame.applyLureButton:RegisterForClicks("AnyUp", "AnyDown")
 
     -- Function to update the macro based on selected lure
     hudFrame.UpdateApplyLureMacro = function()
@@ -230,6 +238,11 @@ function CFC:InitializeHUD()
 
     -- PreClick handler to check gear mode and lure availability
     hudFrame.applyLureButton:SetScript("PreClick", function(self, button, down)
+        -- Both press halves arrive here; only warn on the one that runs the macro
+        if (down and true or false) ~= GetCVarBool("ActionButtonUseKeyDown") then
+            return
+        end
+
         local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
 
         -- Check if a lure is selected
@@ -283,6 +296,7 @@ function CFC:InitializeHUD()
 
     -- Gear swap button
     hudFrame.gearSwapButton = CreateFrame("Button", nil, hudFrame, "UIPanelButtonTemplate")
+    Theme.SkinButton(hudFrame.gearSwapButton)
     hudFrame.gearSwapButton:SetSize(88, 22)
     hudFrame.gearSwapButton:SetPoint("LEFT", hudFrame.applyLureButton, "RIGHT", 4, 0)
     hudFrame.gearSwapButton:SetText("Swap Gear")
@@ -555,7 +569,7 @@ function HUDModule:Update()
         local currentMode = CFC:GetCurrentGearMode()
         if CFC:HasGearSets() then
             -- Show icon of what we're swapping TO (opposite of current mode)
-            local targetIcon = (currentMode == "current") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Sword_04:16|t"
+            local targetIcon = (currentMode == "current") and "|TInterface\\Icons\\Trade_Fishing:16|t" or "|TInterface\\Icons\\INV_Gauntlets_19:16|t"
             hudFrame.gearSwapButton:SetText("Swap to " .. targetIcon)
         else
             hudFrame.gearSwapButton:SetText("|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:16|t Setup")

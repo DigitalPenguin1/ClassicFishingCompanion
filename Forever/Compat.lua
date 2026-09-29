@@ -55,14 +55,16 @@ Compat.UnitBuff = _G.UnitBuff or function(unit, index, filter)
         aura.expirationTime, aura.sourceUnit, aura.isStealable, aura.nameplateShowPersonal, aura.spellId
 end
 
--- Returns name, skillLevel, maxSkillLevel for Fishing, or nil if not learned
+-- Returns name, skillLevel, maxSkillLevel, skillModifier for Fishing, or nil
+-- if not learned. skillModifier is the game's total bonus on top of the base
+-- skill (pole, lure, gear); on Forever it includes the lure (confirmed in beta).
 function Compat.GetFishingSkill()
     -- Classic: fishing is one of the skill lines on the character sheet
     if GetNumSkillLines then
         for i = 1, GetNumSkillLines() do
-            local skillName, _, _, skillLevel, _, _, skillMaxLevel = GetSkillLineInfo(i)
+            local skillName, _, _, skillLevel, _, skillModifier, skillMaxLevel = GetSkillLineInfo(i)
             if skillName and string.find(skillName, "Fishing") then
-                return skillName, skillLevel, skillMaxLevel
+                return skillName, skillLevel, skillMaxLevel, skillModifier
             end
         end
         return nil
@@ -71,8 +73,8 @@ function Compat.GetFishingSkill()
     -- Modern: fishing has a fixed profession slot (4th return of GetProfessions)
     local _, _, _, fishingIndex = GetProfessions()
     if fishingIndex then
-        local name, _, skillLevel, maxSkillLevel = GetProfessionInfo(fishingIndex)
-        return name, skillLevel, maxSkillLevel
+        local name, _, skillLevel, maxSkillLevel, _, _, _, skillModifier = GetProfessionInfo(fishingIndex)
+        return name, skillLevel, maxSkillLevel, skillModifier
     end
     return nil
 end

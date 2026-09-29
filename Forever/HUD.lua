@@ -15,6 +15,8 @@ CFC.HUD = {}
 local HUDModule = CFC.HUD
 
 local hudFrame = nil
+local LURE_BAR_WIDTH = 150
+local GEAR_BONUS_ICON = "Interface\\Icons\\INV_Helmet_31"  -- Fishing bonus from gear other than the pole
 
 -- Lure bonus mapping (constant table to avoid recreation every update)
 local lureBonus = {
@@ -132,6 +134,19 @@ function CFC:InitializeHUD()
     hudFrame.buffTimerText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hudFrame.buffTimerText:SetPoint("TOPLEFT", hudFrame.buffText, "BOTTOMLEFT", 0, -3)
     hudFrame.buffTimerText:SetJustifyH("LEFT")
+
+    -- Lure countdown bar behind the Time Left line. Drawn with textures on the
+    -- HUD itself: a StatusBar child frame would render on top of the text.
+    hudFrame.lureBarBg = hudFrame:CreateTexture(nil, "ARTWORK", nil, 0)
+    hudFrame.lureBarBg:SetPoint("TOPLEFT", hudFrame.buffTimerText, "TOPLEFT", -3, 2)
+    hudFrame.lureBarBg:SetPoint("BOTTOMLEFT", hudFrame.buffTimerText, "BOTTOMLEFT", -3, -2)
+    hudFrame.lureBarBg:SetWidth(LURE_BAR_WIDTH)
+    hudFrame.lureBarBg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.6))
+    hudFrame.lureBarFill = hudFrame:CreateTexture(nil, "ARTWORK", nil, 1)
+    hudFrame.lureBarFill:SetPoint("TOPLEFT", hudFrame.lureBarBg, "TOPLEFT")
+    hudFrame.lureBarFill:SetPoint("BOTTOMLEFT", hudFrame.lureBarBg, "BOTTOMLEFT")
+    hudFrame.lureBarBorder = Theme.AddBorder(hudFrame, hudFrame.lureBarBg, Theme.GOLD, 0.5)
+    HUDModule:SetLureBar(nil)
 
     -- Goals display (up to 3 goals on HUD)
     hudFrame.goalsTitle = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -479,6 +494,7 @@ function HUDModule:Update()
         end
 
         -- Check for active fishing lure buff and add to skill display
+        local lureAmount = 0
         if currentBuff then
             -- Extract buff amount from the lure name
             local buffAmount = string.match(currentBuff.name, "%+(%d+)")
@@ -499,7 +515,16 @@ function HUDModule:Update()
                 end
 
                 skillText = skillText .. " |cffffff00+" .. buffAmount .. "|r |T" .. lureIcon .. ":14|t"
+                lureAmount = tonumber(buffAmount) or 0
             end
+        end
+
+        -- Other fishing gear (hat, boots, glove enchant): the game's total bonus
+        -- minus what the pole and lure badges already show
+        local _, _, _, skillModifier = CFCCompat.GetFishingSkill()
+        local gearBonus = (skillModifier or 0) - (poleBonus or 0) - lureAmount
+        if gearBonus > 0 then
+            skillText = skillText .. " |cff00ff00+" .. gearBonus .. "|r |T" .. GEAR_BONUS_ICON .. ":14|t"
         end
 
         hudFrame.skillText:SetText(skillText)
@@ -524,9 +549,11 @@ function HUDModule:Update()
 
         local timeText = HUDModule:FormatTime(timeRemaining)
         hudFrame.buffTimerText:SetText("Time Left: " .. timeColor .. timeText .. "|r")
+        HUDModule:SetLureBar(currentBuff)
     else
         hudFrame.buffText:SetText("Lure: |cffff0000None|r")
         hudFrame.buffTimerText:SetText("")
+        HUDModule:SetLureBar(nil)
     end
 
     -- Update goals display
@@ -668,6 +695,41 @@ function HUDModule:GetFishingPoleBonus()
         cachedPoleBonus = result
     end
     return result
+end
+
+-- Fill the lure countdown bar. The full duration is taken from the largest
+-- remaining time seen for this lure, so a fresh application starts it full.
+function HUDModule:SetLureBar(buff)
+    if not hudFrame or not hudFrame.lureBarBg then
+        return
+    end
+
+    local show = buff ~= nil and not (CFC.db and CFC.db.profile.settings.textOnlyHUD)
+    hudFrame.lureBarBg:SetShown(show)
+    hudFrame.lureBarFill:SetShown(show)
+    hudFrame.lureBarBorder:SetShown(show)
+    if not buff then
+        hudFrame.lureDuration = nil
+        hudFrame.lureName = nil
+        return
+    end
+
+    local remaining = buff.expirationSeconds or 0
+    if buff.name ~= hudFrame.lureName or not hudFrame.lureDuration or remaining > hudFrame.lureDuration then
+        hudFrame.lureName = buff.name
+        hudFrame.lureDuration = math.max(remaining, 1)
+    end
+    if not show then
+        return
+    end
+
+    local pct = math.min(1, remaining / hudFrame.lureDuration)
+    hudFrame.lureBarFill:SetWidth(math.max(1, pct * LURE_BAR_WIDTH))
+    if remaining < 60 then
+        Theme.SetBarFill(hudFrame.lureBarFill, 0.8, 0.1, 0.1, 0.55)  -- Red in the last minute
+    else
+        Theme.SetBarFill(hudFrame.lureBarFill, Theme.Color(Theme.GOLD, 0.55))
+    end
 end
 
 -- Get current fishing buff (lure)

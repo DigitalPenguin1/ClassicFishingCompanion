@@ -2,10 +2,23 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [Unreleased]
+## [1.2.2] - 2026-09-29
+
+This release only changes the WoW: Forever version. Classic Era and TBC are unchanged apart from the version number.
+
+### Changed
+- **Forever:** Recent Catches on the Overview tab is now a list of rows with each catch's icon, its name in quality color, where you caught it, and how long ago. Hover a row for the item tooltip
+- **Forever:** item icons in the Catch List, Zones, Goals and Release tabs get a thin border in the item's quality color (green, blue, purple) so uncommon catches stand out
+- **Forever:** Statistics and Goals progress bars use a glossy status-bar fill with a gold border. Goals in progress fill gold and turn green when complete
+- **Forever:** the HUD shows a lure countdown bar behind the Time Left line. It drains as the lure runs down and turns red in the last minute (hidden in text-only mode)
+- **Forever:** dropdowns on the Goals, Release and Settings tabs use the modern game dropdown. Long fish lists scroll
+- **Forever:** scrollable lists use the modern thin scrollbar instead of the old grey arrow buttons
+- **Forever:** the HUD Skill line shows fishing bonus from gear other than your pole and lure (a hat, boots or glove enchant) as its own "+N" badge
 
 ### Fixed
 - **Forever:** the Catch List and Zones tab now use the same fish rules as the Goals and Release dropdowns, and recognize raw fish by their item category (Trade Goods > Cooking). A Forever fish whose name doesn't contain a known fish word no longer lands under Miscellaneous or goes missing from the Zones tab. This only changes where items are listed; no catches are changed or removed
+- **Forever:** the Zones tab no longer stops with a Lua error ("attempt to call global 'GetItemInfo'") when a catch has no fish word in its name and no saved item type. Forever's client doesn't have the old `GetItemInfo` global
+- **Forever:** the Statistics tab no longer scrolls far past its last line. Its scroll area was a fixed height instead of fitting the content
 
 ## [1.2.1] - 2026-09-28
 

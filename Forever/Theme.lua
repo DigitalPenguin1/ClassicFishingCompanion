@@ -128,8 +128,12 @@ end
 
 -- Icon tab that hangs off a window's right edge, like the spellbook and
 -- profession side tabs. Shows its label as a tooltip on hover.
+--   opts.icon          -> icon texture path
+--   opts.label         -> tooltip text
+--   opts.texCoord      -> { left, right, top, bottom } crop of the icon (optional)
+--   opts.fallbackIcon  -> used when the icon file is missing (optional)
 local SIDE_TAB_ART = "Interface\\SpellBook\\SpellBook-SkillLineTab"
-function Theme.CreateSideTab(parent, icon, label)
+function Theme.CreateSideTab(parent, opts)
     local tab = CreateFrame("Button", nil, parent)
     tab:SetSize(32, 32)
 
@@ -148,7 +152,15 @@ function Theme.CreateSideTab(parent, icon, label)
         frame:SetBackdropBorderColor(Theme.Color(Theme.GOLD))
     end
 
-    tab:SetNormalTexture(icon)
+    local icon = tab:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    if icon:SetTexture(opts.icon) then
+        if opts.texCoord then
+            icon:SetTexCoord(unpack(opts.texCoord))
+        end
+    elseif opts.fallbackIcon then
+        icon:SetTexture(opts.fallbackIcon)
+    end
     tab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
     tab.cfcChecked = tab:CreateTexture(nil, "OVERLAY")
@@ -159,7 +171,7 @@ function Theme.CreateSideTab(parent, icon, label)
 
     tab:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(label, 1, 0.82, 0)
+        GameTooltip:SetText(opts.label, 1, 0.82, 0)
         GameTooltip:Show()
     end)
     tab:SetScript("OnLeave", function()

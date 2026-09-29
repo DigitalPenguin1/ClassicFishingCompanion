@@ -171,7 +171,9 @@ function UI:CreateTabs()
         { name = "fishlist", label = "Catch List", icon = "Interface\\Icons\\INV_Misc_Fish_02" },
         { name = "history", label = "Zones", icon = "Interface\\Icons\\INV_Misc_Map_01" },
         { name = "stats", label = "Statistics", icon = "Interface\\Icons\\INV_Misc_Note_01" },
-        { name = "gearsets", label = "Gear Sets", icon = "Interface\\Icons\\INV_Fishingpole_02" },
+        -- Equipment Manager tab icon from the character sheet sidebar
+        { name = "gearsets", label = "Gear Sets", icon = "Interface\\PaperDollInfoFrame\\PaperDollSidebarTabs",
+          texCoord = { 0.015625, 0.53125, 0.46875, 0.60546875 }, fallbackIcon = "Interface\\Icons\\INV_Fishingpole_02" },
         { name = "lures", label = "Lure", icon = "Interface\\Icons\\INV_Misc_Orb_03" },
         { name = "goals", label = "Goals", icon = "Interface\\Icons\\Achievement_Profession_Fishing_JourneymanFisher" },
         { name = "release", label = "Release", icon = "Interface\\Icons\\Spell_Frost_SummonWaterElemental" },
@@ -181,7 +183,7 @@ function UI:CreateTabs()
     local tabSpacing = 44
 
     for i, tab in ipairs(tabs) do
-        local button = Theme.CreateSideTab(mainFrame, tab.icon, tab.label)
+        local button = Theme.CreateSideTab(mainFrame, tab)
         button:SetPoint("TOPLEFT", mainFrame, "TOPRIGHT", -2, -30 - (i - 1) * tabSpacing)
         button:SetScript("OnClick", function() UI:ShowTab(tab.name) end)
         tab.button = button

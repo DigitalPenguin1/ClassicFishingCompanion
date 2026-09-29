@@ -59,12 +59,18 @@ function UI:IsFishItem(itemName, itemType, itemSubType)
         end
     end
 
-    -- TBC raw fish are "Trade Goods/Cooking"
-    if not isFish and itemType and itemSubType then
-        local typeLower = string.lower(itemType)
-        local subTypeLower = string.lower(itemSubType)
-        if typeLower == "trade goods" and string.find(subTypeLower, "cooking") then
-            isFish = true
+    -- Raw fish are Trade Goods > Cooking (classID 7, subclass 8). The IDs don't
+    -- depend on the client's language; the saved type names are the fallback
+    -- for items that aren't in the client's cache yet.
+    if not isFish then
+        local classID, subClassID
+        if GetItemInfoInstant then
+            classID, subClassID = select(6, GetItemInfoInstant(itemName))
+        end
+        if classID then
+            isFish = classID == 7 and subClassID == 8
+        elseif itemType and itemSubType then
+            isFish = string.lower(itemType) == "trade goods" and string.find(string.lower(itemSubType), "cooking") ~= nil
         end
     end
 
@@ -448,67 +454,8 @@ function UI:UpdateFishList()
             end
         end
 
-        -- Determine if this is a fish or miscellaneous item
-        local isFish = false
-        local nameLower = string.lower(item.name)
-
-        -- First priority: Check for fish keywords (these override everything else)
-        local fishKeywords = {
-            "fish", "salmon", "trout", "bass", "catfish", "snapper",
-            "rockscale", "cod", "tuna", "mahi", "grouper", "sunfish",
-            "perch", "carp", "eel", "mackerel", "herring", "squid",
-            "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
-            "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
-            "crawdad", "darter", "feltail", "crocolisk",
-            "ahi", "striker", "sailfin"
-        }
-
-        for _, keyword in ipairs(fishKeywords) do
-            if string.find(nameLower, keyword) then
-                isFish = true
-                break
-            end
-        end
-
-        -- If not a fish by name, check item type
-        if not isFish and itemType and itemSubType then
-            local typeLower = string.lower(itemType)
-            local subTypeLower = string.lower(itemSubType)
-
-            -- Fish are consumables with "Food" or "Food & Drink" subtype
-            -- But NOT potions, elixirs, scrolls
-            if typeLower == "consumable" and
-               (string.find(subTypeLower, "food") or string.find(subTypeLower, "drink")) and
-               not string.find(subTypeLower, "potion") and
-               not string.find(subTypeLower, "elixir") and
-               not string.find(nameLower, "potion") and
-               not string.find(nameLower, "elixir") and
-               not string.find(nameLower, "scroll") then
-                isFish = true
-            end
-        end
-
-        -- Override: If it's marked as fish but has certain keywords, it's actually misc
-        -- But ONLY if it doesn't explicitly have "fish" in the name
-        if isFish and not string.find(nameLower, "fish") then
-            local miscKeywords = {
-                "lockbox", "chest", "wreckage", "debris", "crate", "case",
-                "strongbox", "footlocker", "trunk", "coffer", "shoulders",
-                "helm", "gauntlets", "boots", "belt", "cloak", "ring",
-                "trinket", "necklace", "amulet", "sword", "axe", "mace",
-                "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
-                "gem", "pearl", "note", "letter", "ore", "crystal",
-                "essence", "shard", "gloves", "leggings", "bracers",
-    "nutriment", "glowcap"
-            }
-
-            for _, keyword in ipairs(miscKeywords) do
-                if string.find(nameLower, keyword) then
-                    isFish = false
-                    break
-                end
-            end
-        end
+        -- Same rules as the Goals and Release dropdowns
+        local isFish = UI:IsFishItem(item.name, itemType, itemSubType)
 
         if isFish then
             table.insert(fishList, item)

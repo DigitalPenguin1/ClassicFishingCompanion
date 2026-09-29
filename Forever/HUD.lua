@@ -204,6 +204,10 @@ function CFC:InitializeHUD()
     -- Set up secure button to execute a macro
     hudFrame.applyLureButton:SetAttribute("type", "macro")
 
+    -- Modern clients only run a secure action on the press that matches the
+    -- ActionButtonUseKeyDown CVar (on by default), so listen for both halves
+    hudFrame.applyLureButton:RegisterForClicks("AnyUp", "AnyDown")
+
     -- Function to update the macro based on selected lure
     hudFrame.UpdateApplyLureMacro = function()
         if InCombatLockdown() then
@@ -230,6 +234,11 @@ function CFC:InitializeHUD()
 
     -- PreClick handler to check gear mode and lure availability
     hudFrame.applyLureButton:SetScript("PreClick", function(self, button, down)
+        -- Both press halves arrive here; only warn on the one that runs the macro
+        if (down and true or false) ~= GetCVarBool("ActionButtonUseKeyDown") then
+            return
+        end
+
         local selectedLureID = CFC.db and CFC.db.profile and CFC.db.profile.selectedLure
 
         -- Check if a lure is selected

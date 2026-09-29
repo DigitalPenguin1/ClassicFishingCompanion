@@ -1827,8 +1827,14 @@ function UI:UpdateStats()
     frame.statsText:SetText(text)
     frame.bottomStatsText:SetText(bottomText)
 
-    -- Update scroll height (increased for new stats sections)
-    frame.scrollChild:SetHeight(math.max(350, 1400))
+    -- Scroll height = where the content actually ends. Graphs start 150px down
+    -- with 10px gaps (see the container anchors above); the bottom text sits
+    -- 20px under the weekly graph.
+    local graphsBottom = 150 + frame.hourlyContainer:GetHeight() + 10
+        + frame.dailyContainer:GetHeight() + 10 + frame.weeklyContainer:GetHeight()
+    local contentBottom = graphsBottom + 20 + frame.bottomStatsText:GetStringHeight() + 20
+    local topTextBottom = 10 + frame.statsText:GetStringHeight() + 10
+    frame.scrollChild:SetHeight(math.max(contentBottom, topTextBottom))
 end
 
 -- Create Gear Sets Tab

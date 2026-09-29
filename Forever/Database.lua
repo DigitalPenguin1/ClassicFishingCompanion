@@ -3,6 +3,9 @@
 
 local addonName, addon = ...
 
+-- Classic API names mapped to modern equivalents on Forever (see Compat.lua)
+local GetItemInfo = CFCCompat.GetItemInfo
+
 -- Database functions
 CFC.Database = {}
 
@@ -101,79 +104,22 @@ end
 function CFC.Database:GetZoneFishSummary()
     local zoneMap = {}
 
-    -- Fish detection keywords (same logic as Catch List tab)
-    local fishKeywords = {
-        "fish", "salmon", "trout", "bass", "catfish", "snapper",
-        "rockscale", "cod", "tuna", "mahi", "grouper", "sunfish",
-        "perch", "carp", "eel", "mackerel", "herring", "squid",
-        "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
-        "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
-        "crawdad", "darter", "feltail", "crocolisk",
-        "ahi", "striker", "sailfin"
-    }
-
-    local miscKeywords = {
-        "lockbox", "chest", "wreckage", "debris", "crate", "case",
-        "strongbox", "footlocker", "trunk", "coffer", "shoulders",
-        "helm", "gauntlets", "boots", "belt", "cloak", "ring",
-        "trinket", "necklace", "amulet", "sword", "axe", "mace",
-        "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
-        "gem", "pearl", "note", "letter", "ore", "crystal",
-        "essence", "shard", "gloves", "leggings", "bracers",
-        "nutriment", "glowcap"
-    }
-
-    -- Helper: determine if an item is a fish
+    -- Same fish rules as the Catch List, Goals and Release tabs. Memoized per
+    -- item name, since this runs once per catch.
+    local fishByName = {}
     local function IsFishItem(itemName)
-        local nameLower = string.lower(itemName)
-        local isFish = false
-
-        -- Check fish keywords
-        for _, keyword in ipairs(fishKeywords) do
-            if string.find(nameLower, keyword) then
-                isFish = true
-                break
-            end
-        end
-
-        -- Check item type if not matched by name
-        if not isFish then
+        if fishByName[itemName] == nil then
             local fishData = CFC.db.profile.fishData[itemName]
             local itemType = fishData and fishData.itemType
             local itemSubType = fishData and fishData.itemSubType
-
             if not itemType then
                 local _, _, _, _, _, iType, iSubType = GetItemInfo(itemName)
                 itemType = iType
                 itemSubType = iSubType
             end
-
-            if itemType and itemSubType then
-                local typeLower = string.lower(itemType)
-                local subTypeLower = string.lower(itemSubType)
-                if typeLower == "consumable" and
-                   (string.find(subTypeLower, "food") or string.find(subTypeLower, "drink")) and
-                   not string.find(subTypeLower, "potion") and
-                   not string.find(subTypeLower, "elixir") and
-                   not string.find(nameLower, "potion") and
-                   not string.find(nameLower, "elixir") and
-                   not string.find(nameLower, "scroll") then
-                    isFish = true
-                end
-            end
+            fishByName[itemName] = CFC.UI:IsFishItem(itemName, itemType, itemSubType)
         end
-
-        -- Override: misc keywords (unless name contains "fish")
-        if isFish and not string.find(string.lower(itemName), "fish") then
-            for _, keyword in ipairs(miscKeywords) do
-                if string.find(string.lower(itemName), keyword) then
-                    isFish = false
-                    break
-                end
-            end
-        end
-
-        return isFish
+        return fishByName[itemName]
     end
 
     -- Iterate all catches once, grouping by zone

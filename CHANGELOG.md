@@ -2,7 +2,7 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [Unreleased]
+## [1.2.1] - 2026-09-28
 
 ### Changed
 - The HUD's swap button now shows gauntlets instead of a sword when it will swap you back to your normal gear, since not everyone's normal set is a weapon set

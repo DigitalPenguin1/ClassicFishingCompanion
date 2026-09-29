@@ -3809,6 +3809,20 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.1"] = {
+        features = {
+            "Classic Fishing Companion is now in the addon list next to the minimap: left-click opens the window, right-click toggles the HUD",
+            "New page under Esc > Options > AddOns to open the main window or its Settings",
+        },
+        changes = {
+            "The HUD and all windows now use gold and bronze to match the Forever action bar",
+            "The HUD swap button now shows gauntlets instead of a sword when swapping back to your normal gear",
+        },
+        fixes = {
+            "The HUD Apply Lure button now applies your lure",
+        },
+        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nNote: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.0"] = {
         features = {
             "World of Warcraft: Forever support (beta testing build)",

@@ -238,3 +238,17 @@ function Theme.CreateDropdown(parent, width, opts)
     end)
     return dropdown
 end
+
+-- Scroll area with the modern thin scrollbar (ScrollFrameTemplate +
+-- MinimalScrollBar). Falls back to the old UIPanelScrollFrameTemplate if the
+-- modern template is missing or didn't build its scrollbar.
+function Theme.CreateScrollFrame(parent, name)
+    local ok, scrollFrame = pcall(CreateFrame, "ScrollFrame", name, parent, "ScrollFrameTemplate")
+    if ok and scrollFrame and scrollFrame.ScrollBar then
+        return scrollFrame
+    end
+    if ok and scrollFrame then
+        scrollFrame:Hide()
+    end
+    return CreateFrame("ScrollFrame", name and (name .. "Legacy") or nil, parent, "UIPanelScrollFrameTemplate")
+end

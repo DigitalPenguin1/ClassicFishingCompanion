@@ -316,7 +316,7 @@ function UI:CreateOverviewTab()
     frame.recentTitle:SetPoint("TOPLEFT", frame.fishingSkill, "BOTTOMLEFT", 0, -20)
     frame.recentTitle:SetText("Recent Catches")
 
-    frame.recentList = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.recentList = Theme.CreateScrollFrame(frame)
     frame.recentList:SetPoint("TOPLEFT", frame.recentTitle, "BOTTOMLEFT", 5, -10)
     frame.recentList:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 10)
 
@@ -496,7 +496,7 @@ function UI:CreateFishListTab()
     frame.refreshButton = refreshButton
 
     -- Scroll frame for fish list
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -35)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
@@ -1173,7 +1173,7 @@ function UI:CreateHistoryTab()
     frame:Hide()
 
     -- Scroll frame
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
@@ -1567,7 +1567,7 @@ function UI:CreateStatsTab()
     frame:Hide()
 
     -- Scroll frame for stats
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
@@ -2107,7 +2107,7 @@ function UI:CreateLuresTab()
     }
 
     -- Scroll frame for lure buttons
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame.selectedLure, "BOTTOMLEFT", 0, -15)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 10)
 
@@ -2290,7 +2290,7 @@ function UI:CreateGoalsTab()
     frame.goalsHeader:SetText("Active Goals:")
 
     -- Scroll frame for goals list
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame.goalsHeader, "BOTTOMLEFT", 0, -10)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 10)
 
@@ -2474,7 +2474,7 @@ function UI:CreateReleaseTab()
     frame.listHeader:SetText("Release List:")
 
     -- Scroll frame
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame.listHeader, "BOTTOMLEFT", 0, -10)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 10)
 
@@ -2568,7 +2568,7 @@ function UI:CreateSettingsTab()
     frame:Hide()
 
     -- Scroll frame for settings
-    frame.scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame)
     frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
@@ -4229,7 +4229,7 @@ function UI:CreateExportImportDialog()
     frame.bg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.9))
 
     -- Scroll frame for the edit box
-    frame.scrollFrame = CreateFrame("ScrollFrame", "CFCExportScrollFrame", frame.bgContainer, "UIPanelScrollFrameTemplate")
+    frame.scrollFrame = Theme.CreateScrollFrame(frame.bgContainer, "CFCExportScrollFrame")
     frame.scrollFrame:SetPoint("TOPLEFT", 5, -5)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", -25, 5)
 

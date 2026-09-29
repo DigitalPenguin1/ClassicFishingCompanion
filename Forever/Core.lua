@@ -382,6 +382,7 @@ function CFC:OnEnable()
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStart")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "OnEquipmentChanged")
+    self:RegisterEvent("EQUIPMENT_SETS_CHANGED", "OnEquipmentSetsChanged")
 
     -- Initialize Easy Cast system (double right-click to cast fishing)
     -- Called after event registration to ensure fishing detection works even if Easy Cast fails
@@ -432,9 +433,6 @@ function CFC:OnPlayerEntering()
 
     -- Update fishing skill
     self:UpdateFishingSkill()
-
-    -- Baseline for per-slot equipment history
-    self:SnapshotEquippedItems()
 
     -- The saved gear mode can be stale (e.g. logged out mid-swap), so match it
     -- to what's actually equipped. Re-check shortly after in case equipment
@@ -1098,35 +1096,31 @@ function CFC:UpdateCombatSwapMacro()
 
     local btn = self:CreateCombatSwapButton()
 
-    if not self.db or not self.db.profile.gearSets or not self.db.profile.gearSets.current then
+    local combatGear = self:GetEquipmentSetItemIDs("current")
+    if not combatGear then
         if self.debug then
-            print("|cffff0000[CFC Debug]|r No current gear saved for swap macro")
+            print("|cffff0000[CFC Debug]|r No normal gear set for swap macro")
         end
         return false
     end
 
-    local combatGear = self.db.profile.gearSets.current
     local macroLines = {"/stopcasting"}  -- Always stop fishing first
 
     -- Main hand (slot 16)
-    if combatGear[16] then
-        local itemName = string.match(combatGear[16], "%[(.-)%]")
-        if itemName then
-            table.insert(macroLines, "/equip " .. itemName)
-            if self.debug then
-                print("|cff00ff00[CFC Debug]|r Combat swap macro - Main hand: " .. itemName)
-            end
+    local mainHand = combatGear[16] and C_Item.GetItemNameByID(combatGear[16])
+    if mainHand then
+        table.insert(macroLines, "/equip " .. mainHand)
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Combat swap macro - Main hand: " .. mainHand)
         end
     end
 
     -- Off-hand (slot 17)
-    if combatGear[17] then
-        local itemName = string.match(combatGear[17], "%[(.-)%]")
-        if itemName then
-            table.insert(macroLines, "/equipslot 17 " .. itemName)
-            if self.debug then
-                print("|cff00ff00[CFC Debug]|r Combat swap macro - Off-hand: " .. itemName)
-            end
+    local offHand = combatGear[17] and C_Item.GetItemNameByID(combatGear[17])
+    if offHand then
+        table.insert(macroLines, "/equipslot 17 " .. offHand)
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Combat swap macro - Off-hand: " .. offHand)
         end
     end
 
@@ -1260,12 +1254,29 @@ end
 
 -- Handle equipment changes (detect manual weapon swaps to keep currentMode in sync)
 function CFC:OnEquipmentChanged(event, slot)
-    self:RecordSlotChange(slot)
+    -- Refresh the Gear Sets tab's available/missing marks
+    if self.UI and self.UI.UpdateGearSetsTab then
+        self.UI:UpdateGearSetsTab()
+    end
 
     -- Only the main hand decides the gear mode
     if slot ~= 16 then return end
 
     self:SyncGearModeWithEquipped()
+end
+
+-- A set was created, renamed, saved or deleted in the Equipment Manager
+function CFC:OnEquipmentSetsChanged()
+    if self.HUD and self.HUD.Update then
+        self.HUD:Update()
+    end
+    if self.UI and self.UI.UpdateGearSetsTab then
+        self.UI:UpdateGearSetsTab()
+    end
+    -- The normal set's weapons feed the combat swap macro
+    if self.db and self.db.profile.settings.autoSwapCombatWeapons and self:IsFishingPoleEquipped() then
+        self:UpdateCombatSwapMacro()
+    end
 end
 
 -- Set currentMode from whether a fishing pole is in the main hand
@@ -1291,6 +1302,14 @@ function CFC:SyncGearModeWithEquipped()
         if self.debug then
             print("|cffff8800[CFC Debug]|r Detected non-fishing weapon equipped - mode set to 'current'")
         end
+    else
+        return
+    end
+
+    -- Equipment sets equip over the next few frames, so the HUD's swap
+    -- button updates here rather than right after the swap call
+    if self.HUD and self.HUD.Update then
+        self.HUD:Update()
     end
 end
 
@@ -1787,279 +1806,140 @@ end
 -- GEAR SWAP SYSTEM
 -- ========================================
 
--- Equipment slot IDs
-local GEAR_SLOTS = {
-    HEADSLOT = 1,
-    NECKSLOT = 2,
-    SHOULDERSLOT = 3,
-    SHIRTSLOT = 4,
-    CHESTSLOT = 5,
-    WAISTSLOT = 6,
-    LEGSSLOT = 7,
-    FEETSLOT = 8,
-    WRISTSLOT = 9,
-    HANDSSLOT = 10,
-    FINGER0SLOT = 11,
-    FINGER1SLOT = 12,
-    TRINKET0SLOT = 13,
-    TRINKET1SLOT = 14,
-    BACKSLOT = 15,
-    MAINHANDSLOT = 16,
-    SECONDARYHANDSLOT = 17,
-    TABARDSLOT = 19,
-}
+-- Gear sets live in the game's Equipment Manager, which the server stores, so
+-- they survive the Forever SavedVariables bug. The fishing set is any set named
+-- "Fishing" or "CFC" (any case). Before each swap to fishing, what the player
+-- is wearing is saved to "CFC Normal", and swapping back equips that set.
+local FISHING_SET_NAMES = { ["fishing"] = true, ["cfc"] = true }
+local DEFAULT_FISHING_SET_NAME = "Fishing"
+local NORMAL_SET_NAME = "CFC Normal"
+local FISHING_SET_ICON = "Interface\\Icons\\Trade_Fishing"
+local NORMAL_SET_ICON = "Interface\\Icons\\INV_Gauntlets_19"
 
--- Per-slot equipment history for this session. When the fishing set is saved
--- while already wearing it, the item each slot held before its last change is
--- the best record of the player's normal gear.
-CFC.equippedSlotItems = {}
-CFC.previousSlotItems = {}
+CFC.NORMAL_SET_NAME = NORMAL_SET_NAME
 
-function CFC:SnapshotEquippedItems()
-    for _, slotID in pairs(GEAR_SLOTS) do
-        self.equippedSlotItems[slotID] = GetInventoryItemLink("player", slotID)
+-- First equipment set whose name passes matches(name)
+local function FindEquipmentSet(matches)
+    if not C_EquipmentSet or not C_EquipmentSet.GetEquipmentSetIDs then
+        return nil
     end
-end
-
-function CFC:RecordSlotChange(slotID)
-    local link = GetInventoryItemLink("player", slotID)
-    if link ~= self.equippedSlotItems[slotID] then
-        self.previousSlotItems[slotID] = self.equippedSlotItems[slotID]
-        self.equippedSlotItems[slotID] = link
-    end
-end
-
--- Build the normal ("current") gear set from what was worn before the fishing
--- gear went on. Returns false when there's no history to build from.
-function CFC:SaveCurrentSetFromHistory()
-    if not next(self.previousSlotItems) then
-        return false
-    end
-
-    local gearSet = {}
-    for _, slotID in pairs(GEAR_SLOTS) do
-        local link = self.previousSlotItems[slotID] or GetInventoryItemLink("player", slotID)
-        if link then
-            gearSet[slotID] = link
+    for _, setID in ipairs(C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+        local name = C_EquipmentSet.GetEquipmentSetInfo(setID)
+        if name and matches(name) then
+            return setID, name
         end
     end
-    self.db.profile.gearSets.current = gearSet
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Built normal gear set from equipment history (" .. self:CountTableEntries(gearSet) .. " items)")
-    end
-    return true
+    return nil
 end
 
--- Helper function to count table entries
-function CFC:CountTableEntries(tbl)
-    local count = 0
-    for _ in pairs(tbl) do
-        count = count + 1
-    end
-    return count
+local function IsFishingSetName(name)
+    return FISHING_SET_NAMES[string.lower(string.match(name, "^%s*(.-)%s*$"))] == true
 end
 
--- Save current equipment to a gear set
-function CFC:SaveGearSet(setName)
-    if not self.db or not self.db.profile then
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r SaveGearSet failed: No database")
-        end
-        return false
-    end
+-- Name of an item for chat and macros, from the item cache
+local function GetItemName(itemID)
+    return (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or CFCCompat.GetItemInfo(itemID)
+end
 
-    if not self.db.profile.gearSets then
-        self.db.profile.gearSets = {
-            fishing = {},
-            current = {},
-            currentMode = "current",
-        }
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r Initialized gearSets database")
-        end
-    end
-
-    local gearSet = {}
-    local itemCount = 0
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r === Saving " .. setName .. " gear set ===")
-    end
-
-    -- Save each equipment slot
-    for slotName, slotID in pairs(GEAR_SLOTS) do
-        local itemLink = GetInventoryItemLink("player", slotID)
-        if itemLink then
-            gearSet[slotID] = itemLink
-            itemCount = itemCount + 1
-            if self.debug then
-                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
-                print("|cffff8800[CFC Debug]|r   Slot " .. slotID .. " (" .. slotName .. "): " .. itemName)
-            end
-        end
-    end
-
-    self.db.profile.gearSets[setName] = gearSet
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Saved " .. itemCount .. " items to " .. setName .. " gear set")
-    end
-
-    -- The fishing set is usually saved while wearing it, so sync the mode now
-    -- instead of waiting for the next weapon change
+-- setName is "fishing" or "current" (the normal set). Returns setID, set name.
+function CFC:GetEquipmentSetID(setName)
     if setName == "fishing" then
-        self:SyncGearModeWithEquipped()
+        return FindEquipmentSet(IsFishingSetName)
+    end
+    return FindEquipmentSet(function(name) return name == NORMAL_SET_NAME end)
+end
 
-        -- No normal set yet: rebuild it from what was worn before the fishing gear
-        local current = self.db.profile.gearSets.current
-        if self.db.profile.gearSets.currentMode == "fishing" and not (current and next(current)) then
-            if self:SaveCurrentSetFromHistory() then
-                CFC:Print("|cff00ff00Classic Fishing Companion:|r Normal gear remembered from what you wore before.")
-            else
-                CFC:Print("|cffffcc00Classic Fishing Companion:|r Put your normal gear back on by hand once. After that, swaps save it automatically.")
-            end
-        end
-
-        if self.HUD and self.HUD.Update then
-            self.HUD:Update()
+-- Items in a set, as { [slotID] = itemID }. Nil when the set doesn't exist.
+function CFC:GetEquipmentSetItemIDs(setName)
+    local setID = self:GetEquipmentSetID(setName)
+    if not setID then
+        return nil
+    end
+    local items = {}
+    for slotID, itemID in pairs(C_EquipmentSet.GetItemIDs(setID) or {}) do
+        if type(itemID) == "number" and itemID > 0 then
+            items[slotID] = itemID
         end
     end
+    return items
+end
 
+-- The Equipment Manager can be unavailable (API missing or turned off for the character)
+function CFC:CanUseEquipmentSets()
+    if not C_EquipmentSet or not C_EquipmentSet.UseEquipmentSet then
+        print("|cffff0000Classic Fishing Companion:|r The Equipment Manager isn't available in this client.")
+        return false
+    end
+    if C_EquipmentSet.CanUseEquipmentSets and not C_EquipmentSet.CanUseEquipmentSets() then
+        print("|cffff0000Classic Fishing Companion:|r The Equipment Manager isn't available on this character.")
+        return false
+    end
     return true
 end
 
--- Load and equip a gear set
-function CFC:LoadGearSet(setName)
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r === Loading " .. setName .. " gear set ===")
+-- Save what's equipped into a set, creating it when setID is nil
+local function SaveEquippedToSet(setID, name, icon)
+    if setID then
+        C_EquipmentSet.SaveEquipmentSet(setID)
+        return true
     end
 
-    if not self.db or not self.db.profile or not self.db.profile.gearSets then
-        print("|cffff0000Classic Fishing Companion:|r No gear sets saved yet!")
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r Database not initialized")
-        end
+    local maxSets = _G.MAX_EQUIPMENT_SETS_PER_PLAYER
+    if maxSets and C_EquipmentSet.GetNumEquipmentSets() >= maxSets then
+        print("|cffff0000Classic Fishing Companion:|r Your Equipment Manager is full (" .. maxSets .. " sets). Delete a set to make room for '" .. name .. "'.")
+        return false
+    end
+    C_EquipmentSet.CreateEquipmentSet(name, icon)
+    return true
+end
+
+-- Save the equipped gear as the fishing set. Updates the player's "Fishing" or
+-- "CFC" set if they have one, otherwise creates "Fishing".
+function CFC:SaveFishingSet()
+    if not self:CanUseEquipmentSets() then
         return false
     end
 
-    local gearSet = self.db.profile.gearSets[setName]
-    if not gearSet or not next(gearSet) then
-        print("|cffff0000Classic Fishing Companion:|r No " .. setName .. " gear set saved!")
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r Gear set '" .. setName .. "' is empty or doesn't exist")
-        end
+    local setID, name = self:GetEquipmentSetID("fishing")
+    name = name or DEFAULT_FISHING_SET_NAME
+    if not SaveEquippedToSet(setID, name, FISHING_SET_ICON) then
         return false
     end
 
-    -- Check if in combat
-    if InCombatLockdown() then
-        print("|cffff0000Classic Fishing Companion:|r Cannot swap gear while in combat!")
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r Combat lockdown active")
-        end
+    CFC:Print("|cff00ff00Classic Fishing Companion:|r Saved your equipped gear to the '" .. name .. "' equipment set.")
+    if not self:IsFishingPoleEquipped() then
+        CFC:Print("|cffffcc00Classic Fishing Companion:|r No fishing pole is equipped, so this set won't put one on.")
+    end
+    return true
+end
+
+-- Save the equipped gear as "CFC Normal". Skipped while wearing a fishing pole,
+-- so the normal set never ends up holding fishing gear.
+function CFC:SaveNormalSet()
+    if self:IsFishingPoleEquipped() then
         return false
     end
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Found " .. self:CountTableEntries(gearSet) .. " items in " .. setName .. " gear set")
-    end
-
-    local swappedCount = 0
-    local notFoundCount = 0
-    local alreadyEquippedCount = 0
-
-    -- Track used bag slots to handle duplicate items (e.g., two identical one-handed weapons)
-    local usedBagSlots = {}
-
-    -- Define slot processing order - main hand before off-hand to handle dual-wield properly
-    local slotOrder = {
-        16, -- MAINHANDSLOT - process first for dual-wield
-        17, -- SECONDARYHANDSLOT - process second
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19  -- Other slots
-    }
-
-    -- Equip each item from the set in defined order
-    for _, slotID in ipairs(slotOrder) do
-        local itemLink = gearSet[slotID]
-        if itemLink then
-            -- Check if this item is already equipped in the correct slot
-            local currentItemLink = GetInventoryItemLink("player", slotID)
-            local targetItemID = tonumber(string.match(itemLink, "item:(%d+)"))
-            local currentItemID = currentItemLink and tonumber(string.match(currentItemLink, "item:(%d+)"))
-
-            if currentItemID == targetItemID then
-                -- Item is already equipped in the correct slot, skip it
-                alreadyEquippedCount = alreadyEquippedCount + 1
-            else
-                -- Need to equip this item
-                local itemID = targetItemID
-                if itemID then
-                    local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
-                    local bag, slot = self:FindItemInBags(itemID, usedBagSlots)
-
-                    if bag and slot then
-                        -- Mark this bag slot as used so we don't pick the same item twice
-                        usedBagSlots[bag .. ":" .. slot] = true
-
-                        if self.debug then
-                            print("|cff00ff00[CFC Debug]|r   Equipping " .. itemName .. " (slot " .. slotID .. ") from bag " .. bag .. ", slot " .. slot)
-                        end
-                        ClearCursor()  -- Make sure cursor is clear before pickup
-
-                        -- Use C_Container API if available (Classic Anniversary), otherwise use old API
-                        if C_Container and C_Container.PickupContainerItem then
-                            C_Container.PickupContainerItem(bag, slot)
-                            if self.debug then
-                                print("|cffff8800[CFC Debug]|r   Using C_Container.PickupContainerItem")
-                            end
-                        else
-                            PickupContainerItem(bag, slot)
-                            if self.debug then
-                                print("|cffff8800[CFC Debug]|r   Using legacy PickupContainerItem")
-                            end
-                        end
-
-                        -- Validate that item was picked up
-                        local cursorType = GetCursorInfo()
-                        if cursorType ~= "item" then
-                            print("|cffffff00Classic Fishing Companion:|r Could not pick up " .. itemName .. " - item may be locked")
-                            ClearCursor()
-                            notFoundCount = notFoundCount + 1
-                            -- Remove from used slots since we didn't actually use it
-                            usedBagSlots[bag .. ":" .. slot] = nil
-                        else
-                            PickupInventoryItem(slotID)
-                            ClearCursor()  -- Clear cursor after swap
-                            swappedCount = swappedCount + 1
-                        end
-                    else
-                        notFoundCount = notFoundCount + 1
-                        print("|cffffff00Classic Fishing Companion:|r Could not find " .. itemName .. " in your bags")
-                        if self.debug then
-                            print("|cffff0000[CFC Debug]|r   Item not in bags: " .. itemName .. " (ID: " .. itemID .. ")")
-                        end
-                    end
-                else
-                    if self.debug then
-                        print("|cffff0000[CFC Debug]|r   Could not extract item ID from: " .. itemLink)
-                    end
-                end
-            end
+    local setID = self:GetEquipmentSetID("current")
+    if SaveEquippedToSet(setID, NORMAL_SET_NAME, NORMAL_SET_ICON) then
+        if self.debug then
+            print("|cffff8800[CFC Debug]|r Saved equipped gear to '" .. NORMAL_SET_NAME .. "'")
         end
+        return true
     end
+    return false
+end
 
-    self.db.profile.gearSets.currentMode = setName
-
-    -- If entering fishing mode, prepare the combat swap button macro
-    if setName == "fishing" and self.db.profile.settings.autoSwapCombatWeapons then
-        self:UpdateCombatSwapMacro()
+-- Equip a Blizzard set. label is the word used in chat ("fishing" or "normal").
+local function EquipSet(setID, label)
+    if C_EquipmentSet.EquipmentSetContainsLockedItems and C_EquipmentSet.EquipmentSetContainsLockedItems(setID) then
+        print("|cffff0000Classic Fishing Companion:|r Can't swap gear right now - an item in the set is locked.")
+        return false
     end
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Gear swap complete: " .. swappedCount .. " equipped, " .. alreadyEquippedCount .. " already equipped, " .. notFoundCount .. " not found")
+    if C_EquipmentSet.UseEquipmentSet(setID) == false then
+        print("|cffff0000Classic Fishing Companion:|r Couldn't equip your " .. label .. " gear.")
+        return false
     end
-
+    CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. label .. " gear!")
     return true
 end
 
@@ -2070,14 +1950,7 @@ function CFC:SwapWeaponsOnly(setName)
         print("|cffff8800[CFC Debug]|r === Swapping weapons to " .. setName .. " set ===")
     end
 
-    if not self.db or not self.db.profile or not self.db.profile.gearSets then
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r No gear sets configured")
-        end
-        return false
-    end
-
-    local gearSet = self.db.profile.gearSets[setName]
+    local gearSet = self:GetEquipmentSetItemIDs(setName)
     if not gearSet then
         if self.debug then
             print("|cffff0000[CFC Debug]|r Gear set '" .. setName .. "' not found")
@@ -2093,14 +1966,12 @@ function CFC:SwapWeaponsOnly(setName)
     local weaponSlots = {16, 17}
 
     for _, slotID in ipairs(weaponSlots) do
-        local itemLink = gearSet[slotID]
-        if itemLink then
-            local currentItemLink = GetInventoryItemLink("player", slotID)
-            local targetItemID = tonumber(string.match(itemLink, "item:(%d+)"))
-            local currentItemID = currentItemLink and tonumber(string.match(currentItemLink, "item:(%d+)"))
+        local targetItemID = gearSet[slotID]
+        if targetItemID then
+            local currentItemID = GetInventoryItemID("player", slotID)
+            local itemName = GetItemName(targetItemID) or ("item " .. targetItemID)
 
             if currentItemID ~= targetItemID then
-                local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
                 local bag, slot = self:FindItemInBags(targetItemID, usedBagSlots)
 
                 if bag and slot then
@@ -2111,11 +1982,7 @@ function CFC:SwapWeaponsOnly(setName)
                     end
 
                     ClearCursor()
-                    if C_Container and C_Container.PickupContainerItem then
-                        C_Container.PickupContainerItem(bag, slot)
-                    else
-                        PickupContainerItem(bag, slot)
-                    end
+                    C_Container.PickupContainerItem(bag, slot)
 
                     local cursorType = GetCursorInfo()
                     if cursorType == "item" then
@@ -2133,7 +2000,6 @@ function CFC:SwapWeaponsOnly(setName)
                 end
             else
                 if self.debug then
-                    local itemName = string.match(itemLink, "%[(.-)%]") or "Unknown"
                     print("|cff00ff00[CFC Debug]|r   Weapon already equipped: " .. itemName)
                 end
             end
@@ -2223,49 +2089,41 @@ function CFC:FindItemInBags(itemID, usedBagSlots)
 end
 
 -- Validate a gear set: check which items are available (equipped or in bags)
--- Returns: { available = count, missing = count, total = count, items = { [slotID] = { name, texture, quality, available } } }
+-- Returns: { setName = name, available = count, missing = count, total = count,
+--            items = { [slotID] = { name, texture, quality, available } } }
 function CFC:ValidateGearSet(setName)
     local result = { available = 0, missing = 0, total = 0, items = {} }
-    local gearSet = self.db and self.db.profile and self.db.profile.gearSets and self.db.profile.gearSets[setName]
-    if not gearSet or not next(gearSet) then
+    local _, blizzardName = self:GetEquipmentSetID(setName)
+    result.setName = blizzardName
+    local gearSet = self:GetEquipmentSetItemIDs(setName)
+    if not gearSet then
         return result
     end
 
-    for slotID, itemLink in pairs(gearSet) do
-        local itemName, _, quality, _, _, _, _, _, _, texture = GetItemInfo(itemLink)
-        local itemID = tonumber(string.match(itemLink, "item:(%d+)"))
-        if itemName and itemID then
-            result.total = result.total + 1
-            -- Check if already equipped in this slot
-            local equippedLink = GetInventoryItemLink("player", slotID)
-            local equippedID = equippedLink and tonumber(string.match(equippedLink, "item:(%d+)"))
-            local isAvailable = false
-            if equippedID == itemID then
-                isAvailable = true
-            else
-                -- Check bags
-                local bag, slot = self:FindItemInBags(itemID, {})
-                if bag then
-                    isAvailable = true
-                end
-            end
-            if isAvailable then
-                result.available = result.available + 1
-            else
-                result.missing = result.missing + 1
-            end
-            result.items[slotID] = {
-                name = itemName,
-                texture = texture,
-                quality = quality or 1,
-                available = isAvailable,
-            }
+    for slotID, itemID in pairs(gearSet) do
+        local itemName, _, quality, _, _, _, _, _, _, texture = CFCCompat.GetItemInfo(itemID)
+        itemName = itemName or GetItemName(itemID) or ("Item " .. itemID)
+        texture = texture or (C_Item.GetItemIconByID and C_Item.GetItemIconByID(itemID))
+
+        result.total = result.total + 1
+        local isAvailable = GetInventoryItemID("player", slotID) == itemID
+            or self:FindItemInBags(itemID, {}) ~= nil
+        if isAvailable then
+            result.available = result.available + 1
+        else
+            result.missing = result.missing + 1
         end
+        result.items[slotID] = {
+            name = itemName,
+            texture = texture,
+            quality = quality or 1,
+            available = isAvailable,
+        }
     end
     return result
 end
 
--- Swap between fishing and combat gear
+-- Swap between fishing gear and the "CFC Normal" set
 function CFC:SwapGear()
     if self.debug then
         print("|cffff8800[CFC Debug]|r ===== GEAR SWAP INITIATED =====")
@@ -2274,101 +2132,47 @@ function CFC:SwapGear()
     -- Check if in combat
     if InCombatLockdown() then
         print("|cffff0000Classic Fishing Companion:|r Cannot swap gear while in combat!")
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r Combat lockdown active - aborting gear swap")
-        end
         return false
     end
 
     -- Check if casting or channeling
-    local castingSpell = UnitCastingInfo("player")
-    local channelingSpell = UnitChannelInfo("player")
-
-    if castingSpell or channelingSpell then
-        local spellName = castingSpell or channelingSpell
+    if UnitCastingInfo("player") or UnitChannelInfo("player") then
         print("|cffff0000Classic Fishing Companion:|r Cannot swap gear while casting!")
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r Currently casting/channeling: " .. tostring(spellName) .. " - aborting gear swap")
-        end
         return false
     end
 
-    if not self.db or not self.db.profile or not self.db.profile.gearSets then
-        print("|cffff0000Classic Fishing Companion:|r No gear sets configured!")
-        print("|cffffcc00Tip:|r Equip your fishing gear, then type |cffff8800/cfc savefishing|r")
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r Gear sets not configured - database missing")
-        end
+    if not self:CanUseEquipmentSets() then
         return false
     end
 
-    local currentMode = self.db.profile.gearSets.currentMode or "current"
-    local newMode = (currentMode == "current") and "fishing" or "current"
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Current mode: " .. currentMode)
-        print("|cffff8800[CFC Debug]|r Target mode: " .. newMode)
-    end
-
-    -- Check if fishing gear set exists
-    local hasFishing = self.db.profile.gearSets.fishing and next(self.db.profile.gearSets.fishing)
-
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Has fishing gear: " .. tostring(hasFishing))
-    end
-
-    -- When swapping to fishing, auto-save current gear and verify the fishing pole is available
-    if newMode == "fishing" and hasFishing then
-        -- Auto-save current equipment before swapping to fishing
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r Auto-saving current gear before fishing swap...")
-        end
-        self:SaveGearSet("current")
-        local fishingSet = self.db.profile.gearSets.fishing
-        local poleLink = fishingSet[16] -- Main Hand slot
-        if poleLink then
-            local poleItemID = tonumber(string.match(poleLink, "item:(%d+)"))
-            if poleItemID then
-                -- Check if already equipped in main hand
-                local equippedLink = GetInventoryItemLink("player", 16)
-                local equippedID = equippedLink and tonumber(string.match(equippedLink, "item:(%d+)"))
-                local hasPole = (equippedID == poleItemID)
-
-                -- If not equipped, check bags
-                if not hasPole then
-                    hasPole = self:FindItemInBags(poleItemID) ~= nil
-                end
-
-                if not hasPole then
-                    local poleName = string.match(poleLink, "%[(.-)%]") or "Fishing Pole"
-                    print("|cffff0000Classic Fishing Companion:|r Cannot swap to fishing gear - " .. poleName .. " not found!")
-                    if self.debug then
-                        print("|cffff0000[CFC Debug]|r Fishing pole (item " .. poleItemID .. ") not in bags or equipped - aborting swap")
-                    end
-                    return false
-                end
-            end
-        end
-    end
-
-    -- Load the other gear set
-    if self.debug then
-        print("|cffff8800[CFC Debug]|r Loading '" .. newMode .. "' gear set...")
-    end
-
-    if self:LoadGearSet(newMode) then
-        local displayMode = (newMode == "current") and "current" or "fishing"
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Swapped to " .. displayMode .. " gear!")
-        if self.debug then
-            print("|cff00ff00[CFC Debug]|r ===== GEAR SWAP COMPLETE =====")
-        end
-        return true
-    else
-        if self.debug then
-            print("|cffff0000[CFC Debug]|r ===== GEAR SWAP FAILED =====")
-        end
+    local fishingID = self:GetEquipmentSetID("fishing")
+    if not fishingID then
+        print("|cffff0000Classic Fishing Companion:|r No fishing equipment set found!")
+        print("|cffffcc00Tip:|r Equip your fishing gear, then click Save Fishing Set in the Gear Sets tab (or type |cffff8800/cfc savefishing|r). A set named 'Fishing' or 'CFC' in the Equipment Manager works too.")
         return false
     end
+
+    -- A fishing pole in the main hand means we're in fishing gear
+    if self:IsFishingPoleEquipped() then
+        local normalID = self:GetEquipmentSetID("current")
+        if not normalID then
+            print("|cffff0000Classic Fishing Companion:|r No '" .. NORMAL_SET_NAME .. "' equipment set yet.")
+            print("|cffffcc00Tip:|r Put your normal gear back on by hand this once. It's saved to '" .. NORMAL_SET_NAME .. "' every time you swap to fishing.")
+            return false
+        end
+        return EquipSet(normalID, "normal")
+    end
+
+    -- Make sure the set's fishing pole can actually be equipped
+    local poleID = self:GetEquipmentSetItemIDs("fishing")[16]
+    if poleID and GetInventoryItemID("player", 16) ~= poleID and not self:FindItemInBags(poleID) then
+        local poleName = GetItemName(poleID) or "Fishing Pole"
+        print("|cffff0000Classic Fishing Companion:|r Cannot swap to fishing gear - " .. poleName .. " not found!")
+        return false
+    end
+
+    self:SaveNormalSet()
+    return EquipSet(fishingID, "fishing")
 end
 
 -- Update lure macro (TBC only - API restrictions)
@@ -2437,19 +2241,9 @@ function CFC:UpdateLureMacro()
     end
 end
 
--- Check if gear sets are configured
+-- Check if a fishing equipment set exists
 function CFC:HasGearSets()
-    if not self.db or not self.db.profile or not self.db.profile.gearSets then
-        if self.debug then
-            print("|cffff8800[CFC Debug]|r HasGearSets: No database")
-        end
-        return false
-    end
-
-    local fishing = self.db.profile.gearSets.fishing
-    local hasFishing = fishing and next(fishing)
-
-    return hasFishing
+    return self:GetEquipmentSetID("fishing") ~= nil
 end
 
 -- Get current gear mode
@@ -2910,12 +2704,11 @@ SlashCmdList["CFC"] = function(msg)
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r Slash command: savefishing")
         end
-        CFC:SaveGearSet("fishing")
-        CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing gear set saved!")
+        CFC:SaveFishingSet()
     elseif msg == "savecombat" then
         -- Legacy command - inform user about the change
         CFC:Print("|cffffcc00Classic Fishing Companion:|r The savecombat command has been removed.")
-        CFC:Print("|cffffcc00Info:|r Your current gear is now auto-saved when you swap to fishing gear.")
+        CFC:Print("|cffffcc00Info:|r Your normal gear is saved to the '" .. CFC.NORMAL_SET_NAME .. "' equipment set when you swap to fishing gear.")
     elseif msg == "swap" or msg == "gear" then
         if CFC.debug then
             print("|cffff8800[CFC Debug]|r Slash command: swap/gear")
@@ -2954,12 +2747,9 @@ SlashCmdList["CFC"] = function(msg)
             local swapBlocked = false
             -- Auto-swap gear if enabled
             if CFC.db.profile.settings.autoSwapOnHUD then
-                local gearSets = CFC.db.profile.gearSets
-                local hasFishingGear = gearSets and gearSets.fishing and next(gearSets.fishing)
-
-                if hasFishingGear then
+                if CFC:HasGearSets() then
                     local hudCurrentlyShown = CFC.db.profile.hud.show
-                    local currentMode = gearSets.currentMode or "current"
+                    local currentMode = CFC:GetCurrentGearMode()
 
                     if hudCurrentlyShown then
                         if currentMode ~= "current" and CFC.SwapGear then
@@ -2975,7 +2765,7 @@ SlashCmdList["CFC"] = function(msg)
                         end
                     end
                 else
-                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but fishing gear set not configured. Please save your fishing gear set in the Gear Sets tab.")
+                    CFC:Print("|cffff8800[CFC]|r Auto-swap enabled but no fishing equipment set found. Save one in the Gear Sets tab.")
                 end
             end
             if not swapBlocked then

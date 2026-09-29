@@ -2,6 +2,19 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- The HUD's swap button now shows gauntlets instead of a sword when it will swap you back to your normal gear, since not everyone's normal set is a weapon set
+- **Forever:** the HUD and every window now use gold and bronze to match the Forever action bar, replacing the grey borders and red buttons. The selected tab and gear set are highlighted in brighter gold
+
+### Added
+- **Forever:** Classic Fishing Companion is listed in the addon compartment next to the minimap. Left-click opens the window, right-click toggles the HUD
+- **Forever:** an Esc > Options > AddOns page with buttons to open the main window or its Settings tab
+
+### Fixed
+- **Forever:** the HUD's Apply Lure button now applies your lure. Modern clients only run a button's action on mouse-down by default, and the button was only listening for mouse-up
+
 ## [1.2.0] - 2026-09-22
 
 ### Added

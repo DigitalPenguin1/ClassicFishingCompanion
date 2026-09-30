@@ -2,6 +2,11 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **Classic Era and TBC:** Easy Cast no longer arms when you right-click a mob, NPC, player or corpse. Double right-clicking a mob to attack it could apply your lure or cast Fishing instead (the same fix Forever got in 1.2.3)
+
 ## [1.2.3] - 2026-09-29
 
 This release only changes the WoW: Forever version. Classic Era and TBC get the version number and a colored name in the AddOns list.

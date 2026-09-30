@@ -1808,10 +1808,9 @@ end
 
 -- Gear sets live in the game's Equipment Manager, which the server stores, so
 -- they survive the Forever SavedVariables bug. The fishing set is any set named
--- "Fishing" or "CFC" (any case). Swapping out of fishing equips the normal set:
+-- "Fishing" (any case). Swapping out of fishing equips the normal set:
 -- the set the player picked on the Gear Sets tab, or by default "CFC Normal",
 -- which is saved from what they're wearing before each swap to fishing.
-local FISHING_SET_NAMES = { ["fishing"] = true, ["cfc"] = true }
 local DEFAULT_FISHING_SET_NAME = "Fishing"
 local NORMAL_SET_NAME = "CFC Normal"
 local FISHING_SET_ICON = "Interface\\Icons\\INV_Fishingpole_02"
@@ -1840,7 +1839,7 @@ local function FindEquipmentSet(matches)
 end
 
 local function IsFishingSetName(name)
-    return FISHING_SET_NAMES[string.lower(string.match(name, "^%s*(.-)%s*$"))] == true
+    return string.lower(string.match(name, "^%s*(.-)%s*$")) == "fishing"
 end
 
 -- Name of an item for chat and macros, from the item cache
@@ -1951,8 +1950,8 @@ local function SaveEquippedToSet(setID, name, icon, forceIcon)
     return true
 end
 
--- Save the equipped gear as the fishing set. Updates the player's "Fishing" or
--- "CFC" set if they have one, otherwise creates "Fishing".
+-- Save the equipped gear as the fishing set. Updates the player's "Fishing"
+-- set if they have one, otherwise creates it.
 function CFC:SaveFishingSet()
     if not self:CanUseEquipmentSets() then
         return false
@@ -2210,7 +2209,7 @@ function CFC:SwapGear()
     local fishingID = self:GetEquipmentSetID("fishing")
     if not fishingID then
         print("|cffff0000Classic Fishing Companion:|r No fishing equipment set found!")
-        print("|cffffcc00Tip:|r Equip your fishing gear, then click Save Fishing Set in the Gear Sets tab (or type |cffff8800/cfc savefishing|r). A set named 'Fishing' or 'CFC' in the Equipment Manager works too.")
+        print("|cffffcc00Tip:|r Equip your fishing gear, then click Save Fishing Set in the Gear Sets tab (or type |cffff8800/cfc savefishing|r). A set named 'Fishing' in the game's Equipment Manager works too.")
         return false
     end
 

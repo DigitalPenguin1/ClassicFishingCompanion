@@ -1829,9 +1829,9 @@ function UI:CreateGearSetsTab()
     frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -4)
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
-    frame.desc:SetText("Gear sets use the game's Equipment Manager. Your fishing set is the one named |cff00ccffFishing|r or |cff00ccffCFC|r. "
-        .. "Swapping out of fishing equips the set picked below. The default, |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, is saved from what you're wearing each time you swap to fishing. "
-        .. "To edit sets, open your character window (C) and pick the Equipment Manager tab.")
+    frame.desc:SetText("Gear sets use the game's Equipment Manager. To make your fishing set, put on your fishing gear and click Save Fishing Set, "
+        .. "or build a set named |cff00ccffFishing|r yourself in the Equipment Manager (press C, then the Equipment Manager tab). "
+        .. "Swapping out of fishing equips the set picked below. The default, |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, is saved from what you're wearing each time you swap to fishing.")
 
     -- Slot display order
     local slotOrder = { 16, 17, 1, 3, 5, 10, 7, 8, 9, 6, 15, 2, 11, 12, 13, 14 }

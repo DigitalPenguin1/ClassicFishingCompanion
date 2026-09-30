@@ -128,11 +128,13 @@ function CFC:InitializeUI()
     mainFrame:SetFrameStrata("HIGH")
     mainFrame:Hide()
 
-    -- Title
-    mainFrame.title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    mainFrame.title:SetPoint("TOP", mainFrame, "TOP", 0, -10)
-    mainFrame.title:SetText("Classic Fishing Companion")
+    -- Title: larger gold text with a drop shadow, Forever logo after it
+    mainFrame.title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    mainFrame.title:SetPoint("TOP", mainFrame, "TOP", 0, -9)
+    mainFrame.title:SetText("Classic Fishing Companion |TInterface\\AddOns\\ClassicFishingCompanion\\Textures\\forever:20:20:0:-1|t")
     Theme.StyleTitle(mainFrame.title)
+    mainFrame.title:SetShadowColor(0, 0, 0, 1)
+    mainFrame.title:SetShadowOffset(1, -1)
 
     -- Close button (use built-in from template)
     mainFrame.CloseButton:SetScript("OnClick", function()

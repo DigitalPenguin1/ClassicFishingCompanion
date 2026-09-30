@@ -3869,7 +3869,7 @@ local whatsNewContent = {
         fixes = {
             "Double right-clicking a mob no longer applies your lure or casts Fishing instead of attacking",
         },
-        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "Playing World of Warcraft: Forever? Classic Fishing Companion works there too, from this same download. Most of this update is for the Forever version.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.2.2"] = {
         changes = {

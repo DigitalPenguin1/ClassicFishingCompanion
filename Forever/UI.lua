@@ -1830,7 +1830,8 @@ function UI:CreateGearSetsTab()
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
     frame.desc:SetText("Gear sets use the game's Equipment Manager. Your fishing set is the one named |cff00ccffFishing|r or |cff00ccffCFC|r. "
-        .. "When you swap to fishing, what you're wearing is saved to |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, and swapping back equips it.")
+        .. "When you swap to fishing, what you're wearing is saved to |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, and swapping back equips it. "
+        .. "To edit sets, open your character window (C) and pick the Equipment Manager tab.")
 
     -- Slot display order
     local slotOrder = { 16, 17, 1, 3, 5, 10, 7, 8, 9, 6, 15, 2, 11, 12, 13, 14 }
@@ -1876,25 +1877,11 @@ function UI:CreateGearSetsTab()
         CFC:SwapGear()
     end)
 
-    -- Open the Equipment Manager in the character window. Opening the
-    -- character window from addon code taints it, and Forever's player frame
-    -- then errors comparing its secret health values, so a secure macro
-    -- clicks Blizzard's own buttons instead.
-    frame.managerBtn = CreateFrame("Button", "CFCEquipmentManagerButton", frame, "UIPanelButtonTemplate,SecureActionButtonTemplate")
-    Theme.SkinButton(frame.managerBtn)
-    frame.managerBtn:SetSize(140, 22)
-    frame.managerBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
-    frame.managerBtn:SetText("Equipment Manager")
-    frame.managerBtn:RegisterForClicks("AnyUp", "AnyDown")
-    frame.managerBtn:SetAttribute("type", "macro")
-    -- Sidebar tab 3 is the Equipment Manager
-    frame.managerBtn:SetAttribute("macrotext", "/click CharacterMicroButton\n/click PaperDollSidebarTab3")
-
     -- Save button (fishing view only). Last in the row so hiding it leaves no gap.
     frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     Theme.SkinButton(frame.saveBtn)
     frame.saveBtn:SetSize(120, 22)
-    frame.saveBtn:SetPoint("LEFT", frame.managerBtn, "RIGHT", 4, 0)
+    frame.saveBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
     frame.saveBtn:SetText("Save Fishing Set")
     frame.saveBtn:SetScript("OnClick", function()
         CFC:SaveFishingSet()

@@ -10,6 +10,9 @@ All notable changes to Classic Fishing Companion will be documented in this file
 - **Forever:** sets the addon saves get icons: a fishing pole for the fishing set (only when it has no icon or the question mark) and gauntlets for "CFC Normal". The Gear Sets tab shows each set's icon
 - **Forever:** the Gear Sets tab's Clear All button is gone, since the sets now belong to the Equipment Manager. Edit them from your character window's Equipment Manager tab
 
+### Fixed
+- **Forever:** Easy Cast no longer arms when you right-click a mob, NPC, player or corpse. Double right-clicking a mob to attack it could apply your lure instead, which also blocked the combat weapon swap
+
 ## [1.2.2] - 2026-09-29
 
 This release only changes the WoW: Forever version. Classic Era and TBC are unchanged apart from the version number.

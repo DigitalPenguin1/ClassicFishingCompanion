@@ -3454,6 +3454,14 @@ function CFC:HandleFirstClick()
         return false
     end
 
+    -- Don't interfere with clicking a unit (attacking a mob, talking to an NPC,
+    -- looting a corpse). A double right-click there would apply a lure or cast.
+    if UnitExists("mouseover") then
+        if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Cursor on a unit, skipping") end
+        self:ClearEasyCastBinding()
+        return false
+    end
+
     -- Don't interfere if we're on the minimap button
     if self:IsOnMinimapButton() then
         if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: On minimap button, skipping") end
@@ -3560,6 +3568,14 @@ function CFC:InitializeEasyCast()
             if CFC.easyCastBindingActive and UnitAffectingCombat("player") and not InCombatLockdown() then
                 if CFC.debug then
                     print("|cff00ff00[CFC Debug]|r Easy Cast: Combat detected, clearing binding before lockdown")
+                end
+                CFC:ClearEasyCastBinding()
+            end
+
+            -- Clear binding if the cursor moves onto a unit before the second click
+            if CFC.easyCastBindingActive and UnitExists("mouseover") then
+                if CFC.debug then
+                    print("|cff00ff00[CFC Debug]|r Easy Cast: Cursor moved onto a unit, clearing binding")
                 end
                 CFC:ClearEasyCastBinding()
             end

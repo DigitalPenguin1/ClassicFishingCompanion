@@ -2,14 +2,9 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [Unreleased]
-
-### Fixed
-- **Classic Era and TBC:** Easy Cast no longer arms when you right-click a mob, NPC, player or corpse. Double right-clicking a mob to attack it could apply your lure or cast Fishing instead (the same fix Forever got in 1.2.3)
-
 ## [1.2.3] - 2026-09-29
 
-This release only changes the WoW: Forever version. Classic Era and TBC get the version number and a colored name in the AddOns list.
+Most of this release is for the WoW: Forever version. Classic Era and TBC get the Easy Cast fix below and a colored name in the AddOns list.
 
 ### Changed
 - **Forever:** the main window's tabs are icons down its right edge instead of two rows of buttons, and each shows its name when you hover it. Tab contents get the freed-up height
@@ -21,7 +16,7 @@ This release only changes the WoW: Forever version. Classic Era and TBC get the 
 - **Forever:** the Gear Sets tab's Clear All button is gone, since the sets now belong to the Equipment Manager. Edit them from your character window's Equipment Manager tab
 
 ### Fixed
-- **Forever:** Easy Cast no longer arms when you right-click a mob, NPC, player or corpse. Double right-clicking a mob to attack it could apply your lure instead, which also blocked the combat weapon swap
+- Easy Cast no longer arms when you right-click a mob, NPC, player or corpse. Double right-clicking a mob to attack it could apply your lure or cast Fishing instead. On Forever this also blocked the combat weapon swap
 - **Forever:** no more "Interface action failed because of an AddOn" when the combat weapon swap runs. The HUD resized itself to fit the Skill line mid-combat, which the game blocks because the HUD holds the secure Apply Lure button. The HUD now waits for combat to end before resizing, and showing or hiding the HUD in combat prints a message instead of failing
 - **Forever:** the HUD no longer leaves an empty gap above its buttons when no lure is active. That space was kept for the Time Left line
 

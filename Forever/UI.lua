@@ -1830,7 +1830,7 @@ function UI:CreateGearSetsTab()
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
     frame.desc:SetText("Gear sets use the game's Equipment Manager. Your fishing set is the one named |cff00ccffFishing|r or |cff00ccffCFC|r. "
-        .. "When you swap to fishing, what you're wearing is saved to |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, and swapping back equips it. "
+        .. "Swapping out of fishing equips the set picked below. The default, |cffff8000" .. CFC.NORMAL_SET_NAME .. "|r, is saved from what you're wearing each time you swap to fishing. "
         .. "To edit sets, open your character window (C) and pick the Equipment Manager tab.")
 
     -- Slot display order
@@ -1887,9 +1887,37 @@ function UI:CreateGearSetsTab()
         CFC:SaveFishingSet()
     end)
 
+    -- Which set swapping out of fishing goes back to
+    frame.normalLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.normalLabel:SetPoint("TOPLEFT", frame.combatToggle, "BOTTOMLEFT", 0, -12)
+    frame.normalLabel:SetText("Swap back to:")
+
+    local AUTO_NORMAL = "auto"
+    frame.normalDropdown = Theme.CreateDropdown(frame, 240, {
+        getOptions = function()
+            local options = { { text = "|TInterface\\Icons\\INV_Gauntlets_19:14|t " .. CFC.NORMAL_SET_NAME .. " (automatic)", value = AUTO_NORMAL } }
+            for _, set in ipairs(CFC:GetNormalSetCandidates()) do
+                local icon = set.icon and ("|T" .. set.icon .. ":14|t ") or ""
+                table.insert(options, { text = icon .. set.name, value = set.name })
+            end
+            return options
+        end,
+        getSelected = function()
+            if CFC:UsesAutoNormalSet() then
+                return AUTO_NORMAL
+            end
+            return CFC.db.profile.gearSets.normalSetName
+        end,
+        onSelect = function(value)
+            CFC:SetNormalSetName(value ~= AUTO_NORMAL and value or nil)
+            UI:UpdateGearSetsTab()
+        end,
+    })
+    frame.normalDropdown:SetPoint("LEFT", frame.normalLabel, "RIGHT", 8, 0)
+
     -- Status line
     frame.statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.statusText:SetPoint("TOPLEFT", frame.combatToggle, "BOTTOMLEFT", 0, -6)
+    frame.statusText:SetPoint("TOPLEFT", frame.normalLabel, "BOTTOMLEFT", 0, -12)
     frame.statusText:SetWidth(560)
     frame.statusText:SetJustifyH("LEFT")
 
@@ -1948,6 +1976,7 @@ function UI:UpdateGearSetsTab()
     Theme.SetSelected(frame.combatToggle, activeSet == "current")
     Theme.SetSelected(frame.fishingToggle, activeSet ~= "current")
     frame.saveBtn:SetShown(activeSet ~= "current")
+    frame.normalDropdown:GenerateMenu()
 
     -- Hide all rows
     for i = 1, #frame.rows do
@@ -1965,7 +1994,8 @@ function UI:UpdateGearSetsTab()
         end
     else
         -- Status line
-        local setLabel = "Set: |cffffd100" .. validation.setName .. "|r   "
+        local setIcon = validation.icon and ("|T" .. validation.icon .. ":14|t ") or ""
+        local setLabel = "Set: " .. setIcon .. "|cffffd100" .. validation.setName .. "|r   "
         if validation.missing > 0 then
             frame.statusText:SetText(setLabel .. "|cff00ff00" .. validation.available .. "|r/" .. validation.total .. " items available  |cffff0000(" .. validation.missing .. " missing)|r")
         else

@@ -1808,13 +1808,20 @@ end
 
 -- Gear sets live in the game's Equipment Manager, which the server stores, so
 -- they survive the Forever SavedVariables bug. The fishing set is any set named
--- "Fishing" or "CFC" (any case). Before each swap to fishing, what the player
--- is wearing is saved to "CFC Normal", and swapping back equips that set.
+-- "Fishing" or "CFC" (any case). Swapping out of fishing equips the normal set:
+-- the set the player picked on the Gear Sets tab, or by default "CFC Normal",
+-- which is saved from what they're wearing before each swap to fishing.
 local FISHING_SET_NAMES = { ["fishing"] = true, ["cfc"] = true }
 local DEFAULT_FISHING_SET_NAME = "Fishing"
 local NORMAL_SET_NAME = "CFC Normal"
-local FISHING_SET_ICON = "Interface\\Icons\\Trade_Fishing"
+local FISHING_SET_ICON = "Interface\\Icons\\INV_Fishingpole_02"
 local NORMAL_SET_ICON = "Interface\\Icons\\INV_Gauntlets_19"
+local QUESTION_MARK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+-- Equipment sets store icons as file IDs
+local function IconFileID(path)
+    return (GetFileIDFromPath and GetFileIDFromPath(path)) or path
+end
 
 CFC.NORMAL_SET_NAME = NORMAL_SET_NAME
 
@@ -1841,10 +1848,54 @@ local function GetItemName(itemID)
     return (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or CFCCompat.GetItemInfo(itemID)
 end
 
+-- The set the player picked to swap back to, if it still exists
+local function FindChosenNormalSet()
+    local gearSets = CFC.db and CFC.db.profile and CFC.db.profile.gearSets
+    local chosen = gearSets and gearSets.normalSetName
+    if not chosen then
+        return nil
+    end
+    return FindEquipmentSet(function(name) return name == chosen end)
+end
+
+-- True when swapping back uses "CFC Normal" (nothing picked, or the pick is gone)
+function CFC:UsesAutoNormalSet()
+    return FindChosenNormalSet() == nil
+end
+
+-- Pick the set to swap back to by name; nil goes back to "CFC Normal"
+function CFC:SetNormalSetName(name)
+    self.db.profile.gearSets.normalSetName = name
+    if self.db.profile.settings.autoSwapCombatWeapons and self:IsFishingPoleEquipped() then
+        self:UpdateCombatSwapMacro()
+    end
+end
+
+-- Sets the player can pick to swap back to: every set except the fishing set
+-- and "CFC Normal". Returns { { setID = ..., name = ..., icon = ... }, ... }
+function CFC:GetNormalSetCandidates()
+    local candidates = {}
+    if not C_EquipmentSet or not C_EquipmentSet.GetEquipmentSetIDs then
+        return candidates
+    end
+    for _, setID in ipairs(C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+        local name, icon = C_EquipmentSet.GetEquipmentSetInfo(setID)
+        if name and not IsFishingSetName(name) and name ~= NORMAL_SET_NAME then
+            table.insert(candidates, { setID = setID, name = name, icon = icon })
+        end
+    end
+    table.sort(candidates, function(a, b) return a.name < b.name end)
+    return candidates
+end
+
 -- setName is "fishing" or "current" (the normal set). Returns setID, set name.
 function CFC:GetEquipmentSetID(setName)
     if setName == "fishing" then
         return FindEquipmentSet(IsFishingSetName)
+    end
+    local setID, name = FindChosenNormalSet()
+    if setID then
+        return setID, name
     end
     return FindEquipmentSet(function(name) return name == NORMAL_SET_NAME end)
 end
@@ -1877,10 +1928,17 @@ function CFC:CanUseEquipmentSets()
     return true
 end
 
--- Save what's equipped into a set, creating it when setID is nil
-local function SaveEquippedToSet(setID, name, icon)
+-- Save what's equipped into a set, creating it when setID is nil. An existing
+-- set keeps its icon unless it has none (or the question mark) or forceIcon is set.
+local function SaveEquippedToSet(setID, name, icon, forceIcon)
+    local iconID = IconFileID(icon)
     if setID then
-        C_EquipmentSet.SaveEquipmentSet(setID)
+        local _, currentIcon = C_EquipmentSet.GetEquipmentSetInfo(setID)
+        if forceIcon or not currentIcon or currentIcon == IconFileID(QUESTION_MARK_ICON) then
+            C_EquipmentSet.SaveEquipmentSet(setID, iconID)
+        else
+            C_EquipmentSet.SaveEquipmentSet(setID)
+        end
         return true
     end
 
@@ -1889,7 +1947,7 @@ local function SaveEquippedToSet(setID, name, icon)
         print("|cffff0000Classic Fishing Companion:|r Your Equipment Manager is full (" .. maxSets .. " sets). Delete a set to make room for '" .. name .. "'.")
         return false
     end
-    C_EquipmentSet.CreateEquipmentSet(name, icon)
+    C_EquipmentSet.CreateEquipmentSet(name, iconID)
     return true
 end
 
@@ -1914,13 +1972,14 @@ function CFC:SaveFishingSet()
 end
 
 -- Save the equipped gear as "CFC Normal". Skipped while wearing a fishing pole,
--- so the normal set never ends up holding fishing gear.
+-- so the normal set never ends up holding fishing gear, and when the player
+-- picked their own set to swap back to.
 function CFC:SaveNormalSet()
-    if self:IsFishingPoleEquipped() then
+    if self:IsFishingPoleEquipped() or not self:UsesAutoNormalSet() then
         return false
     end
-    local setID = self:GetEquipmentSetID("current")
-    if SaveEquippedToSet(setID, NORMAL_SET_NAME, NORMAL_SET_ICON) then
+    local setID = FindEquipmentSet(function(name) return name == NORMAL_SET_NAME end)
+    if SaveEquippedToSet(setID, NORMAL_SET_NAME, NORMAL_SET_ICON, true) then
         if self.debug then
             print("|cffff8800[CFC Debug]|r Saved equipped gear to '" .. NORMAL_SET_NAME .. "'")
         end
@@ -2093,8 +2152,11 @@ end
 --            items = { [slotID] = { name, texture, quality, available } } }
 function CFC:ValidateGearSet(setName)
     local result = { available = 0, missing = 0, total = 0, items = {} }
-    local _, blizzardName = self:GetEquipmentSetID(setName)
+    local setID, blizzardName = self:GetEquipmentSetID(setName)
     result.setName = blizzardName
+    if setID then
+        result.icon = select(2, C_EquipmentSet.GetEquipmentSetInfo(setID))
+    end
     local gearSet = self:GetEquipmentSetItemIDs(setName)
     if not gearSet then
         return result

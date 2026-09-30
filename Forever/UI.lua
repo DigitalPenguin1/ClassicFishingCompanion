@@ -1876,21 +1876,19 @@ function UI:CreateGearSetsTab()
         CFC:SwapGear()
     end)
 
-    -- Open the Equipment Manager in the character window
-    frame.managerBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    -- Open the Equipment Manager in the character window. Opening the
+    -- character window from addon code taints it, and Forever's player frame
+    -- then errors comparing its secret health values, so a secure macro
+    -- clicks Blizzard's own buttons instead.
+    frame.managerBtn = CreateFrame("Button", "CFCEquipmentManagerButton", frame, "UIPanelButtonTemplate,SecureActionButtonTemplate")
     Theme.SkinButton(frame.managerBtn)
     frame.managerBtn:SetSize(140, 22)
     frame.managerBtn:SetPoint("LEFT", frame.swapGearBtn, "RIGHT", 4, 0)
     frame.managerBtn:SetText("Equipment Manager")
-    frame.managerBtn:SetScript("OnClick", function()
-        if not (PaperDollFrame and PaperDollFrame:IsVisible()) then
-            ToggleCharacter("PaperDollFrame")
-        end
-        -- Sidebar tab 3 is the Equipment Manager
-        if PaperDollFrame_SetSidebar then
-            pcall(PaperDollFrame_SetSidebar, PaperDollFrame, 3)
-        end
-    end)
+    frame.managerBtn:RegisterForClicks("AnyUp", "AnyDown")
+    frame.managerBtn:SetAttribute("type", "macro")
+    -- Sidebar tab 3 is the Equipment Manager
+    frame.managerBtn:SetAttribute("macrotext", "/click CharacterMicroButton\n/click PaperDollSidebarTab3")
 
     -- Save button (fishing view only). Last in the row so hiding it leaves no gap.
     frame.saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")

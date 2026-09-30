@@ -12,6 +12,7 @@ All notable changes to Classic Fishing Companion will be documented in this file
 
 ### Fixed
 - **Forever:** Easy Cast no longer arms when you right-click a mob, NPC, player or corpse. Double right-clicking a mob to attack it could apply your lure instead, which also blocked the combat weapon swap
+- **Forever:** no more "Interface action failed because of an AddOn" when the combat weapon swap runs. The HUD resized itself to fit the Skill line mid-combat, which the game blocks because the HUD holds the secure Apply Lure button. The HUD now waits for combat to end before resizing, and showing or hiding the HUD in combat prints a message instead of failing
 
 ## [1.2.2] - 2026-09-29
 

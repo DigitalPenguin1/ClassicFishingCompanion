@@ -411,6 +411,14 @@ function CFC:InitializeHUD()
     -- Store reference
     CFC.hudFrame = hudFrame
 
+    -- Button visibility changes made during combat wait for it to end
+    hudFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    hudFrame:SetScript("OnEvent", function(self, event)
+        if event == "PLAYER_REGEN_ENABLED" and HUDModule.pendingButtonVisibility then
+            HUDModule:ApplyButtonVisibility()
+        end
+    end)
+
     -- Set up auto-update
     hudFrame:SetScript("OnUpdate", function(self, elapsed)
         self.timeSinceLastUpdate = (self.timeSinceLastUpdate or 0) + elapsed
@@ -614,7 +622,17 @@ function HUDModule:Update()
         goalHeight = 14 + (goalCount * 13)
     end
 
-    hudFrame:SetHeight(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
+    HUDModule:SetHUDSize(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
+end
+
+-- The HUD holds the secure Apply Lure button, so the game blocks resizing it
+-- in combat ("Interface action failed because of an AddOn"). Skip it then;
+-- the next update after combat applies the size.
+function HUDModule:SetHUDSize(height)
+    if InCombatLockdown() then
+        return
+    end
+    hudFrame:SetHeight(height)
     hudFrame:SetWidth(HUDModule:GetRequiredWidth())
 end
 
@@ -832,6 +850,12 @@ function HUDModule:ToggleShow()
         return
     end
 
+    -- The HUD holds a secure button, so the game blocks showing or hiding it in combat
+    if InCombatLockdown() then
+        CFC:Print("|cffff0000Classic Fishing Companion:|r Can't show or hide the HUD in combat.")
+        return
+    end
+
     CFC.db.profile.hud.show = not CFC.db.profile.hud.show
 
     if hudFrame then
@@ -888,7 +912,7 @@ function HUDModule:ShowTextOnlyHover()
     if IsTextOnlyMode() and hudFrame then
         hudFrame.minimalBg:Show()
         if hudFrame.lockIcon then hudFrame.lockIcon:Show() end
-        if CFC.db.profile.settings.hudShowLureButton and hudFrame.applyLureButton then
+        if CFC.db.profile.settings.hudShowLureButton and hudFrame.applyLureButton and not InCombatLockdown() then
             hudFrame.applyLureButton:Show()
         end
         if CFC.db.profile.settings.hudShowSwapButton and hudFrame.gearSwapButton then
@@ -903,7 +927,7 @@ function HUDModule:HideTextOnlyHover()
             if hudFrame:IsMouseOver() then return end
             hudFrame.minimalBg:Hide()
             if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
-            if hudFrame.applyLureButton then hudFrame.applyLureButton:Hide() end
+            if hudFrame.applyLureButton and not InCombatLockdown() then hudFrame.applyLureButton:Hide() end
             if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end
         end)
     end
@@ -924,6 +948,13 @@ function HUDModule:ApplyButtonVisibility()
     if not hudFrame or not CFC.db then
         return
     end
+
+    -- Showing or hiding the secure Apply Lure button is blocked in combat
+    if InCombatLockdown() then
+        HUDModule.pendingButtonVisibility = true
+        return
+    end
+    HUDModule.pendingButtonVisibility = false
 
     local showLure = CFC.db.profile.settings.hudShowLureButton
     local showSwap = CFC.db.profile.settings.hudShowSwapButton
@@ -963,8 +994,7 @@ function HUDModule:ApplyButtonVisibility()
 
     -- Resize HUD based on button visibility and goals
     local baseHeight = anyButtons and 140 or 110
-    hudFrame:SetHeight(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
-    hudFrame:SetWidth(HUDModule:GetRequiredWidth())
+    HUDModule:SetHUDSize(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
 end
 
 -- Update lock state visual

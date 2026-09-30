@@ -6,6 +6,15 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.3
+Forever-only update; Classic Era and TBC only get a colored name in the AddOns list.
+- **Forever** - Tabs are icons down the right side of the window, with the tab name on hover
+- **Forever** - Gear sets use the game's Equipment Manager (a set named "Fishing"), stored by the server so restarts can't wipe them
+- **Forever** - Pick which set to swap back to; the default "CFC Normal" is saved from what you're wearing each time you swap to fishing
+- **Forever** - Larger window title with the Forever logo; AddOns list name is now "Classic Fishing Companion - Forever"
+- **Forever** - Double right-clicking a mob no longer applies your lure, and the combat weapon swap no longer triggers "Interface action failed"
+- **Forever** - HUD no longer leaves a gap above its buttons when no lure is active
+
 ### v1.2.2
 Forever-only update; Classic Era and TBC are unchanged.
 - **Forever** - HUD Skill line shows fishing bonus from gear other than your pole and lure as its own +N badge

@@ -2,9 +2,14 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
-## [Unreleased]
+## [1.2.3] - 2026-09-29
+
+This release only changes the WoW: Forever version. Classic Era and TBC get the version number and a colored name in the AddOns list.
 
 ### Changed
+- **Forever:** the main window's tabs are icons down its right edge instead of two rows of buttons, and each shows its name when you hover it. Tab contents get the freed-up height
+- **Forever:** the window title is larger, with the WoW: Forever logo after it
+- The AddOns list shows the addon name in color. The Forever entry is now "Classic Fishing Companion - Forever", and its description no longer mentions the beta
 - **Forever:** gear sets now use the game's Equipment Manager instead of the addon's own saved sets. Your fishing set is the equipment set named "Fishing". Make it with the Gear Sets tab's Save Fishing Set button, which saves what you're wearing, or build it yourself in the game's Equipment Manager. Before each swap to fishing, your current gear is saved to a set called "CFC Normal", and swapping back equips it. Equipment sets are stored by the server, so they survive the Forever beta bug that wipes addon settings on restart. Sets saved in the addon before this version aren't carried over; save your fishing set once more
 - **Forever:** the Gear Sets tab has a "Swap back to" dropdown listing your equipment sets. Pick your own set and swapping out of fishing equips it (and "CFC Normal" is no longer saved). The default is "CFC Normal (automatic)", which is also used if the picked set is deleted or renamed
 - **Forever:** sets the addon saves get icons: a fishing pole for the fishing set (only when it has no icon or the question mark) and gauntlets for "CFC Normal". The Gear Sets tab shows each set's icon

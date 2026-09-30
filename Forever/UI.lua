@@ -3732,6 +3732,24 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.3"] = {
+        features = {
+            "Tabs are now icons down the right side of the window. Hover one to see its name",
+            "Gear sets use the game's Equipment Manager: click Save Fishing Set on the Gear Sets tab, or make a set named Fishing yourself. The server stores them, so a restart can't wipe them",
+            "Pick which set to swap back to on the Gear Sets tab. The default, CFC Normal, saves what you're wearing each time you swap to fishing",
+        },
+        changes = {
+            "Larger window title with the Forever logo, and a new name in the AddOns list",
+            "Equipment sets the addon saves get a fishing pole or gauntlets icon",
+            "Your old addon-saved fishing set isn't carried over. Save it once more on the Gear Sets tab",
+        },
+        fixes = {
+            "Double right-clicking a mob no longer applies your lure instead of attacking",
+            "No more \"Interface action failed because of an AddOn\" during the combat weapon swap",
+            "The HUD no longer has an empty gap above its buttons when no lure is active",
+        },
+        tip = "Note: the Forever beta client currently doesn't load addon saved data after a restart, so your catches and settings reset. This is a Blizzard bug, not the addon. Your gear sets are safe now that they live in the Equipment Manager.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.2"] = {
         features = {
             "The HUD Skill line shows fishing bonus from gear other than your pole and lure (hat, boots, glove enchant) as its own +N badge",

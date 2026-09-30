@@ -564,6 +564,10 @@ function HUDModule:Update()
         HUDModule:SetLureBar(nil)
     end
 
+    -- Goals sit under the Time Left line, or under the Lure line when there's no lure
+    hudFrame.goalsTitle:ClearAllPoints()
+    hudFrame.goalsTitle:SetPoint("TOPLEFT", currentBuff and hudFrame.buffTimerText or hudFrame.buffText, "BOTTOMLEFT", 0, -4)
+
     -- Update goals display
     local goalCount = 0
     if CFC.db.profile.goals and #CFC.db.profile.goals > 0 then
@@ -616,6 +620,11 @@ function HUDModule:Update()
     local showSwap = CFC.db.profile.settings.hudShowSwapButton
     local anyButtons = showLure or showSwap
     local baseHeight = anyButtons and 140 or 110
+
+    -- The base height includes the Time Left line, which only shows with a lure
+    if not currentBuff then
+        baseHeight = baseHeight - ((hudFrame.buffSingleLineHeight or 12) + 3)
+    end
 
     local goalHeight = 0
     if goalCount > 0 then
@@ -958,7 +967,6 @@ function HUDModule:ApplyButtonVisibility()
 
     local showLure = CFC.db.profile.settings.hudShowLureButton
     local showSwap = CFC.db.profile.settings.hudShowSwapButton
-    local anyButtons = showLure or showSwap
 
     if hudFrame.applyLureButton then
         if showLure then
@@ -976,15 +984,6 @@ function HUDModule:ApplyButtonVisibility()
         end
     end
 
-    -- Calculate goal height
-    local goalHeight = 0
-    if CFC.db.profile.goals then
-        local activeGoals = math.min(#CFC.db.profile.goals, 3)
-        if activeGoals > 0 then
-            goalHeight = 14 + (activeGoals * 13)  -- title + entries
-        end
-    end
-
     -- In text-only mode, hide buttons and lock icon (shown on hover)
     if IsTextOnlyMode() then
         if hudFrame.lockIcon then hudFrame.lockIcon:Hide() end
@@ -992,9 +991,8 @@ function HUDModule:ApplyButtonVisibility()
         if hudFrame.gearSwapButton then hudFrame.gearSwapButton:Hide() end
     end
 
-    -- Resize HUD based on button visibility and goals
-    local baseHeight = anyButtons and 140 or 110
-    HUDModule:SetHUDSize(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
+    -- Resize to fit (Update knows about goals and the lure lines)
+    HUDModule:Update()
 end
 
 -- Update lock state visual

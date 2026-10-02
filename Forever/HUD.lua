@@ -17,6 +17,7 @@ local HUDModule = CFC.HUD
 local hudFrame = nil
 local LURE_BAR_WIDTH = 130
 local LURE_BAR_HEIGHT = 11
+local GEAR_BONUS_ICON = "Interface\\Icons\\INV_Helmet_31"  -- Fishing bonus from gear other than the pole
 
 local CAST_BAR = Theme.CAST_BAR
 

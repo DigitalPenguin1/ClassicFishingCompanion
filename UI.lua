@@ -3788,6 +3788,12 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.4"] = {
+        changes = {
+            "This update only contains changes for the WoW: Forever version. Nothing changed for Classic Era or TBC",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.3"] = {
         changes = {
             "The addon's name in the AddOns list is now in color",

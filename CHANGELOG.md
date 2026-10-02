@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.4] - 2026-10-02
+
+This release only changes the WoW: Forever version. Classic Era and TBC are unchanged apart from the version number.
+
+### Changed
+- **Forever:** the HUD lure timer uses the game's own cast bar art, the same green bar as the Fishing cast. It turns yellow under 2 minutes and red in the last minute. Time Left is shown in white over the bar
+- **Forever:** the Statistics tab's hourly, daily and weekly bars use the same cast bar art (yellow, green and blue)
+- **Forever:** the "No Fishing Lure!" warning shows just above the HUD, like the Release notice, instead of as a raid warning. It goes away as soon as you apply a lure. With the HUD hidden you still get the raid warning
+
 ## [1.2.3] - 2026-09-29
 
 Most of this release is for the WoW: Forever version. Classic Era and TBC get the Easy Cast fix below and a colored name in the AddOns list.

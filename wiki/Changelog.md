@@ -6,6 +6,12 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.4
+Forever-only update; Classic Era and TBC are unchanged.
+- **Forever** - HUD lure timer uses the game's cast bar: green, yellow under 2 minutes, red in the last minute
+- **Forever** - Statistics bars use the same cast bar style
+- **Forever** - "No Fishing Lure!" shows above the HUD instead of as a raid warning (raid warning when the HUD is hidden)
+
 ### v1.2.3
 Mostly a Forever update. Classic Era and TBC get the Easy Cast fix and a colored name in the AddOns list.
 - Double right-clicking a mob no longer applies your lure or casts Fishing instead of attacking

@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.4"
+CFC.VERSION = "1.2.5"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {

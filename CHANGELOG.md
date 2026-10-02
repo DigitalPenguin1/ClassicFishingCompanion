@@ -2,6 +2,13 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.5] - 2026-10-02
+
+This release only corrects a note for the WoW: Forever version. Classic Era and TBC are unchanged apart from the version number.
+
+### Changed
+- **Forever:** the 1.2.4 What's New warned that the Forever beta doesn't load addon saved data after a restart. Blizzard has fixed that, so catches and settings carry over. The warning is gone from What's New and the README
+
 ## [1.2.4] - 2026-10-02
 
 This release only changes the WoW: Forever version. Classic Era and TBC are unchanged apart from the version number.

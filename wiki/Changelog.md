@@ -6,6 +6,10 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.5
+Forever-only; Classic Era and TBC are unchanged.
+- **Forever** - Removed the out-of-date warning about the beta resetting addon data on restart; Blizzard has fixed it
+
 ### v1.2.4
 Forever-only update; Classic Era and TBC are unchanged.
 - **Forever** - HUD lure timer uses the game's cast bar: green, yellow under 2 minutes, red in the last minute

@@ -3760,13 +3760,20 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.5"] = {
+        changes = {
+            "Blizzard has fixed the Forever beta bug that reset addon data on restart, so your catches and settings now carry over. The 1.2.4 note saying otherwise was out of date",
+            "No other changes since 1.2.4: the cast bar lure timer, cast bar Statistics bars, and the No Fishing Lure! warning above the HUD are all still new",
+        },
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.4"] = {
         changes = {
             "The HUD lure timer uses the game's cast bar: green, then yellow under 2 minutes and red in the last minute",
             "Statistics bars use the same cast bar style",
             "\"No Fishing Lure!\" shows just above the HUD instead of as a raid warning, and clears when you apply a lure. With the HUD hidden you still get the raid warning",
         },
-        tip = "Note: the Forever beta client currently doesn't load addon saved data after a restart, so your catches and settings reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.2.3"] = {
         features = {

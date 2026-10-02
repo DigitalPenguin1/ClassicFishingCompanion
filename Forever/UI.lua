@@ -3791,7 +3791,7 @@ local whatsNewContent = {
             "No more \"Interface action failed because of an AddOn\" during the combat weapon swap",
             "The HUD no longer has an empty gap above its buttons when no lure is active",
         },
-        tip = "Note: the Forever beta client currently doesn't load addon saved data after a restart, so your catches and settings reset. This is a Blizzard bug, not the addon. Your gear sets are safe now that they live in the Equipment Manager.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "TIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.2.2"] = {
         features = {
@@ -3809,7 +3809,7 @@ local whatsNewContent = {
             "The Zones tab no longer stops with a Lua error for some catches",
             "The Statistics tab no longer scrolls far past its last line",
         },
-        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nNote: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.2.1"] = {
         features = {
@@ -3823,7 +3823,7 @@ local whatsNewContent = {
         fixes = {
             "The HUD Apply Lure button now applies your lure",
         },
-        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nNote: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.2.0"] = {
         features = {
@@ -3836,7 +3836,7 @@ local whatsNewContent = {
             "The HUD gear button now matches the gear you're wearing when you log in, even if you logged out mid-swap",
             "Saving your fishing set while wearing it now updates the HUD right away, instead of offering to swap to fishing gear you already have on",
         },
-        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nNote: the Forever beta client currently doesn't load addon saved data after a restart, so your catches reset. This is a Blizzard bug, not the addon.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+        tip = "This Forever version is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
     },
     ["1.1.13"] = {
         fixes = {

@@ -240,6 +240,36 @@ function Theme.SetBarFill(texture, r, g, b, a)
     texture:SetVertexColor(r, g, b, a or 1)
 end
 
+-- The game's cast bar art (the Fishing cast bar is the green channel fill).
+-- Checked with C_Texture.GetAtlasInfo before use; callers fall back to SetBarFill.
+Theme.CAST_BAR = {
+    background = "ui-castingbar-background",
+    spark = "ui-castingbar-pip",
+    channel = "ui-castingbar-filling-channel",      -- Green
+    standard = "ui-castingbar-filling-standard",    -- Yellow
+    interrupted = "ui-castingbar-interrupted",      -- Red
+}
+
+function Theme.HasAtlas(atlas)
+    return C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) ~= nil
+end
+
+function Theme.HasCastBarArt()
+    return Theme.HasAtlas(Theme.CAST_BAR.background) and Theme.HasAtlas(Theme.CAST_BAR.channel)
+end
+
+-- Show the left pct of a cast bar fill, the way a StatusBar crops its fill,
+-- so the art isn't squashed as the bar shrinks. With r, g, b the art is
+-- desaturated and tinted, for colors the game has no fill for.
+function Theme.SetCastBarFill(texture, atlas, pct, r, g, b)
+    local info = C_Texture.GetAtlasInfo(atlas)
+    texture:SetTexture(info.file or info.filename)
+    local left, right = info.leftTexCoord, info.rightTexCoord
+    texture:SetTexCoord(left, left + (right - left) * pct, info.topTexCoord, info.bottomTexCoord)
+    texture:SetDesaturated(r ~= nil)
+    texture:SetVertexColor(r or 1, g or 1, b or 1, 1)
+end
+
 -- Crop the default icon edge and give it a 1px border colored by item quality
 function Theme.StyleIcon(frame, icon)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)

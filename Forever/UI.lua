@@ -1512,18 +1512,24 @@ function UI:CreateBar(parent, index)
     bar.label:SetWidth(80)
     bar.label:SetJustifyH("LEFT")
 
-    -- Bar background
+    -- Bar background: the game's cast bar art when the client has it
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetPoint("LEFT", bar.label, "RIGHT", 5, 0)
     bar.bg:SetSize(200, 14)
-    bar.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
-    Theme.AddBorder(bar, bar.bg, Theme.GOLD, 0.8)
+    bar.castBarArt = Theme.HasCastBarArt()
+    if bar.castBarArt then
+        bar.bg:SetAtlas(Theme.CAST_BAR.background)
+        Theme.AddBorder(bar, bar.bg, { 0, 0, 0 }, 0.8)
+    else
+        bar.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.8))
+        Theme.AddBorder(bar, bar.bg, Theme.GOLD, 0.8)
+    end
 
     -- Bar fill
     bar.fill = bar:CreateTexture(nil, "ARTWORK")
     bar.fill:SetPoint("LEFT", bar.bg, "LEFT", 0, 0)
     bar.fill:SetHeight(14)
-    Theme.SetBarFill(bar.fill, 0.0, 0.8, 0.4)  -- Green fill
+    UI:SetBarStyle(bar, Theme.CAST_BAR.channel, 0.0, 0.8, 0.4)  -- Green fill
 
     -- Value text
     bar.value = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -1532,6 +1538,31 @@ function UI:CreateBar(parent, index)
     bar.value:SetJustifyH("LEFT")
 
     return bar
+end
+
+-- Pick a bar's fill: a cast bar atlas (tinted when tintArt is set, for colors
+-- the game has no fill for), or the r, g, b glossy fill on clients without the art
+function UI:SetBarStyle(bar, atlas, r, g, b, tintArt)
+    bar.fillAtlas = atlas
+    bar.fillColor = { r, g, b }
+    bar.tintArt = tintArt
+    if not bar.castBarArt or not Theme.HasAtlas(atlas) then
+        bar.castBarArt = false
+        Theme.SetBarFill(bar.fill, r, g, b)
+    end
+    UI:SetBarValue(bar, bar.pct or 0)
+end
+
+-- Fill a bar to pct (0-1) of its 200px track
+function UI:SetBarValue(bar, pct)
+    pct = math.max(0, math.min(1, pct))
+    bar.pct = pct
+    local fillWidth = math.max(1, pct * 200)
+    bar.fill:SetWidth(fillWidth)
+    if bar.castBarArt then
+        local c = bar.tintArt and bar.fillColor or {}
+        Theme.SetCastBarFill(bar.fill, bar.fillAtlas, fillWidth / 200, c[1], c[2], c[3])
+    end
 end
 
 -- Create Stats Tab
@@ -1570,7 +1601,7 @@ function UI:CreateStatsTab()
     for i = 1, 5 do
         local bar = UI:CreateBar(frame.hourlyContainer, i)
         bar:SetPoint("TOPLEFT", frame.hourlyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
-        Theme.SetBarFill(bar.fill, 1.0, 0.6, 0.0)  -- Orange fill for hourly
+        UI:SetBarStyle(bar, Theme.CAST_BAR.standard, 1.0, 0.6, 0.0)  -- Orange/yellow fill for hourly
         frame.hourlyBars[i] = bar
     end
 
@@ -1599,7 +1630,7 @@ function UI:CreateStatsTab()
     for i = 1, 4 do
         local bar = UI:CreateBar(frame.weeklyContainer, i)
         bar:SetPoint("TOPLEFT", frame.weeklyContainer, "TOPLEFT", 0, -35 - ((i-1) * 20))
-        Theme.SetBarFill(bar.fill, 0.2, 0.6, 1.0)  -- Blue fill for weekly
+        UI:SetBarStyle(bar, Theme.CAST_BAR.standard, 0.2, 0.6, 1.0, true)  -- Blue fill for weekly
         frame.weeklyBars[i] = bar
     end
 
@@ -1680,8 +1711,7 @@ function UI:UpdateStats()
         if hour and hour.catches > 0 then
             bar.label:SetText(hour.label)
             bar.value:SetText(hour.catches)
-            local fillWidth = (hour.catches / math.max(maxHourlyCatches, 1)) * 200
-            bar.fill:SetWidth(math.max(fillWidth, 1))
+            UI:SetBarValue(bar, hour.catches / math.max(maxHourlyCatches, 1))
             bar:Show()
         else
             bar:Hide()
@@ -1696,8 +1726,7 @@ function UI:UpdateStats()
             local dayLabel = day.daysAgo == 0 and "Today" or (day.daysAgo == 1 and "Yesterday" or day.name)
             bar.label:SetText(dayLabel)
             bar.value:SetText(day.catches)
-            local fillWidth = (day.catches / math.max(maxDailyCatches, 1)) * 200
-            bar.fill:SetWidth(math.max(fillWidth, 1))
+            UI:SetBarValue(bar, day.catches / math.max(maxDailyCatches, 1))
             bar:Show()
         end
     end
@@ -1709,8 +1738,7 @@ function UI:UpdateStats()
         if bar then
             bar.label:SetText(week.label)
             bar.value:SetText(week.catches)
-            local fillWidth = (week.catches / math.max(maxWeeklyCatches, 1)) * 200
-            bar.fill:SetWidth(math.max(fillWidth, 1))
+            UI:SetBarValue(bar, week.catches / math.max(maxWeeklyCatches, 1))
             bar:Show()
         end
     end

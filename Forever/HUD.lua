@@ -15,8 +15,10 @@ CFC.HUD = {}
 local HUDModule = CFC.HUD
 
 local hudFrame = nil
-local LURE_BAR_WIDTH = 150
-local GEAR_BONUS_ICON = "Interface\\Icons\\INV_Helmet_31"  -- Fishing bonus from gear other than the pole
+local LURE_BAR_WIDTH = 130
+local LURE_BAR_HEIGHT = 11
+
+local CAST_BAR = Theme.CAST_BAR
 
 -- Lure bonus mapping (constant table to avoid recreation every update)
 local lureBonus = {
@@ -135,17 +137,33 @@ function CFC:InitializeHUD()
     hudFrame.buffTimerText:SetPoint("TOPLEFT", hudFrame.buffText, "BOTTOMLEFT", 0, -3)
     hudFrame.buffTimerText:SetJustifyH("LEFT")
 
-    -- Lure countdown bar behind the Time Left line. Drawn with textures on the
-    -- HUD itself: a StatusBar child frame would render on top of the text.
+    -- Lure countdown bar behind the Time Left line, drawn with the game's own
+    -- cast bar art. Textures on the HUD itself: a StatusBar child frame would
+    -- render on top of the text.
     hudFrame.lureBarBg = hudFrame:CreateTexture(nil, "ARTWORK", nil, 0)
-    hudFrame.lureBarBg:SetPoint("TOPLEFT", hudFrame.buffTimerText, "TOPLEFT", -3, 2)
-    hudFrame.lureBarBg:SetPoint("BOTTOMLEFT", hudFrame.buffTimerText, "BOTTOMLEFT", -3, -2)
-    hudFrame.lureBarBg:SetWidth(LURE_BAR_WIDTH)
-    hudFrame.lureBarBg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.6))
+    hudFrame.lureBarBg:SetPoint("LEFT", hudFrame.buffTimerText, "LEFT", -3, 0)
+    hudFrame.lureBarBg:SetSize(LURE_BAR_WIDTH, LURE_BAR_HEIGHT)
     hudFrame.lureBarFill = hudFrame:CreateTexture(nil, "ARTWORK", nil, 1)
     hudFrame.lureBarFill:SetPoint("TOPLEFT", hudFrame.lureBarBg, "TOPLEFT")
     hudFrame.lureBarFill:SetPoint("BOTTOMLEFT", hudFrame.lureBarBg, "BOTTOMLEFT")
-    hudFrame.lureBarBorder = Theme.AddBorder(hudFrame, hudFrame.lureBarBg, Theme.GOLD, 0.5)
+    hudFrame.lureBarSpark = hudFrame:CreateTexture(nil, "ARTWORK", nil, 2)
+    hudFrame.lureBarSpark:SetPoint("CENTER", hudFrame.lureBarFill, "RIGHT")
+    hudFrame.lureBarSpark:SetBlendMode("ADD")
+    hudFrame.useCastBarArt = Theme.HasCastBarArt()
+    if hudFrame.useCastBarArt then
+        hudFrame.lureBarBg:SetAtlas(CAST_BAR.background)
+        -- The cast bar's own frame art is drawn for a much larger bar and
+        -- looks heavy at HUD size; a thin dark edge reads closer to the game's
+        hudFrame.lureBarBorder = Theme.AddBorder(hudFrame, hudFrame.lureBarBg, { 0, 0, 0 }, 0.8)
+        if Theme.HasAtlas(CAST_BAR.spark) then
+            hudFrame.lureBarSpark:SetAtlas(CAST_BAR.spark)
+            hudFrame.lureBarSpark:SetSize(3, LURE_BAR_HEIGHT + 2)
+            hudFrame.lureBarSpark:SetAlpha(0.8)
+        end
+    else
+        hudFrame.lureBarBg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.6))
+        hudFrame.lureBarBorder = Theme.AddBorder(hudFrame, hudFrame.lureBarBg, Theme.GOLD, 0.5)
+    end
     HUDModule:SetLureBar(nil)
 
     -- Goals display (up to 3 goals on HUD)
@@ -555,6 +573,12 @@ function HUDModule:Update()
             timeColor = "|cffffff00"  -- Yellow if less than 2 minutes
         end
 
+        -- Over the cast bar art the bar color carries the warning; colored
+        -- time text would vanish into the green fill
+        if hudFrame.useCastBarArt and not CFC.db.profile.settings.textOnlyHUD then
+            timeColor = "|cffffffff"
+        end
+
         local timeText = HUDModule:FormatTime(timeRemaining)
         hudFrame.buffTimerText:SetText("Time Left: " .. timeColor .. timeText .. "|r")
         HUDModule:SetLureBar(currentBuff)
@@ -735,6 +759,7 @@ function HUDModule:SetLureBar(buff)
     hudFrame.lureBarBg:SetShown(show)
     hudFrame.lureBarFill:SetShown(show)
     hudFrame.lureBarBorder:SetShown(show)
+    hudFrame.lureBarSpark:SetShown(show)
     if not buff then
         hudFrame.lureDuration = nil
         hudFrame.lureName = nil
@@ -751,12 +776,35 @@ function HUDModule:SetLureBar(buff)
     end
 
     local pct = math.min(1, remaining / hudFrame.lureDuration)
-    hudFrame.lureBarFill:SetWidth(math.max(1, pct * LURE_BAR_WIDTH))
-    if remaining < 60 then
-        Theme.SetBarFill(hudFrame.lureBarFill, 0.8, 0.1, 0.1, 0.55)  -- Red in the last minute
-    else
-        Theme.SetBarFill(hudFrame.lureBarFill, Theme.Color(Theme.GOLD, 0.55))
+    local fillWidth = math.max(1, pct * LURE_BAR_WIDTH)
+    hudFrame.lureBarFill:SetWidth(fillWidth)
+
+    if not hudFrame.useCastBarArt then
+        hudFrame.lureBarSpark:Hide()
+        if remaining < 60 then
+            Theme.SetBarFill(hudFrame.lureBarFill, 0.8, 0.1, 0.1, 0.55)  -- Red in the last minute
+        else
+            Theme.SetBarFill(hudFrame.lureBarFill, Theme.Color(Theme.GOLD, 0.55))
+        end
+        return
     end
+
+    -- Green, then the yellow cast fill under 2 minutes, then red in the last
+    -- minute (tinted green if the client has no red cast bar art)
+    local atlas = CAST_BAR.channel
+    local r, g, b = 1, 1, 1
+    if remaining < 60 then
+        if Theme.HasAtlas(CAST_BAR.interrupted) then
+            atlas = CAST_BAR.interrupted
+        else
+            r, g, b = 1, 0.25, 0.25
+        end
+    elseif remaining < 120 and Theme.HasAtlas(CAST_BAR.standard) then
+        atlas = CAST_BAR.standard
+    end
+    Theme.SetCastBarFill(hudFrame.lureBarFill, atlas, fillWidth / LURE_BAR_WIDTH)
+    hudFrame.lureBarFill:SetVertexColor(r, g, b, 1)
+    hudFrame.lureBarSpark:SetShown(pct > 0 and pct < 1)
 end
 
 -- Get current fishing buff (lure)

@@ -559,6 +559,10 @@ function HUDModule:Update()
     end
 
     -- Current fishing buff (show most recent)
+    if currentBuff and hudFrame.notificationKind == "nolure" then
+        hudFrame.releaseText:Hide()
+        hudFrame.notificationKind = nil
+    end
     if currentBuff then
         hudFrame.buffText:SetText("Lure: |cffffff00" .. currentBuff.name .. "|r")
 
@@ -850,25 +854,38 @@ function HUDModule:GetCurrentFishingBuff()
     return nil
 end
 
--- Show release notification on HUD (fades after 3 seconds)
-function HUDModule:ShowReleaseNotification(fishName)
-    if not hudFrame or not hudFrame:IsShown() then return end
+-- Show a short message just above the HUD, hidden after the given seconds.
+-- Returns false when the HUD isn't showing, so callers can warn another way.
+function HUDModule:ShowNotification(text, seconds, kind)
+    if not hudFrame or not hudFrame:IsShown() then return false end
 
-    hudFrame.releaseText:SetText("|cffff8800Release:|r " .. fishName)
+    hudFrame.releaseText:SetText(text)
     hudFrame.releaseText:SetAlpha(1)
     hudFrame.releaseText:Show()
+    hudFrame.notificationKind = kind
 
     -- Cancel any existing fade timer
     if hudFrame.releaseFadeTimer then
         hudFrame.releaseFadeTimer:Cancel()
     end
 
-    -- Fade out after 3 seconds
-    hudFrame.releaseFadeTimer = C_Timer.NewTimer(3, function()
+    hudFrame.releaseFadeTimer = C_Timer.NewTimer(seconds, function()
         if hudFrame and hudFrame.releaseText then
             hudFrame.releaseText:Hide()
+            hudFrame.notificationKind = nil
         end
     end)
+    return true
+end
+
+-- Show release notification on HUD (fades after 3 seconds)
+function HUDModule:ShowReleaseNotification(fishName)
+    HUDModule:ShowNotification("|cffff8800Release:|r " .. fishName, 3, "release")
+end
+
+-- Missing lure warning above the HUD; cleared early once a lure goes on
+function HUDModule:ShowNoLureWarning()
+    return HUDModule:ShowNotification("|cffff2020No Fishing Lure!|r", 5, "nolure")
 end
 
 -- Save HUD position

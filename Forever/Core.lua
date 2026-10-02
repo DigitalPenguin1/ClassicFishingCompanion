@@ -534,7 +534,10 @@ function CFC:CheckFishingState()
                 -- Only warn if in fishing gear mode (we already know pole is equipped since we're in CheckFishingState)
                 local currentMode = self:GetCurrentGearMode()
                 if currentMode == "fishing" then
-                    RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Lure!", ChatTypeInfo["RAID_WARNING"], 10)
+                    -- Above the HUD like the release notice; raid warning if the HUD is hidden
+                    if not (self.HUD and self.HUD:ShowNoLureWarning()) then
+                        RaidNotice_AddMessage(RaidWarningFrame, "No Fishing Lure!", ChatTypeInfo["RAID_WARNING"], 10)
+                    end
                     self.lastBuffWarningTime = currentTime
                     if self.debug then
                         print("|cffff8800[CFC Debug]|r Warning: Fishing without lure!")

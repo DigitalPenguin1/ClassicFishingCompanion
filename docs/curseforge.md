@@ -5,8 +5,9 @@ field and everything under "Description" into the Description editor
 ignores docs/).
 
 Images point at raw GitHub URLs in docs/images/, so they only load once
-they're committed and pushed. forever-overview.png is the Forever main
-window. More Forever shots that would fit under their sections:
+they're committed and pushed. forever-vs-classic.png is the Overview tab
+on both builds side by side (forever-overview.png is the Forever half on
+its own, for the gallery). More Forever shots that would fit under their sections:
   hud.png               Stats HUD with a lure on (cast bar timer) -> Stats HUD
   gear-sets.png         Gear Sets tab with a Fishing set saved   -> Gear sets
   settings-audio.png    Settings tab at Audio                    -> Alerts and sound
@@ -20,7 +21,7 @@ Fishing addon for WoW Classic Era, TBC and Forever. Double right-click to cast w
 
 **Everything you need while fishing in WoW Classic Era, TBC and WoW: Forever.** Double right-click to cast and your lure goes on by itself. A small HUD tracks your catches, fish per hour, skill and lure timer. Every fish you catch is logged by zone, with no setup.
 
-![Classic Fishing Companion on WoW: Forever](https://raw.githubusercontent.com/DigitalPenguin1/ClassicFishingCompanion/main/docs/images/forever-overview.png)
+![Classic Fishing Companion on WoW: Forever and on Classic Era & TBC](https://raw.githubusercontent.com/DigitalPenguin1/ClassicFishingCompanion/main/docs/images/forever-vs-classic.png)
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/zfOO9thJwWo" title="CFC - (Classic Fishing Companion) Overview" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 

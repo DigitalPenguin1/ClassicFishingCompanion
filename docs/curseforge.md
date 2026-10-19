@@ -23,9 +23,9 @@ Fishing addon for WoW Classic Era, TBC and Forever. Double right-click to cast w
 
 ![Classic Fishing Companion on WoW: Forever and on Classic Era & TBC](https://raw.githubusercontent.com/DigitalPenguin1/ClassicFishingCompanion/main/docs/images/forever-vs-classic.png)
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/zfOO9thJwWo" title="CFC - (Classic Fishing Companion) Overview" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<p align="center"><iframe width="560" height="315" src="https://www.youtube.com/embed/zfOO9thJwWo" title="CFC - (Classic Fishing Companion) Overview" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></p>
 
-[Watch the overview video on YouTube](https://youtu.be/zfOO9thJwWo)
+<p align="center"><a href="https://youtu.be/zfOO9thJwWo">Watch the overview video on YouTube</a></p>
 
 > **One download, three games.** The same zip runs on Classic Era, TBC Anniversary and WoW: Forever. Forever gets its own build with side tabs, cast bar timers and the game's Equipment Manager for gear sets.
 

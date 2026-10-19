@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.6] - 2026-10-18
+
+### Added
+- **Enhance Bobber Splash** setting, in a new Audio section of Settings (off by default). While you fish, it turns the game's sound on even if muted, sets master and effects volume to the Splash Volume setting, and turns off music, ambience, dialog, pet, emote and error-speech sounds, so the bobber splash is easy to hear. Your sound settings come back 10 seconds after you stop fishing; recasting within that time keeps the boost on, so music doesn't restart between casts. Your settings are saved before the change, so a crash or logout mid-cast still gets them back on the next login. Spells, mobs and footsteps share the splash's sound channel and still play
+- **Splash Volume** slider (10% to 100%) for the master and effects volume used by Enhance Bobber Splash. Moving it while fishing applies right away
+
+### Fixed
+- The HUD Scale slider's colored fill now ends at the slider knob instead of short of it
+
 ## [1.2.5] - 2026-10-02
 
 This release only corrects a note for the WoW: Forever version. Classic Era and TBC are unchanged apart from the version number.

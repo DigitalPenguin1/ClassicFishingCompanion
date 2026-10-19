@@ -16,6 +16,7 @@ A comprehensive fishing companion addon for World of Warcraft Classic Era, TBC, 
 - **Fishing Goals** - Set session-based catch goals for specific fish with progress bars and HUD tracking
 - **Catch & Release** - Mark fish for deletion via keybind to keep your bags clean while fishing
 - **Rare Fish Alerts** - Sound notification when you catch a rare fish
+- **Enhance Bobber Splash** - While fishing, unmutes the game and silences music and ambience so the splash is easy to hear, with its own volume slider
 - **Milestone Notifications** - Celebrate catch milestones
 - **Missing Lure Warnings** - On-screen alerts when fishing without a lure
 - **Automatic Backups** - Internal backups every 24 hours with one-click restore

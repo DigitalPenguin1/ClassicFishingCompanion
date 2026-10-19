@@ -6,6 +6,11 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.6
+- **Enhance Bobber Splash** - New Audio setting: while fishing, turns game sound on (even if muted) and silences music, ambience, dialog, pet, emote and error-speech sounds so you can hear the splash. Settings come back 10 seconds after you stop
+- **Splash Volume** - Slider for the master and effects volume used while the splash boost is on
+- HUD Scale slider fill lines up with the knob
+
 ### v1.2.5
 Forever-only; Classic Era and TBC are unchanged.
 - **Forever** - Removed the out-of-date warning about the beta resetting addon data on restart; Blizzard has fixed it

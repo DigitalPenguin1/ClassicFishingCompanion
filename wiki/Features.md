@@ -106,6 +106,7 @@ See [[Catch and Release]] for setup and usage.
 ## Alerts & Notifications
 
 - **Rare fish sound** — plays when you catch a rare fish
+- **Enhance Bobber Splash** — while fishing, unmutes the game and silences music, ambience and other non-effect sounds so the splash is easy to hear, with its own volume slider (Settings > Audio)
 - **Milestone notifications** — celebrate catch milestones in chat
 - **Missing lure warning** — on-screen alert when fishing without a lure
 - **Out-of-lure message** — chat warning when Easy Cast can't apply a lure (once per 10 min)

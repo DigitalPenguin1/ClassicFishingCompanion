@@ -2562,7 +2562,7 @@ function UI:CreateSettingsTab()
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
     frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
-    frame.scrollChild:SetSize(530, 1200)  -- Increased for section headers
+    frame.scrollChild:SetSize(530, 1420)  -- Increased for section headers
     frame.scrollFrame:SetScrollChild(frame.scrollChild)
 
     -- Helper function to create section headers
@@ -3097,6 +3097,8 @@ function UI:CreateSettingsTab()
     frame.hudScaleSlider.fill = frame.hudScaleSlider:CreateTexture(nil, "ARTWORK")
     frame.hudScaleSlider.fill:SetHeight(8)
     frame.hudScaleSlider.fill:SetPoint("LEFT", frame.hudScaleSlider, "LEFT", 0, 0)
+    -- End the fill at the thumb; the thumb doesn't travel the slider's full width
+    frame.hudScaleSlider.fill:SetPoint("RIGHT", frame.hudScaleSlider:GetThumbTexture(), "CENTER", 0, 0)
     frame.hudScaleSlider.fill:SetColorTexture(0.3, 0.6, 0.9, 0.8)
 
     frame.hudScaleSlider.Low = frame.hudScaleSlider.Low or _G["CFCHUDScaleSliderLow"]
@@ -3111,10 +3113,6 @@ function UI:CreateSettingsTab()
         if frame.hudScaleSlider.Text then
             frame.hudScaleSlider.Text:SetText(value .. "%")
         end
-        -- Update fill bar width
-        local min, max = self:GetMinMaxValues()
-        local pct = (value - min) / (max - min)
-        self.fill:SetWidth(math.max(1, pct * self:GetWidth()))
         if CFC.HUD and CFC.HUD.ApplyScale then
             CFC.HUD:ApplyScale()
         end
@@ -3230,7 +3228,91 @@ function UI:CreateSettingsTab()
     -- =============================================
     -- ADVANCED SECTION
     -- =============================================
-    frame.advancedHeader = CreateSectionHeader("Advanced", frame.autoSwapCombatDesc, -25)
+    -- =============================================
+    -- AUDIO SECTION
+    -- =============================================
+    frame.audioHeader = CreateSectionHeader("Audio", frame.autoSwapCombatDesc, -25)
+
+    -- Enhance Bobber Splash Checkbox
+    frame.enhanceSplashCheck = CreateFrame("CheckButton", "CFCEnhanceSplashCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.enhanceSplashCheck:SetPoint("TOPLEFT", frame.audioHeader, "BOTTOMLEFT", 0, -15)
+    frame.enhanceSplashCheck.text = frame.enhanceSplashCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.enhanceSplashCheck.text:SetPoint("LEFT", frame.enhanceSplashCheck, "RIGHT", 5, 0)
+    frame.enhanceSplashCheck.text:SetText("Enhance Bobber Splash")
+
+    frame.enhanceSplashCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.enhanceSplash = self:GetChecked()
+        if CFC.db.profile.settings.enhanceSplash then
+            if CFC.isFishingChannelActive then
+                CFC:StartSplashBoost()
+            end
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Enhance Bobber Splash |cff00ff00enabled|r")
+        else
+            CFC:RestoreSplashBoost()
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Enhance Bobber Splash |cffff0000disabled|r")
+        end
+    end)
+
+    -- Enhance Bobber Splash description
+    frame.enhanceSplashDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.enhanceSplashDesc:SetPoint("TOPLEFT", frame.enhanceSplashCheck, "BOTTOMLEFT", 25, -5)
+    frame.enhanceSplashDesc:SetJustifyH("LEFT")
+    frame.enhanceSplashDesc:SetWidth(500)
+    frame.enhanceSplashDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.enhanceSplashDesc:SetText("While fishing, turns game sound on (even if muted), sets master and sound effects volume to full, and silences music, ambience, dialog, pet, emote and error-speech sounds so you can hear the splash. Other sound effects (spells, mobs, footsteps) share the splash's channel and still play. Also plays sound while the game is in the background. Your sound settings are restored 10 seconds after you stop fishing.")
+
+    -- Splash Volume slider
+    frame.splashVolumeLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.splashVolumeLabel:SetPoint("TOPLEFT", frame.enhanceSplashDesc, "BOTTOMLEFT", 0, -20)
+    frame.splashVolumeLabel:SetText("Splash Volume")
+
+    frame.splashVolumeSlider = CreateFrame("Slider", "CFCSplashVolumeSlider", frame.scrollChild, "OptionsSliderTemplate")
+    frame.splashVolumeSlider:SetPoint("TOPLEFT", frame.splashVolumeLabel, "BOTTOMLEFT", 0, -10)
+    frame.splashVolumeSlider:SetWidth(200)
+    frame.splashVolumeSlider:SetHeight(17)
+    frame.splashVolumeSlider:SetMinMaxValues(10, 100)
+    frame.splashVolumeSlider:SetValueStep(5)
+    frame.splashVolumeSlider:SetObeyStepOnDrag(true)
+
+    -- Add visible track background
+    local splashTrackBg = frame.splashVolumeSlider:CreateTexture(nil, "BACKGROUND")
+    splashTrackBg:SetHeight(8)
+    splashTrackBg:SetPoint("LEFT", frame.splashVolumeSlider, "LEFT", 0, 0)
+    splashTrackBg:SetPoint("RIGHT", frame.splashVolumeSlider, "RIGHT", 0, 0)
+    splashTrackBg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
+
+    -- Add filled portion of the track
+    frame.splashVolumeSlider.fill = frame.splashVolumeSlider:CreateTexture(nil, "ARTWORK")
+    frame.splashVolumeSlider.fill:SetHeight(8)
+    frame.splashVolumeSlider.fill:SetPoint("LEFT", frame.splashVolumeSlider, "LEFT", 0, 0)
+    -- End the fill at the thumb; the thumb doesn't travel the slider's full width
+    frame.splashVolumeSlider.fill:SetPoint("RIGHT", frame.splashVolumeSlider:GetThumbTexture(), "CENTER", 0, 0)
+    frame.splashVolumeSlider.fill:SetColorTexture(0.3, 0.6, 0.9, 0.8)
+
+    frame.splashVolumeSlider.Low = frame.splashVolumeSlider.Low or _G["CFCSplashVolumeSliderLow"]
+    frame.splashVolumeSlider.High = frame.splashVolumeSlider.High or _G["CFCSplashVolumeSliderHigh"]
+    frame.splashVolumeSlider.Text = frame.splashVolumeSlider.Text or _G["CFCSplashVolumeSliderText"]
+    if frame.splashVolumeSlider.Low then frame.splashVolumeSlider.Low:SetText("10%") end
+    if frame.splashVolumeSlider.High then frame.splashVolumeSlider.High:SetText("100%") end
+
+    frame.splashVolumeSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value / 5 + 0.5) * 5  -- Snap to 5% increments
+        CFC.db.profile.settings.splashVolume = value / 100
+        if frame.splashVolumeSlider.Text then
+            frame.splashVolumeSlider.Text:SetText(value .. "%")
+        end
+        CFC:UpdateSplashVolume()
+    end)
+
+    -- Splash Volume description
+    frame.splashVolumeDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.splashVolumeDesc:SetPoint("TOPLEFT", frame.splashVolumeSlider, "BOTTOMLEFT", 0, -15)
+    frame.splashVolumeDesc:SetJustifyH("LEFT")
+    frame.splashVolumeDesc:SetWidth(500)
+    frame.splashVolumeDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.splashVolumeDesc:SetText("Master and sound effects volume used while Enhance Bobber Splash is active.")
+
+    frame.advancedHeader = CreateSectionHeader("Advanced", frame.splashVolumeDesc, -25)
 
     -- Debug Mode Checkbox
     frame.debugCheck = CreateFrame("CheckButton", "CFCDebugCheck", frame.scrollChild, "UICheckButtonTemplate")
@@ -3507,6 +3589,16 @@ function UI:UpdateSettings()
 
     -- Update auto-swap combat weapons checkbox
     frame.autoSwapCombatCheck:SetChecked(CFC.db.profile.settings.autoSwapCombatWeapons)
+
+    -- Update enhance bobber splash checkbox
+    frame.enhanceSplashCheck:SetChecked(CFC.db.profile.settings.enhanceSplash)
+
+    -- Update splash volume slider
+    local splashVolumeValue = (CFC.db.profile.settings.splashVolume or 1.0) * 100
+    frame.splashVolumeSlider:SetValue(splashVolumeValue)
+    if frame.splashVolumeSlider.Text then
+        frame.splashVolumeSlider.Text:SetText(math.floor(splashVolumeValue + 0.5) .. "%")
+    end
 
     -- Update backup checkbox
     frame.autoBackupCheck:SetChecked(CFC.db.profile.backup.enabled)
@@ -3788,6 +3880,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.6"] = {
+        features = {
+            "Enhance Bobber Splash (Settings > Audio): while you fish, the game's sound turns on even if you muted it. Music, ambience, dialog, pet, emote and error-speech sounds go quiet, so the splash is easy to hear. Your sound settings come back 10 seconds after you stop fishing",
+            "Splash Volume slider to set how loud the master and effects volume go while the splash boost is on",
+        },
+        changes = {
+            "The HUD Scale slider's fill now lines up with the slider knob",
+        },
+        tip = "Spells, mobs and footsteps share the splash's sound channel, so they still play while the boost is on.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.5"] = {
         changes = {
             "This update only contains changes for the WoW: Forever version. Nothing changed for Classic Era or TBC",

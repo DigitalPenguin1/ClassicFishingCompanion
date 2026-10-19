@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.5"
+CFC.VERSION = "1.2.6"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -136,6 +136,8 @@ local defaults = {
             autoSwapCombatWeapons = false,  -- Auto-swap to combat weapons when entering combat while fishing (disabled by default)
             easyCast = false,  -- Double right-click to cast fishing
             rareFishSound = true,  -- Play sound when catching rare fish (enabled by default)
+            enhanceSplash = false,  -- Boost effects and mute music while fishing so the bobber splash stands out (disabled by default)
+            splashVolume = 1.0,  -- Master and effects volume used by Enhance Bobber Splash (0.1 to 1.0)
             minimalHUD = false,  -- Minimal HUD mode: no border, more translucent background (disabled by default)
             textOnlyHUD = false,  -- Text-only HUD mode: no background or border, hover to reveal (disabled by default)
             quietMode = false,  -- Suppress all chat messages except errors and warnings
@@ -363,6 +365,9 @@ function CFC:OnEnable()
         CFC_ScanTooltip = CreateFrame("GameTooltip", "CFC_ScanTooltip", nil, "GameTooltipTemplate")
         CFC_ScanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
     end
+
+    -- Put sound settings back if the last session ended mid-cast with the splash boost on
+    self:RestoreSplashBoost()
 
     -- Start automatic background icon refresh (runs every 5 minutes)
     self:ScheduleBackgroundIconRefresh()
@@ -1014,6 +1019,8 @@ function CFC:OnSpellChannelStart(event, unit, _, spellID)
         if self.debug then
             print("|cffff8800[CFC Debug]|r Fishing started - isFishingChannelActive = true")
         end
+
+        self:StartSplashBoost()
     end
 end
 
@@ -1030,6 +1037,132 @@ function CFC:OnSpellChannelStop(event, unit, _, spellID)
 
     -- Set channel stop time so Easy Cast can bypass bobber check after a miss
     self.easyCastChannelStopTime = GetTime()
+
+    self:ScheduleSplashRestore()
+end
+
+-- =============================================
+-- ENHANCE BOBBER SPLASH
+-- =============================================
+-- The game has no event for the bite, so we can't swap in our own sound.
+-- Instead, while fishing, force game sound on, push effects to full volume and
+-- silence music, ambience and dialog so the splash is the loudest thing playing.
+-- The user's values are saved to SavedVariables before the first change, so a
+-- crash mid-cast still gets them restored on the next login.
+-- Ordered: turning all sound on restarts the sound system, so it goes first.
+-- Volumes are zeroed as well as the toggles in case a toggle doesn't take.
+-- "volume" is replaced with the Splash Volume setting when applied.
+local SPLASH_CVARS = {
+    { "Sound_EnableAllSound", "1" },
+    { "Sound_MasterVolume", "volume" },
+    { "Sound_EnableSFX", "1" },
+    { "Sound_SFXVolume", "volume" },
+    { "Sound_EnableMusic", "0" },
+    { "Sound_MusicVolume", "0" },
+    { "Sound_EnableAmbience", "0" },
+    { "Sound_AmbienceVolume", "0" },
+    { "Sound_EnableDialog", "0" },
+    { "Sound_DialogVolume", "0" },
+    { "Sound_EnablePetSounds", "0" },
+    { "Sound_EnableEmoteSounds", "0" },
+    { "Sound_EnableErrorSpeech", "0" },
+    { "Sound_EnableSoundWhenGameIsInBG", "1" },
+}
+
+-- Seconds to keep the boost after a cast ends, so music doesn't restart on every recast
+local SPLASH_RESTORE_DELAY = 10
+
+local GetCVarValue = (C_CVar and C_CVar.GetCVar) or GetCVar
+local SetCVarValue = (C_CVar and C_CVar.SetCVar) or SetCVar
+
+function CFC:StartSplashBoost()
+    if not self.db.profile.settings.enhanceSplash then return end
+
+    -- Cancel any pending restore from the previous cast
+    self.splashRestoreToken = (self.splashRestoreToken or 0) + 1
+
+    -- Only snapshot when nothing is saved yet, otherwise we'd save our own boosted values
+    if not ClassicFishingCompanionDB.splashCVarBackup then
+        local backup = {}
+        for _, entry in ipairs(SPLASH_CVARS) do
+            local cvar = entry[1]
+            local value = GetCVarValue(cvar)
+            if value ~= nil then
+                backup[cvar] = value
+            end
+        end
+        ClassicFishingCompanionDB.splashCVarBackup = backup
+    end
+
+    self:ApplySplashCVars()
+
+    -- Apply again next frame in case the sound system restart dropped any of them
+    local token = self.splashRestoreToken
+    C_Timer.After(0, function()
+        if self.splashRestoreToken == token and ClassicFishingCompanionDB.splashCVarBackup then
+            self:ApplySplashCVars(self.debug)
+        end
+    end)
+end
+
+function CFC:ApplySplashCVars(report)
+    local backup = ClassicFishingCompanionDB.splashCVarBackup
+    for _, entry in ipairs(SPLASH_CVARS) do
+        local cvar, value = entry[1], entry[2]
+        if value == "volume" then
+            value = tostring(self.db.profile.settings.splashVolume or 1.0)
+        end
+        -- Skip CVars this client doesn't have
+        if backup[cvar] ~= nil then
+            SetCVarValue(cvar, value)
+        end
+        if report then
+            print("|cffff8800[CFC Debug]|r Splash " .. cvar .. ": " .. tostring(backup[cvar]) .. " -> " .. tostring(GetCVarValue(cvar)) .. " (wanted " .. value .. ")")
+        end
+    end
+end
+
+-- Re-apply after the Splash Volume slider moves, if the boost is on right now
+function CFC:UpdateSplashVolume()
+    if ClassicFishingCompanionDB.splashCVarBackup then
+        self:ApplySplashCVars()
+    end
+end
+
+function CFC:ScheduleSplashRestore()
+    if not ClassicFishingCompanionDB.splashCVarBackup then return end
+
+    self.splashRestoreToken = (self.splashRestoreToken or 0) + 1
+    local token = self.splashRestoreToken
+    C_Timer.After(SPLASH_RESTORE_DELAY, function()
+        if self.splashRestoreToken == token and not self.isFishingChannelActive then
+            self:RestoreSplashBoost()
+        end
+    end)
+end
+
+-- keepBackup is for logout: the CVar writes may not reach Config.wtf, so keep the
+-- snapshot and let the next login restore from it again
+function CFC:RestoreSplashBoost(keepBackup)
+    local backup = ClassicFishingCompanionDB.splashCVarBackup
+    if not backup then return end
+
+    -- Reverse order, so all sound is switched back off last
+    for i = #SPLASH_CVARS, 1, -1 do
+        local cvar = SPLASH_CVARS[i][1]
+        if backup[cvar] ~= nil then
+            SetCVarValue(cvar, backup[cvar])
+        end
+    end
+
+    if not keepBackup then
+        ClassicFishingCompanionDB.splashCVarBackup = nil
+    end
+    self.splashRestoreToken = (self.splashRestoreToken or 0) + 1
+
+    if self.debug then
+        print("|cffff8800[CFC Debug]|r Splash boost off, sound settings restored")
+    end
 end
 
 -- Create the combat weapon swap button (must be created before combat)
@@ -1318,6 +1451,8 @@ end
 
 -- Handle logout
 function CFC:OnLogout()
+    self:RestoreSplashBoost(true)
+
     -- Save session data
     local sessionTime = time() - self.db.profile.statistics.sessionStartTime
     self.db.profile.statistics.totalFishingTime = self.db.profile.statistics.totalFishingTime + sessionTime

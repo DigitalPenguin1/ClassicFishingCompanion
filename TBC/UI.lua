@@ -3954,6 +3954,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.7"] = {
+        features = {
+            "Enhance Bobber Splash (Settings > Audio): while you fish, the game's sound turns on even if you muted it. Music, ambience, dialog, pet, emote and error-speech sounds go quiet, so the splash is easy to hear. Your sound settings come back 10 seconds after you stop fishing",
+            "Splash Volume slider to set how loud the master and effects volume go while the splash boost is on",
+        },
+        changes = {
+            "The HUD Scale slider's fill now lines up with the slider knob",
+        },
+        tip = "Spells, mobs and footsteps share the splash's sound channel, so they still play while the boost is on.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.6"] = {
         features = {
             "Enhance Bobber Splash (Settings > Audio): while you fish, the game's sound turns on even if you muted it. Music, ambience, dialog, pet, emote and error-speech sounds go quiet, so the splash is easy to hear. Your sound settings come back 10 seconds after you stop fishing",

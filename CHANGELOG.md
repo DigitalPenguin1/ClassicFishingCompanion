@@ -2,6 +2,11 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.7] - 2026-11-05
+
+### Changed
+- The login message now credits Relyk Rageroot RP-PVP NA
+
 ## [1.2.6] - 2026-10-18
 
 ### Added

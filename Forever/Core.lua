@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.6"
+CFC.VERSION = "1.2.7"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -322,7 +322,7 @@ function CFC:OnInitialize()
     end
 
     C_Timer.After(3, function()
-        CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
+        CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk Rageroot RP-PVP NA. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
         CFC:Print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
     end)
 end

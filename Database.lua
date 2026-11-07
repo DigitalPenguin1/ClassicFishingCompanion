@@ -109,7 +109,8 @@ function CFC.Database:GetZoneFishSummary()
         "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
         "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
         "crawdad", "darter", "feltail", "crocolisk",
-        "ahi", "striker", "sailfin"
+        "ahi", "striker", "sailfin",
+        "albacore", "halibut", "loch frenzy", "firefin", "striped racer"
     }
 
     local miscKeywords = {
@@ -166,7 +167,7 @@ function CFC.Database:GetZoneFishSummary()
         -- Override: misc keywords (unless name contains "fish")
         if isFish and not string.find(string.lower(itemName), "fish") then
             for _, keyword in ipairs(miscKeywords) do
-                if string.find(string.lower(itemName), keyword) then
+                if string.find(string.lower(itemName), "%f[%a]" .. keyword) then
                     isFish = false
                     break
                 end

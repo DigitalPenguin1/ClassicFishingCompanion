@@ -19,7 +19,8 @@ local fishKeywords = {
     "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
     "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
     "crawdad", "darter", "feltail", "crocolisk",
-    "ahi", "striker", "sailfin"
+    "ahi", "striker", "sailfin",
+    "albacore", "halibut", "loch frenzy", "firefin", "striped racer"
 }
 
 local miscKeywords = {
@@ -70,7 +71,7 @@ function UI:IsFishItem(itemName, itemType, itemSubType)
 
     if isFish and not string.find(nameLower, "fish") then
         for _, keyword in ipairs(miscKeywords) do
-            if string.find(nameLower, keyword) then
+            if string.find(nameLower, "%f[%a]" .. keyword) then
                 isFish = false
                 break
             end
@@ -460,7 +461,8 @@ function UI:UpdateFishList()
             "lobster", "crab", "clam", "mussel", "shrimp", "blackmouth",
             "redgill", "whitescale", "bluegill", "stonescale", "yellowtail",
             "crawdad", "darter", "feltail", "crocolisk",
-            "ahi", "striker", "sailfin"
+            "ahi", "striker", "sailfin",
+            "albacore", "halibut", "loch frenzy", "firefin", "striped racer"
         }
 
         for _, keyword in ipairs(fishKeywords) do
@@ -503,7 +505,7 @@ function UI:UpdateFishList()
             }
 
             for _, keyword in ipairs(miscKeywords) do
-                if string.find(nameLower, keyword) then
+                if string.find(nameLower, "%f[%a]" .. keyword) then
                     isFish = false
                     break
                 end
@@ -3880,6 +3882,13 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.8"] = {
+        fixes = {
+            "Raw Rainbow Fin Albacore, Bloated Albacore and Darkshore Grouper now show as fish instead of under Miscellaneous",
+            "Raw Loch Frenzy, Raw Spinefin Halibut, Bloated Firefin and Brownell's Blue Striped Racer are now always counted as fish",
+        },
+        tip = "If a fish was stuck under Miscellaneous, it moves back to the fish list on its own. Your catch counts are unchanged.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.7"] = {
         features = {
             "Enhance Bobber Splash (Settings > Audio): while you fish, the game's sound turns on even if you muted it. Music, ambience, dialog, pet, emote and error-speech sounds go quiet, so the splash is easy to hear. Your sound settings come back 10 seconds after you stop fishing",

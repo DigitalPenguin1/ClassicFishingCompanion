@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.7"
+CFC.VERSION = "1.2.8"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -1759,6 +1759,16 @@ function CFC:GetColoredItemName(itemName)
     return colorCode .. itemName .. CFC.COLORS.RESET
 end
 
+-- Name used in chat announcements. Forever characters have a surname, and
+-- GetUnitName(unit, true) returns "First Surname" when the client shows surnames.
+function CFC:GetPlayerDisplayName()
+    local name = GetUnitName and GetUnitName("player", true)
+    if not name or name == "" then
+        name = UnitName("player")
+    end
+    return name
+end
+
 -- Announce max fishing skill to chosen channel
 function CFC:AnnounceMaxSkill(skillLevel)
     local enabled = self.db.profile.settings.maxSkillAnnounceEnabled
@@ -1771,7 +1781,7 @@ function CFC:AnnounceMaxSkill(skillLevel)
 
     -- Send to chat channel if enabled
     if enabled and channel then
-        local playerName = UnitName("player")
+        local playerName = CFC:GetPlayerDisplayName()
         local message = "[Classic Fishing Companion]: " .. playerName .. " has reached Fishing skill (" .. skillLevel .. ")!"
 
         if channel == "SAY" then
@@ -1809,7 +1819,7 @@ function CFC:CheckMilestone(catchCount)
 
             -- Send to chat channel if enabled
             if enabled and channel then
-                local playerName = UnitName("player")
+                local playerName = CFC:GetPlayerDisplayName()
                 local chatMessage = "[Classic Fishing Companion]: " .. playerName .. " has caught " .. milestone .. " fish!"
 
                 if channel == "SAY" then

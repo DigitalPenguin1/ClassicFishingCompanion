@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.8] - 2026-11-07
+
+### Fixed
+- Fish whose names contain a junk word inside a longer word (Rain**bow**, Albac**ore**, Darksh**ore**) no longer land under Miscellaneous. Junk words like `bow`, `ore` and `ring` now only count at the start of a word. Affected: Raw Rainbow Fin Albacore, Bloated Albacore, Darkshore Grouper
+- Raw Loch Frenzy, Raw Spinefin Halibut, Bloated Firefin and Brownell's Blue Striped Racer are recognized as fish by name, so they no longer depend on the item type the client reports
+
+### Changed
+- **Forever:** skill and milestone chat announcements use the character's full name with surname (e.g. Relyk Rageroot) instead of the first name only
+
 ## [1.2.7] - 2026-11-05
 
 ### Changed

@@ -6,6 +6,11 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.8
+- **Fish sorting fix** - Raw Rainbow Fin Albacore, Bloated Albacore and Darkshore Grouper no longer show under Miscellaneous
+- **More fish recognized** - Raw Loch Frenzy, Raw Spinefin Halibut, Bloated Firefin and Brownell's Blue Striped Racer always count as fish
+- **Forever:** skill and milestone announcements use your full name with surname
+
 ### v1.2.7
 - The login message now credits Relyk Rageroot RP-PVP NA
 

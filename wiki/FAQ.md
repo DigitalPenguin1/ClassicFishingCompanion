@@ -37,7 +37,13 @@ Answers to common questions and issues.
 > - Easy Cast is enabled in Settings
 > - A lure is selected in the HUD lure dropdown
 > - You have that lure in your bags
-> - You are double right-clicking the bobber (not casting manually)
+> - You are casting with Easy Cast (double right-click or your Cast & Loot key), not casting manually
+
+**Q: My Cast & Loot Key casts but doesn't loot the bobber.** *(Forever)*
+> Put your mouse cursor on the bobber before pressing the key. While your line is out, the key loots whatever is under your cursor.
+
+**Q: My Cast & Loot Key does something else.**
+> CFC lets go of the key in combat, without a fishing pole equipped, while loot or a popup is open, or when Easy Cast is off. The key then does its normal job. Also check that **Cast & Loot Key** (not Double Right-Click) is picked under Settings > Easy Cast > Cast with.
 
 **Q: The HUD is showing the wrong lure name.**
 > If you use two lures with the same fishing bonus (e.g. Sharpened Fish Hook and Aquadynamic Fish Attractor both give +100), make sure the correct lure is selected in the dropdown — CFC uses your selection as the source of truth when bonuses match.

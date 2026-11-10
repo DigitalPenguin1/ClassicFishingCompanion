@@ -12,6 +12,8 @@ CFC adds a dedicated section to WoW's Key Bindings menu with bindable actions.
 | **Toggle Fishing HUD** | Shows or hides the Stats HUD (also swaps gear if enabled) |
 | **Release Fish** | Deletes the pending Catch & Release fish from your bags |
 
+> **Cast & Loot Key (Forever):** this one isn't in WoW's Key Bindings menu. Set it in CFC under **Settings > Easy Cast**. See [[Easy Cast and Lures]].
+
 ---
 
 ## How to Set Up

@@ -26,7 +26,9 @@ See [[HUD]] for full details.
 
 ## Easy Cast
 
-Double right-click your fishing bobber to cast. CFC also automatically applies your selected lure when it expires — no manual re-applying needed.
+Double right-click anywhere to cast. CFC also automatically applies your selected lure when it expires — no manual re-applying needed.
+
+On WoW: Forever you can use a **Cast & Loot Key** instead: press it to cast, then press it again with your cursor on the bobber to loot.
 
 See [[Easy Cast and Lures]] for full details.
 

@@ -1,4 +1,4 @@
-![Classic Fishing Companion Logo](https://github.com/user-attachments/assets/1ae995ee-54ed-44f4-a03d-21e591a4cd2a)
+<img src="https://github.com/user-attachments/assets/1ae995ee-54ed-44f4-a03d-21e591a4cd2a" width="400"/>
 
 # Welcome to Classic Fishing Companion
 
@@ -21,7 +21,7 @@
 | Feature | Description |
 |---|---|
 | **Stats HUD** | Draggable overlay showing session catches, fish/hour, skill, and lure timer |
-| **Easy Cast** | Double right-click to cast; auto-applies your selected lure when it expires |
+| **Easy Cast** | Double right-click (or one Cast & Loot key on Forever) to cast; auto-applies your selected lure when it expires |
 | **Gear Sets** | Save fishing and combat gear sets; auto-swaps when combat starts |
 | **Catch List** | Full catch history with fish/misc separation, icons, and zone breakdown |
 | **Zones Tab** | Collapsible zone view showing every fish caught per zone |

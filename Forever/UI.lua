@@ -2085,7 +2085,7 @@ function UI:CreateLuresTab()
     frame.desc:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -10)
     frame.desc:SetWidth(560)
     frame.desc:SetJustifyH("LEFT")
-    frame.desc:SetText("Select your preferred fishing lure. With Easy Cast enabled, double right-click will automatically apply your lure when needed.")
+    frame.desc:SetText("Select your preferred fishing lure. With Easy Cast enabled, casting will automatically apply your lure when needed.")
 
     -- Selected lure display
     frame.selectedLureLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -2202,7 +2202,12 @@ function UI:UpdateLuresTab()
     if CFC.db.profile.settings.easyCast then
         frame.easyCastStatus:SetText("Enabled")
         frame.easyCastStatus:SetTextColor(0, 1, 0)  -- Green
-        frame.easyCastHint:SetText("Double right-click to apply lure and cast.")
+        local castKey = CFC.db.profile.settings.easyCastKey
+        if CFC.db.profile.settings.easyCastMode == "key" and castKey then
+            frame.easyCastHint:SetText("Press " .. GetBindingText(castKey) .. " to apply lure and cast.")
+        else
+            frame.easyCastHint:SetText("Double right-click to apply lure and cast.")
+        end
     else
         frame.easyCastStatus:SetText("Disabled")
         frame.easyCastStatus:SetTextColor(1, 0, 0)  -- Red
@@ -2589,7 +2594,7 @@ function UI:CreateSettingsTab()
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
     frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
-    frame.scrollChild:SetSize(530, 1420)  -- Increased for section headers
+    frame.scrollChild:SetSize(530, 1590)  -- Increased for section headers and the Easy Cast key row
     frame.scrollFrame:SetScrollChild(frame.scrollChild)
 
     -- Helper function to create section headers
@@ -3170,15 +3175,22 @@ function UI:CreateSettingsTab()
     frame.easyCastCheck:SetPoint("TOPLEFT", frame.easyCastHeader, "BOTTOMLEFT", 0, -15)
     frame.easyCastCheck.text = frame.easyCastCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.easyCastCheck.text:SetPoint("LEFT", frame.easyCastCheck, "RIGHT", 5, 0)
-    frame.easyCastCheck.text:SetText("Easy Cast (Double Right-Click)")
+    frame.easyCastCheck.text:SetText("Enable Easy Cast")
 
     frame.easyCastCheck:SetScript("OnClick", function(self)
         CFC.db.profile.settings.easyCast = self:GetChecked()
         if CFC.db.profile.settings.easyCast then
-            CFC:Print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cff00ff00enabled|r - Double right-click to cast fishing!")
+            local key = CFC.db.profile.settings.easyCastKey
+            if CFC.db.profile.settings.easyCastMode == "key" and key then
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cff00ff00enabled|r - press " .. GetBindingText(key) .. " to fish!")
+            else
+                CFC:Print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cff00ff00enabled|r - double right-click to fish!")
+            end
         else
+            CFC:ClearEasyCastBinding()
             CFC:Print("|cff00ff00Classic Fishing Companion:|r Easy Cast |cffff0000disabled|r")
         end
+        frame.UpdateEasyCastControls()
     end)
 
     -- Easy Cast description
@@ -3187,11 +3199,213 @@ function UI:CreateSettingsTab()
     frame.easyCastDesc:SetJustifyH("LEFT")
     frame.easyCastDesc:SetWidth(500)
     frame.easyCastDesc:SetTextColor(0.7, 0.7, 0.7)
-    frame.easyCastDesc:SetText("Double right-click anywhere to cast your fishing line. If no lure is active and a lure is selected, it will apply the lure first. Only active when HUD is visible. Single right-click on the bobber still loots normally.")
+    frame.easyCastDesc:SetText("Casts your fishing line for you. If no lure is active and a lure is selected, it applies the lure first. Only active while the HUD is visible and a fishing pole is equipped.")
+
+    -- Trigger choice: one or the other, never both
+    frame.easyCastWithLabel = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.easyCastWithLabel:SetPoint("TOPLEFT", frame.easyCastDesc, "BOTTOMLEFT", 0, -12)
+    frame.easyCastWithLabel:SetText("Cast with:")
+
+    local function CreateModeOption(name, label, anchor, xOffset, yOffset)
+        local opt = CreateFrame("CheckButton", name, frame.scrollChild, "UICheckButtonTemplate")
+        opt:SetSize(24, 24)
+        opt:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", xOffset, yOffset)
+        opt.text = opt:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        opt.text:SetPoint("LEFT", opt, "RIGHT", 4, 0)
+        opt.text:SetText(label)
+        return opt
+    end
+
+    local function CreateModeDesc(anchor, text)
+        local desc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        desc:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 28, -2)
+        desc:SetJustifyH("LEFT")
+        desc:SetWidth(472)
+        desc:SetTextColor(0.7, 0.7, 0.7)
+        desc:SetText(text)
+        return desc
+    end
+
+    -- Option 1: double right-click
+    frame.easyCastModeDouble = CreateModeOption("CFCEasyCastModeDouble", "Double Right-Click", frame.easyCastWithLabel, 0, -6)
+    frame.easyCastDoubleDesc = CreateModeDesc(frame.easyCastModeDouble,
+        "Double right-click anywhere to cast. A single right-click on the bobber still loots.")
+
+    -- Option 2: Cast & Loot key (casts, then loots the bobber under the cursor)
+    frame.easyCastModeKey = CreateModeOption("CFCEasyCastModeKey", "Cast & Loot Key", frame.easyCastDoubleDesc, -28, -8)
+
+    frame.easyCastKeyButton = CreateFrame("Button", "CFCEasyCastKeySetButton", frame.scrollChild, "UIPanelButtonTemplate")
+    frame.easyCastKeyButton:SetSize(140, 22)
+    frame.easyCastKeyButton:SetPoint("LEFT", frame.easyCastModeKey.text, "RIGHT", 10, 0)
+
+    frame.easyCastKeyClear = CreateFrame("Button", nil, frame.scrollChild, "UIPanelButtonTemplate")
+    frame.easyCastKeyClear:SetSize(60, 22)
+    frame.easyCastKeyClear:SetPoint("LEFT", frame.easyCastKeyButton, "RIGHT", 5, 0)
+    frame.easyCastKeyClear:SetText("Clear")
+
+    local IGNORED_KEYS = {
+        LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true,
+        LALT = true, RALT = true, LMETA = true, RMETA = true, UNKNOWN = true,
+    }
+
+    local function UpdateEasyCastKeyText()
+        local key = CFC.db and CFC.db.profile.settings.easyCastKey
+        frame.easyCastKeyButton:SetText(key and GetBindingText(key) or "Not Bound")
+    end
+    frame.UpdateEasyCastKeyText = UpdateEasyCastKeyText
+
+    local function StopKeyCapture()
+        frame.easyCastKeyButton.capturing = false
+        frame.easyCastKeyButton:EnableKeyboard(false)
+        UpdateEasyCastKeyText()
+    end
+
+    local MOUSE_BUTTONS = {
+        LeftButton = "BUTTON1", RightButton = "BUTTON2", MiddleButton = "BUTTON3",
+        Button4 = "BUTTON4", Button5 = "BUTTON5",
+    }
+
+    local function ModifierPrefix()
+        return (IsAltKeyDown() and "ALT-" or "") ..
+            (IsControlKeyDown() and "CTRL-" or "") ..
+            (IsShiftKeyDown() and "SHIFT-" or "")
+    end
+
+    local function AssignEasyCastKey(combo)
+        if CFC:SetEasyCastKey(combo) then
+            local msg = "|cff00ff00Classic Fishing Companion:|r Cast & Loot key set to |cffffd100" .. GetBindingText(combo) .. "|r"
+            if not CFC:IsInteractMouseoverAvailable() then
+                msg = msg .. " (this client has no Interact With Mouseover, so it will cast but not loot)"
+            end
+            CFC:Print(msg)
+        end
+        StopKeyCapture()
+    end
+
+    local function StartKeyCapture()
+        if InCombatLockdown() then
+            CFC:Print("|cffff0000Classic Fishing Companion:|r Can't change the Cast & Loot key in combat.")
+            return
+        end
+        local btn = frame.easyCastKeyButton
+        btn.capturing = true
+        btn:EnableKeyboard(true)
+        btn:SetPropagateKeyboardInput(false)
+        btn:SetText("Press a key or click...")
+    end
+
+    -- Grey out whatever doesn't apply: everything when Easy Cast is off,
+    -- the key controls unless the key option is picked
+    local function UpdateEasyCastControls()
+        local settings = CFC.db.profile.settings
+        local enabled = settings.easyCast and true or false
+        local keyMode = (settings.easyCastMode or "doubleclick") == "key"
+
+        frame.easyCastModeDouble:SetChecked(not keyMode)
+        frame.easyCastModeKey:SetChecked(keyMode)
+        frame.easyCastModeDouble:SetEnabled(enabled)
+        frame.easyCastModeKey:SetEnabled(enabled)
+
+        local function Shade(fs, active, r, g, b)
+            if active then fs:SetTextColor(r, g, b) else fs:SetTextColor(0.4, 0.4, 0.4) end
+        end
+        Shade(frame.easyCastWithLabel, enabled, 1, 1, 1)
+        Shade(frame.easyCastModeDouble.text, enabled, 1, 1, 1)
+        Shade(frame.easyCastModeKey.text, enabled, 1, 1, 1)
+        Shade(frame.easyCastDoubleDesc, enabled and not keyMode, 0.7, 0.7, 0.7)
+        Shade(frame.easyCastKeyDesc, enabled and keyMode, 0.7, 0.7, 0.7)
+
+        local keyActive = enabled and keyMode
+        if not keyActive and frame.easyCastKeyButton.capturing then
+            StopKeyCapture()
+        end
+        frame.easyCastKeyButton:SetEnabled(keyActive)
+        frame.easyCastKeyClear:SetEnabled(keyActive)
+        UpdateEasyCastKeyText()
+    end
+    frame.UpdateEasyCastControls = UpdateEasyCastControls
+
+    local function SetEasyCastMode(mode)
+        CFC.db.profile.settings.easyCastMode = mode
+        -- Drop whatever the other trigger had armed
+        if mode == "key" then
+            CFC:ClearEasyCastBinding()
+        else
+            CFC:ClearEasyCastKey()
+        end
+        CFC:RefreshEasyCastKey()
+        UpdateEasyCastControls()
+        if mode == "key" and not CFC.db.profile.settings.easyCastKey then
+            StartKeyCapture()
+        end
+    end
+
+    frame.easyCastModeDouble:SetScript("OnClick", function()
+        SetEasyCastMode("doubleclick")
+    end)
+    frame.easyCastModeKey:SetScript("OnClick", function()
+        SetEasyCastMode("key")
+    end)
+
+    frame.easyCastKeyButton:RegisterForClicks("AnyUp")
+    frame.easyCastKeyButton:SetScript("OnClick", function(self, mouseButton)
+        if self.capturing then
+            local prefix = ModifierPrefix()
+            local button = MOUSE_BUTTONS[mouseButton]
+            -- A plain left click cancels. Plain right-click would cast on every
+            -- right-click (camera turning, NPCs) and fight double right-click.
+            if not button or (prefix == "" and button == "BUTTON1") then
+                StopKeyCapture()
+            elseif prefix == "" and button == "BUTTON2" then
+                CFC:Print("|cffff0000Classic Fishing Companion:|r Plain right-click can't be the Cast & Loot key (it would cast on every right-click). Try a side mouse button or Shift + right-click.")
+            else
+                AssignEasyCastKey(prefix .. button)
+            end
+            return
+        end
+        StartKeyCapture()
+    end)
+
+    frame.easyCastKeyButton:SetScript("OnKeyDown", function(self, key)
+        if not self.capturing or IGNORED_KEYS[key] then
+            return
+        end
+        if key == "ESCAPE" then
+            StopKeyCapture()
+            return
+        end
+        AssignEasyCastKey(ModifierPrefix() .. key)
+    end)
+
+    frame.easyCastKeyButton:SetScript("OnHide", function(self)
+        if self.capturing then
+            StopKeyCapture()
+        end
+    end)
+
+    frame.easyCastKeyClear:SetScript("OnClick", function()
+        if CFC:SetEasyCastKey(nil) then
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Cast & Loot key |cffff0000cleared|r")
+        end
+        StopKeyCapture()
+    end)
+
+    frame.easyCastKeyDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.easyCastKeyDesc:SetPoint("TOPLEFT", frame.easyCastModeKey, "BOTTOMLEFT", 28, -2)
+    frame.easyCastKeyDesc:SetJustifyH("LEFT")
+    frame.easyCastKeyDesc:SetWidth(472)
+    frame.easyCastKeyDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.easyCastKeyDesc:SetText("Press to cast. While your line is out, the same key loots the bobber under your cursor. In combat, or without a fishing pole, the key does its normal job.")
+
+    -- =============================================
+    -- COMBAT SECTION
+    -- =============================================
+    frame.combatHeader = CreateSectionHeader("Combat", frame.easyCastKeyDesc, -25)
+    UpdateEasyCastControls()
 
     -- Auto-Swap Combat Weapons Checkbox
     frame.autoSwapCombatCheck = CreateFrame("CheckButton", "CFCAutoSwapCombatCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.autoSwapCombatCheck:SetPoint("TOPLEFT", frame.easyCastDesc, "BOTTOMLEFT", -25, -10)
+    frame.autoSwapCombatCheck:SetPoint("TOPLEFT", frame.combatHeader, "BOTTOMLEFT", 0, -15)
     frame.autoSwapCombatCheck.text = frame.autoSwapCombatCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.autoSwapCombatCheck.text:SetPoint("LEFT", frame.autoSwapCombatCheck, "RIGHT", 5, 0)
     frame.autoSwapCombatCheck.text:SetText("Auto-Swap Combat Weapons")
@@ -3559,6 +3773,7 @@ function UI:UpdateSettings()
 
     -- Update easy cast checkbox
     frame.easyCastCheck:SetChecked(CFC.db.profile.settings.easyCast)
+    frame.UpdateEasyCastControls()
 
     -- Update auto-swap combat weapons checkbox
     frame.autoSwapCombatCheck:SetChecked(CFC.db.profile.settings.autoSwapCombatWeapons)
@@ -3853,6 +4068,18 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.9"] = {
+        features = {
+            "Cast & Loot Key for Easy Cast: one key casts your line (drinking Rumsey's or applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",
+            "The key can be a keyboard key, a middle or side mouse button, or Shift/Ctrl/Alt + right-click",
+        },
+        changes = {
+            "Easy Cast now asks how you want to cast: Double Right-Click or Cast & Loot Key. Only the one you pick is active, and you stay on Double Right-Click unless you change it",
+            "Auto-Swap Combat Weapons moved out of Easy Cast into its own Combat section in Settings",
+            "In combat, or without a fishing pole, the Cast & Loot Key goes back to whatever it's normally bound to",
+        },
+        tip = "Pick Settings > Easy Cast > Cast with: Cast & Loot Key, then click the key button and press a key or a side mouse button.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.8"] = {
         changes = {
             "Skill and milestone announcements in chat now use your full name with surname, like Relyk Rageroot",

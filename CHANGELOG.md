@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.9] - 2026-11-10
+
+### Added
+- **Forever:** Cast & Loot key for Easy Cast. In Settings → Easy Cast, choose "Cast with: Cast & Loot Key" instead of Double Right-Click and pick a key (keyboard key, middle/side mouse button, or modifier + right-click). Only the chosen trigger is active; existing users stay on Double Right-Click. With the line in it casts (drinking Rumsey's or applying your lure first when needed). While the line is out it becomes Interact With Mouseover, so the same key loots the bobber under your cursor. In combat, without a fishing pole, or with Easy Cast off, the key goes back to its normal binding
+
+### Changed
+- **Forever:** the Easy Cast checkbox is now "Enable Easy Cast", with a "Cast with:" choice of Double Right-Click or Cast & Loot Key underneath
+- **Forever:** Auto-Swap Combat Weapons moved out of Easy Cast into its own Combat section in Settings
+
 ## [1.2.8] - 2026-11-07
 
 ### Fixed

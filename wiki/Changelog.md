@@ -6,6 +6,11 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.9
+- **Forever: Cast & Loot Key** - One key casts your line (drinking Rumsey's or applying your lure first). While the line is out, the same key loots the bobber under your cursor. Choose it under Settings > Easy Cast > Cast with
+- **Forever:** Easy Cast settings now pick one trigger, Double Right-Click or Cast & Loot Key
+- **Forever:** Auto-Swap Combat Weapons has its own Combat section in Settings
+
 ### v1.2.8
 - **Fish sorting fix** - Raw Rainbow Fin Albacore, Bloated Albacore and Darkshore Grouper no longer show under Miscellaneous
 - **More fish recognized** - Raw Loch Frenzy, Raw Spinefin Halibut, Bloated Firefin and Brownell's Blue Striped Racer always count as fish

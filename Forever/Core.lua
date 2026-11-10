@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.8"
+CFC.VERSION = "1.2.9"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -134,7 +134,9 @@ local defaults = {
             milestonesAnnounce = "GUILD",  -- Channel to announce milestones: SAY, PARTY, GUILD, EMOTE
             autoSwapOnHUD = false,  -- Auto-swap to fishing gear when showing HUD via minimap right-click
             autoSwapCombatWeapons = false,  -- Auto-swap to combat weapons when entering combat while fishing (disabled by default)
-            easyCast = false,  -- Double right-click to cast fishing
+            easyCast = false,  -- Easy Cast on/off
+            easyCastMode = "doubleclick",  -- Easy Cast trigger: "doubleclick" or "key" (Cast & Loot key)
+            easyCastKey = nil,  -- Key that casts, or loots the bobber under the cursor while the line is out (e.g. "NUMPADMINUS")
             rareFishSound = true,  -- Play sound when catching rare fish (enabled by default)
             enhanceSplash = false,  -- Boost effects and mute music while fishing so the bobber splash stands out (disabled by default)
             splashVolume = 1.0,  -- Master and effects volume used by Enhance Bobber Splash (0.1 to 1.0)
@@ -1021,6 +1023,7 @@ function CFC:OnSpellChannelStart(event, unit, _, spellID)
         end
 
         self:StartSplashBoost()
+        self:RefreshEasyCastKey()
     end
 end
 
@@ -1039,6 +1042,7 @@ function CFC:OnSpellChannelStop(event, unit, _, spellID)
     self.easyCastChannelStopTime = GetTime()
 
     self:ScheduleSplashRestore()
+    self:RefreshEasyCastKey()
 end
 
 -- =============================================
@@ -1289,6 +1293,8 @@ function CFC:OnCombatStart()
     -- Clear Easy Cast binding immediately (before InCombatLockdown() returns true)
     -- This prevents the override binding from capturing right-clicks during combat
     self:ClearEasyCastBinding()
+    -- Hand the Easy Cast key back to its normal binding for the fight
+    self:ClearEasyCastKey()
 
     if self.debug then
         print("|cffff8800[CFC Debug]|r === OnCombatStart ===")
@@ -3181,6 +3187,8 @@ local EASYCAST_LURE_BUTTON_NAME = "CFCEasyCastLureButton"
 local EASYCAST_RUMSEY_BUTTON_NAME = "CFCEasyCastRumseyButton"
 local EASYCAST_DOUBLE_CLICK_WINDOW = 0.4  -- Max time between clicks
 local EASYCAST_MAX_TAP_DURATION = 0.2     -- Max hold time to count as a "tap" (not camera movement)
+local EASYCAST_KEY_BUTTON_NAME = "CFCEasyCastKeyButton"
+local EASYCAST_KEY_REFRESH = 0.2          -- Seconds between Easy Cast key state checks
 
 -- Lure ID to name mapping (for Easy Cast lure application)
 local EASYCAST_LURE_NAMES = {
@@ -3567,7 +3575,7 @@ function CFC:HandleFirstClick()
     end
 
     -- Check if feature is enabled
-    if not self.db or not self.db.profile.settings.easyCast then
+    if not self:IsEasyCastMode("doubleclick") then
         if CFC.debug then print("|cff00ff00[CFC Debug]|r Easy Cast: Feature disabled, skipping") end
         return false
     end
@@ -3673,6 +3681,176 @@ function CFC:HandleFirstClick()
     return false
 end
 
+-- ========================================
+-- EASY CAST KEY
+-- One key for the whole loop. With the line in, it does what a double
+-- right-click would (drink Rumsey's, apply the lure, or cast). While the line
+-- is out it becomes Interact With Mouseover, so the same key loots the bobber
+-- under the cursor. The key is an override binding owned by a hidden secure
+-- button; when Easy Cast can't act (combat, no pole, loot open) the override is
+-- removed and the key does whatever it is normally bound to.
+-- ========================================
+
+CFC.easyCastKeyState = nil  -- Signature of the override currently applied
+
+-- Whether this client has the Interact With Mouseover binding command
+function CFC:IsInteractMouseoverAvailable()
+    if self.interactMouseoverAvailable == nil then
+        self.interactMouseoverAvailable = false
+        for i = 1, GetNumBindings() do
+            if GetBinding(i) == "INTERACTMOUSEOVER" then
+                self.interactMouseoverAvailable = true
+                break
+            end
+        end
+    end
+    return self.interactMouseoverAvailable
+end
+
+-- True when Easy Cast is on and set to the given trigger ("doubleclick" or "key").
+-- Older saved settings have no mode; they were double right-click.
+function CFC:IsEasyCastMode(mode)
+    local settings = self.db and self.db.profile.settings
+    if not settings or not settings.easyCast then
+        return false
+    end
+    return (settings.easyCastMode or "doubleclick") == mode
+end
+
+-- Hidden secure button the Easy Cast key clicks; also owns the key's override
+function CFC:CreateEasyCastKeyButton()
+    if _G[EASYCAST_KEY_BUTTON_NAME] then
+        return _G[EASYCAST_KEY_BUTTON_NAME]
+    end
+
+    local btn = CreateFrame("Button", EASYCAST_KEY_BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
+    btn:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    btn:SetSize(1, 1)
+    btn:SetFrameStrata("LOW")
+    btn:EnableMouse(false)
+    btn:RegisterForClicks("AnyDown")
+    btn:Show()
+    btn:SetAttribute("type", "macro")
+    btn:SetAttribute("macrotext", "")
+
+    -- A pending double right-click would fire a second action; drop it
+    btn:SetScript("PostClick", function()
+        CFC:ClearEasyCastBinding()
+    end)
+
+    return btn
+end
+
+-- Macro for the key's next press when the line is in, or nil if nothing to do.
+-- [nocombat] is a backstop: the override is normally gone before combat starts.
+function CFC:GetEasyCastKeyMacro()
+    if self:ShouldDrinkRumsey() then
+        return "/use [nocombat] Captain Rumsey's Lager"
+    end
+    if self:ShouldApplyLure() then
+        local lureName = self:GetSelectedLureName()
+        if lureName then
+            return "/use [nocombat] " .. lureName .. "\n/use [nocombat] 16"
+        end
+    end
+    if not self.easyCastFishingSpell then
+        local fishBtn = _G[EASYCAST_BUTTON_NAME]
+        self.easyCastFishingSpell = (fishBtn and fishBtn:GetAttribute("spell")) or self:GetFishingSpellName()
+    end
+    return "/cast [nocombat] " .. self.easyCastFishingSpell
+end
+
+-- What the key should do right now: "interact", "cast" (plus macro), or nil
+function CFC:GetEasyCastKeyMode()
+    local settings = self.db and self.db.profile.settings
+    if not self:IsEasyCastMode("key") or not settings.easyCastKey then
+        return nil
+    end
+    if not self.db.profile.hud.show then
+        return nil
+    end
+    if UnitAffectingCombat("player") or not self:IsFishingPoleEquipped() then
+        return nil
+    end
+
+    if self.isFishingChannelActive then
+        if self:IsInteractMouseoverAvailable() then
+            return "interact"
+        end
+        return nil
+    end
+
+    -- Leave the key alone while loot or a confirmation (e.g. BoP) is up
+    if GetNumLootItems() > 0 or (LootFrame and LootFrame:IsVisible()) then
+        return nil
+    end
+    for i = 1, STATICPOPUP_NUMDIALOGS or 4 do
+        local popup = _G["StaticPopup" .. i]
+        if popup and popup:IsVisible() then
+            return nil
+        end
+    end
+
+    return "cast", self:GetEasyCastKeyMacro()
+end
+
+-- Remove the key override so the key goes back to its normal binding
+function CFC:ClearEasyCastKey()
+    local btn = _G[EASYCAST_KEY_BUTTON_NAME]
+    if btn and self.easyCastKeyState and not InCombatLockdown() then
+        ClearOverrideBindings(btn)
+        self.easyCastKeyState = nil
+        if self.debug then
+            print("|cff00ff00[CFC Debug]|r Easy Cast key: override cleared")
+        end
+    end
+end
+
+-- Point the Easy Cast key at the right action. Cheap when nothing changed.
+function CFC:RefreshEasyCastKey()
+    if InCombatLockdown() then
+        return
+    end
+
+    local mode, macro = self:GetEasyCastKeyMode()
+    if not mode then
+        self:ClearEasyCastKey()
+        return
+    end
+
+    local key = self.db.profile.settings.easyCastKey
+    local state = key .. "|" .. mode .. "|" .. (macro or "")
+    if state == self.easyCastKeyState then
+        return
+    end
+
+    local btn = self:CreateEasyCastKeyButton()
+    ClearOverrideBindings(btn)
+    if mode == "interact" then
+        SetOverrideBinding(btn, true, key, "INTERACTMOUSEOVER")
+    else
+        btn:SetAttribute("macrotext", macro)
+        SetOverrideBindingClick(btn, true, key, EASYCAST_KEY_BUTTON_NAME)
+    end
+    self.easyCastKeyState = state
+
+    if self.debug then
+        print("|cff00ff00[CFC Debug]|r Easy Cast key: " .. key .. " -> " .. mode .. (macro and (" (" .. macro:gsub("\n", "; ") .. ")") or ""))
+    end
+end
+
+-- Save a new Easy Cast key (nil to unbind) and apply it
+function CFC:SetEasyCastKey(key)
+    if InCombatLockdown() then
+        self:Print("|cffff0000Classic Fishing Companion:|r Can't change the Cast & Loot key in combat.")
+        return false
+    end
+    self:ClearEasyCastKey()
+    self.db.profile.settings.easyCastKey = key
+    self:RefreshEasyCastKey()
+    return true
+end
+
 -- Initialize Easy Cast system
 function CFC:InitializeEasyCast()
     -- Create the secure buttons on load (fishing, lure, and rumsey)
@@ -3692,11 +3870,14 @@ function CFC:InitializeEasyCast()
         end
     end
 
+    self:CreateEasyCastKeyButton()
+
     -- Create a frame to detect right-clicks and manage binding timeout
     if not self.easyCastFrame then
         self.easyCastFrame = CreateFrame("Frame", "CFCEasyCastFrame", UIParent)
 
         local wasRightDown = false
+        local keyRefreshElapsed = 0
         self.easyCastFrame:SetScript("OnUpdate", function(frame, elapsed)
             -- If in combat lockdown, reset state flags (can't clear actual binding)
             if InCombatLockdown() then
@@ -3709,6 +3890,13 @@ function CFC:InitializeEasyCast()
                     CFC.easyCastLastAction = nil
                 end
                 return
+            end
+
+            -- Keep the Easy Cast key pointed at the right action (lure, cast, loot)
+            keyRefreshElapsed = keyRefreshElapsed + elapsed
+            if keyRefreshElapsed >= EASYCAST_KEY_REFRESH then
+                keyRefreshElapsed = 0
+                CFC:RefreshEasyCastKey()
             end
 
             -- Pre-combat detection: clear binding before lockdown kicks in
@@ -3749,7 +3937,7 @@ function CFC:InitializeEasyCast()
             end
 
             -- Only process clicks if Easy Cast is enabled and HUD is visible
-            if not CFC.db or not CFC.db.profile.settings.easyCast then
+            if not CFC:IsEasyCastMode("doubleclick") then
                 return
             end
             if not CFC.db.profile.hud.show then

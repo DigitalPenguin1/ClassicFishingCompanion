@@ -32,6 +32,7 @@ Fishing addon for WoW Classic Era, TBC and Forever. Double right-click to cast w
 ## Casting
 
 - **Easy Cast**: double right-click anywhere to cast. If your lure has run out, it's put back on first. A single right-click on the bobber still loots normally
+- **Cast & Loot Key (Forever)**: rather use one button? Pick a key or a side mouse button in Settings. Press it to cast, then press it again with your cursor on the bobber to loot. In combat it goes back to its normal binding
 - **Lure Manager**: pick a lure on the Lure tab and the addon keeps it applied. You get a chat note if you run out
 - **Captain Rumsey's Lager (TBC)**: drinks it before casting when the buff is gone
 - **Auto-swap combat weapons**: get attacked with a pole in hand and you swap to your weapons, then back to the pole when combat ends

@@ -15,7 +15,7 @@ its own, for the gallery). More Forever shots that would fit under their section
 
 # Summary
 
-Fishing addon for WoW Classic Era, TBC and Forever. Double right-click to cast with auto-lure, a stats HUD, one-click gear swaps, catch tracking by zone, goals, and a bobber splash you can actually hear.
+Fishing addon for WoW Classic Era, TBC and Forever. Double right-click to cast with auto-lure (or one Cast & Loot key on Forever), a stats HUD, one-click gear swaps, catch tracking by zone, goals, and a bobber splash you can actually hear.
 
 # Description
 

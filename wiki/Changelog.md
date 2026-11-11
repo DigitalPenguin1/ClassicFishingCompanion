@@ -6,6 +6,9 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.10
+- **Forever:** milestone and max skill announcements set to Say errored and ones set to Emote never posted. WoW: Forever blocks addons from posting to either automatically, so both are gone from the list and anyone who had them now uses Guild
+
 ### v1.2.9
 - **Forever: Cast & Loot Key** - One key casts your line (drinking Rumsey's or applying your lure first). While the line is out, the same key loots the bobber under your cursor. Choose it under Settings > Easy Cast > Cast with
 - **Forever:** Easy Cast settings now pick one trigger, Double Right-Click or Cast & Loot Key

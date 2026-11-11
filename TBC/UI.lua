@@ -3956,6 +3956,13 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.10"] = {
+        fixes = {
+            "Raw Rainbow Fin Albacore, Bloated Albacore and Darkshore Grouper now show as fish instead of under Miscellaneous",
+            "Raw Loch Frenzy, Raw Spinefin Halibut, Bloated Firefin and Brownell's Blue Striped Racer are now always counted as fish",
+        },
+        tip = "If a fish was stuck under Miscellaneous, it moves back to the fish list on its own. Your catch counts are unchanged.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.9"] = {
         fixes = {
             "Raw Rainbow Fin Albacore, Bloated Albacore and Darkshore Grouper now show as fish instead of under Miscellaneous",

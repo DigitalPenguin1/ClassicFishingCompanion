@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.9"
+CFC.VERSION = "1.2.10"
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -129,9 +129,9 @@ local defaults = {
             announceCatches = false,  -- Announce fish catches in chat
             announceSkillUps = true,  -- Announce fishing skill increases (enabled by default)
             maxSkillAnnounceEnabled = false,  -- Enable/disable max skill announcements (disabled by default)
-            maxSkillAnnounce = "GUILD",  -- Channel to announce max fishing skill: SAY, PARTY, GUILD, EMOTE
+            maxSkillAnnounce = "GUILD",  -- Channel to announce max fishing skill: PARTY, GUILD (Say and Emote are blocked for addons on Forever)
             milestonesAnnounceEnabled = false,  -- Enable/disable milestone announcements (disabled by default)
-            milestonesAnnounce = "GUILD",  -- Channel to announce milestones: SAY, PARTY, GUILD, EMOTE
+            milestonesAnnounce = "GUILD",  -- Channel to announce milestones: PARTY, GUILD (Say and Emote are blocked for addons on Forever)
             autoSwapOnHUD = false,  -- Auto-swap to fishing gear when showing HUD via minimap right-click
             autoSwapCombatWeapons = false,  -- Auto-swap to combat weapons when entering combat while fishing (disabled by default)
             easyCast = false,  -- Easy Cast on/off
@@ -211,6 +211,22 @@ function CFC:OnInitialize()
         if ClassicFishingCompanionDB.profile.settings[k] == nil then
             ClassicFishingCompanionDB.profile.settings[k] = v
         end
+    end
+
+    -- Say and Emote can't be sent from an event on Forever (see SendAnnouncement).
+    -- Move anyone who picked them to Guild.
+    local movedChannel = false
+    for _, key in ipairs({ "maxSkillAnnounce", "milestonesAnnounce" }) do
+        local channel = ClassicFishingCompanionDB.profile.settings[key]
+        if channel == "SAY" or channel == "EMOTE" then
+            ClassicFishingCompanionDB.profile.settings[key] = "GUILD"
+            movedChannel = true
+        end
+    end
+    if movedChannel then
+        C_Timer.After(8, function()
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Announcements set to Say or Emote now go to Guild. WoW: Forever blocks addons from posting to Say and Emote automatically. You can pick Party instead in Settings > Announcements.")
+        end)
     end
 
     -- Choose which database to use based on perCharacterMode setting
@@ -1497,6 +1513,14 @@ end
 
 -- Parse loot message to detect items caught while fishing
 function CFC:OnLootReceived(event, message)
+    -- Debug: /cfc testannounce <channel> loot sends here, inside the loot
+    -- event, the same place a milestone announcement is sent from
+    if self.testAnnounceOnLoot then
+        local channel = self.testAnnounceOnLoot
+        self.testAnnounceOnLoot = nil
+        self:SendTestAnnouncement(channel, "loot event")
+    end
+
     -- Debug: Print all loot messages
     if self.debug then
         print("|cffff8800[CFC Debug]|r LOOT: " .. tostring(message))
@@ -1790,20 +1814,52 @@ function CFC:AnnounceMaxSkill(skillLevel)
         local playerName = CFC:GetPlayerDisplayName()
         local message = "[Classic Fishing Companion]: " .. playerName .. " has reached Fishing skill (" .. skillLevel .. ")!"
 
-        if channel == "SAY" then
-            SendChatMessage(message, "SAY")
-        elseif channel == "PARTY" then
-            if IsInGroup() then
-                SendChatMessage(message, "PARTY")
-            end
-        elseif channel == "GUILD" then
-            if IsInGuild() then
-                SendChatMessage(message, "GUILD")
-            end
-        elseif channel == "EMOTE" then
-            SendChatMessage("has reached maximum Fishing skill (" .. skillLevel .. ") using [Classic Fishing Companion]!", "EMOTE")
-        end
+        self:SendAnnouncement(message, channel)
     end
+end
+
+-- Chat types an addon may send to from an event on Forever. SAY, YELL and
+-- CHANNEL have needed a hardware event outside instances since 8.2.5, and
+-- Forever 1.60.1 Beta 4 (2026-10-08 blue post) added EMOTE to that list.
+-- Tested in game 2026-11-11 from a loot event: GUILD posts, SAY raises
+-- ADDON_ACTION_BLOCKED, EMOTE is dropped silently. Announcements fire from
+-- loot and skill events, so only GUILD and PARTY are offered.
+local ANNOUNCE_CHANNELS = { PARTY = true, GUILD = true }
+
+-- The global SendChatMessage is a deprecation fallback on Forever, only
+-- defined while the loadDeprecationFallbacks CVar is on. Prefer the real API.
+local function SendChat(message, channel)
+    if C_ChatInfo and C_ChatInfo.SendChatMessage then
+        C_ChatInfo.SendChatMessage(message, channel)
+    elseif SendChatMessage then
+        SendChatMessage(message, channel)
+    end
+end
+
+-- Send a milestone/skill announcement to an allowed channel
+function CFC:SendAnnouncement(message, channel)
+    if not ANNOUNCE_CHANNELS[channel] then
+        return
+    end
+    -- Midnight API: addon chat is blocked during encounters, M+ and PvP
+    if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then
+        return
+    end
+    if channel == "PARTY" and not IsInGroup() then
+        return
+    end
+    if channel == "GUILD" and not IsInGuild() then
+        return
+    end
+    SendChat(message, channel)
+end
+
+-- Debug: raw send for /cfc testannounce (skips SendAnnouncement's channel list)
+function CFC:SendTestAnnouncement(channel, source)
+    local text = channel == "EMOTE" and ("is testing Classic Fishing Companion announcements (" .. source .. ")")
+        or ("[Classic Fishing Companion]: announcement test (" .. source .. ")")
+    SendChat(text, channel)
+    print("|cffff8800[CFC Debug]|r testannounce: sent " .. channel .. " from " .. source .. " - check chat for the message")
 end
 
 -- Check if a catch count hits a milestone and notify
@@ -1828,19 +1884,7 @@ function CFC:CheckMilestone(catchCount)
                 local playerName = CFC:GetPlayerDisplayName()
                 local chatMessage = "[Classic Fishing Companion]: " .. playerName .. " has caught " .. milestone .. " fish!"
 
-                if channel == "SAY" then
-                    SendChatMessage(chatMessage, "SAY")
-                elseif channel == "PARTY" then
-                    if IsInGroup() then
-                        SendChatMessage(chatMessage, "PARTY")
-                    end
-                elseif channel == "GUILD" then
-                    if IsInGuild() then
-                        SendChatMessage(chatMessage, "GUILD")
-                    end
-                elseif channel == "EMOTE" then
-                    SendChatMessage("has caught " .. milestone .. " fish using [Classic Fishing Companion]!", "EMOTE")
-                end
+                self:SendAnnouncement(chatMessage, channel)
             end
 
             return true
@@ -2914,6 +2958,26 @@ SlashCmdList["CFC"] = function(msg)
             CFC:Print("|cff00ff00Classic Fishing Companion:|r Debug mode |cff00ff00enabled|r")
         else
             CFC:Print("|cff00ff00Classic Fishing Companion:|r Debug mode |cffff0000disabled|r")
+        end
+    elseif msg:match("^testannounce") then
+        -- Debug only: send a test line from addon code one second later, with
+        -- no key press behind it, the same way a milestone announcement fires.
+        -- Bypasses SendAnnouncement's channel list so blocked channels can be checked.
+        -- Add "loot" to send inside the next loot event instead (what milestones do).
+        local channel = string.upper(msg:match("^testannounce%s+(%a+)") or "")
+        local onLoot = msg:match("^testannounce%s+%a+%s+loot") ~= nil
+        if not CFC.debug then
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Turn on |cffffd100/cfc debug|r first.")
+        elseif channel ~= "SAY" and channel ~= "EMOTE" and channel ~= "GUILD" and channel ~= "PARTY" then
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Usage: /cfc testannounce say|emote|guild|party [loot]")
+        elseif onLoot then
+            CFC.testAnnounceOnLoot = channel
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r " .. channel .. " test armed - it sends when you next loot something.")
+        else
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Sending a " .. channel .. " test in 1 second...")
+            C_Timer.After(1, function()
+                CFC:SendTestAnnouncement(channel, "timer")
+            end)
         end
     elseif msg == "savefishing" then
         if CFC.debug then

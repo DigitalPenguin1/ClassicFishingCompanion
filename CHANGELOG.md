@@ -2,6 +2,11 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.10] - 2026-11-11
+
+### Fixed
+- **Forever:** milestone and max skill announcements set to Say caused an `ADDON_ACTION_BLOCKED` error, and ones set to Emote were silently dropped. The client only lets addons post to Say from a key press or click, and announcements fire when you loot; tested in game, Emote from a loot event never posts. Say and Emote are no longer offered on Forever, and anyone who had either is moved to Guild. Guild and Party are unchanged
+
 ## [1.2.9] - 2026-11-10
 
 ### Added

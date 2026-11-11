@@ -2821,10 +2821,8 @@ function UI:CreateSettingsTab()
     frame.maxSkillLabel:SetTextColor(0.7, 0.7, 0.7)
 
     local maxSkillChannels = {
-        { text = "Say", value = "SAY" },
         { text = "Party", value = "PARTY" },
         { text = "Guild", value = "GUILD" },
-        { text = "Emote", value = "EMOTE" },
     }
 
     frame.maxSkillDropdown = Theme.CreateDropdown(frame.scrollChild, 150, {
@@ -2871,10 +2869,8 @@ function UI:CreateSettingsTab()
     frame.milestonesLabel:SetTextColor(0.7, 0.7, 0.7)
 
     local milestonesChannels = {
-        { text = "Say", value = "SAY" },
         { text = "Party", value = "PARTY" },
         { text = "Guild", value = "GUILD" },
-        { text = "Emote", value = "EMOTE" },
     }
 
     frame.milestonesDropdown = Theme.CreateDropdown(frame.scrollChild, 150, {
@@ -4068,6 +4064,21 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.10"] = {
+        features = {
+            "Cast & Loot Key for Easy Cast: one key casts your line (drinking Rumsey's or applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",
+            "The key can be a keyboard key, a middle or side mouse button, or Shift/Ctrl/Alt + right-click",
+        },
+        changes = {
+            "Easy Cast now asks how you want to cast: Double Right-Click or Cast & Loot Key. Only the one you pick is active, and you stay on Double Right-Click unless you change it",
+            "Auto-Swap Combat Weapons moved out of Easy Cast into its own Combat section in Settings",
+            "In combat, or without a fishing pole, the Cast & Loot Key goes back to whatever it's normally bound to",
+        },
+        fixes = {
+            "Milestone and max skill announcements set to Say caused an error, and Emote never posted, because WoW: Forever blocks addons from posting to Say and Emote automatically. Both are gone from the list, and if you had either picked your announcements now go to Guild. You can pick Party instead in Settings > Announcements",
+        },
+        tip = "Pick Settings > Easy Cast > Cast with: Cast & Loot Key, then click the key button and press a key or a side mouse button.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.9"] = {
         features = {
             "Cast & Loot Key for Easy Cast: one key casts your line (drinking Rumsey's or applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",

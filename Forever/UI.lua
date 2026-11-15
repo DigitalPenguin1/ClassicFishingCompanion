@@ -2594,7 +2594,7 @@ function UI:CreateSettingsTab()
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
     frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
-    frame.scrollChild:SetSize(530, 1590)  -- Increased for section headers and the Easy Cast key row
+    frame.scrollChild:SetSize(530, 1650)  -- Increased for section headers, the Easy Cast key row and the food warning
     frame.scrollFrame:SetScrollChild(frame.scrollChild)
 
     -- Helper function to create section headers
@@ -2767,9 +2767,32 @@ function UI:CreateSettingsTab()
     })
     frame.lureIntervalDropdown:SetPoint("LEFT", frame.lureIntervalLabel, "RIGHT", 8, 0)
 
+    -- Fishing Food Warning Checkbox
+    frame.foodWarningCheck = CreateFrame("CheckButton", "CFCFoodWarningCheck", frame.scrollChild, "UICheckButtonTemplate")
+    frame.foodWarningCheck:SetPoint("TOPLEFT", frame.lureIntervalLabel, "BOTTOMLEFT", -25, -20)
+    frame.foodWarningCheck.text = frame.foodWarningCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.foodWarningCheck.text:SetPoint("LEFT", frame.foodWarningCheck, "RIGHT", 5, 0)
+    frame.foodWarningCheck.text:SetText("Warn When Fishing Food Wears Off")
+
+    frame.foodWarningCheck:SetScript("OnClick", function(self)
+        CFC.db.profile.settings.warnFoodExpired = self:GetChecked()
+        if CFC.db.profile.settings.warnFoodExpired then
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing food warnings |cff00ff00enabled|r")
+        else
+            CFC:Print("|cff00ff00Classic Fishing Companion:|r Fishing food warnings |cffff0000disabled|r")
+        end
+    end)
+
+    frame.foodWarningDesc = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.foodWarningDesc:SetPoint("TOPLEFT", frame.foodWarningCheck, "BOTTOMLEFT", 25, -5)
+    frame.foodWarningDesc:SetJustifyH("LEFT")
+    frame.foodWarningDesc:SetWidth(500)
+    frame.foodWarningDesc:SetTextColor(0.7, 0.7, 0.7)
+    frame.foodWarningDesc:SetText("Show an on-screen warning when the fishing skill bonus from food (like Bristle Whisker Catfish) runs out.")
+
     -- Announce Skill Ups Checkbox
     frame.announceSkillUpsCheck = CreateFrame("CheckButton", "CFCAnnounceSkillUpsCheck", frame.scrollChild, "UICheckButtonTemplate")
-    frame.announceSkillUpsCheck:SetPoint("TOPLEFT", frame.lureIntervalLabel, "BOTTOMLEFT", -25, -20)
+    frame.announceSkillUpsCheck:SetPoint("TOPLEFT", frame.foodWarningDesc, "BOTTOMLEFT", -25, -20)
     frame.announceSkillUpsCheck.text = frame.announceSkillUpsCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.announceSkillUpsCheck.text:SetPoint("LEFT", frame.announceSkillUpsCheck, "RIGHT", 5, 0)
     frame.announceSkillUpsCheck.text:SetText("Announce Fishing Skill Increases")
@@ -3710,6 +3733,7 @@ function UI:UpdateSettings()
     -- Update announcement checkboxes
     frame.announceCatchesCheck:SetChecked(CFC.db.profile.settings.announceCatches)
     frame.announceLuresCheck:SetChecked(CFC.db.profile.settings.announceLures)
+    frame.foodWarningCheck:SetChecked(CFC.db.profile.settings.warnFoodExpired ~= false)
     frame.announceSkillUpsCheck:SetChecked(CFC.db.profile.settings.announceSkillUps)
 
     -- Update lure warning interval dropdown
@@ -4052,10 +4076,65 @@ StaticPopupDialogs["CFC_PERCHAR_DISABLE"] = {
     preferredIndex = 3,
 }
 
+-- In-game CFC Community invite. Popup text can't hold a clickable link, so
+-- the About and What's New dialogs get a button that opens a copy box.
+local COMMUNITY_TICKET_ID = "zejV2yLfvvG"
+local COMMUNITY_INVITE_URL = "https://blizzard.com/invite/" .. COMMUNITY_TICKET_ID
+
+-- Joining a community (C_Club.RedeemTicket) is restricted, so an addon can't
+-- join for the player, and calling Blizzard's Communities code from here would
+-- taint that window. A clubTicket link in chat is safe: clicking it runs
+-- Blizzard's own link handler, which opens the Communities window (J) on the
+-- invite with a Join button.
+local function PrintCommunityChatLink()
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00Classic Fishing Companion:|r Click |cff66bbff|HclubTicket:"
+        .. COMMUNITY_TICKET_ID .. "|h[Join the CFC Community]|h|r to open the invite in the Communities window.")
+end
+
+-- Copy box for the invite link: the link is pre-selected, and typing can't
+-- change it, so Ctrl+C always copies the whole link. Opening it also posts the
+-- clickable in-game invite to chat.
+StaticPopupDialogs["CFC_COMMUNITY_LINK"] = {
+    text = "|cff00ff00Join the CFC Community!|r\n\nClick |cff66bbff[Join the CFC Community]|r in your chat window to open the invite in game (Guild & Communities, J).\n\nFor the Battle.net app, press |cffffcc00Ctrl+C|r to copy the invite link:",
+    button1 = "Close",
+    hasEditBox = true,
+    editBoxWidth = 280,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+    OnShow = function(dialog)
+        PrintCommunityChatLink()
+        local editBox = dialog.GetEditBox and dialog:GetEditBox() or dialog.editBox
+        if editBox then
+            editBox:SetText(COMMUNITY_INVITE_URL)
+            editBox:SetFocus()
+            editBox:HighlightText()
+        end
+    end,
+    EditBoxOnTextChanged = function(editBox)
+        if editBox:GetText() ~= COMMUNITY_INVITE_URL then
+            editBox:SetText(COMMUNITY_INVITE_URL)
+            editBox:HighlightText()
+        end
+    end,
+    EditBoxOnEnterPressed = function(editBox)
+        editBox:GetParent():Hide()
+    end,
+    EditBoxOnEscapePressed = function(editBox)
+        editBox:GetParent():Hide()
+    end,
+}
+
 -- About dialog
 StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
-    text = "|cff00ff00Classic Fishing Companion|r\n\nVersion: |cffffcc00" .. (CFC.VERSION or "1.0.8") .. "|r\n\nDeveloped by: |cff00ccffRelyk|r\n\n|cffffffffThank you for using Classic Fishing Companion!|r\n\nThis addon helps you track your fishing progress, manage gear, and optimize your fishing experience in Classic WoW.\n\n|cffffcc00If you enjoy this addon and want to support development:|r\n\n|cff00ff00Buy me a coffee at:|r\n|cff88ccffhttps://buymeacoffee.com/relyk22|r",
-    button1 = "Close",
+    text = "|cff00ff00Classic Fishing Companion|r\n\nVersion: |cffffcc00" .. (CFC.VERSION or "1.0.8") .. "|r\n\nDeveloped by: |cff00ccffRelyk|r\n\n|cffffffffThank you for using Classic Fishing Companion!|r\n\nThis addon helps you track your fishing progress, manage gear, and optimize your fishing experience in Classic WoW.\n\n|cffffcc00Community:|r\nJoin our in-game CFC Community:\n|cff88ccff" .. COMMUNITY_INVITE_URL .. "|r\nClick |cffffcc00Join Community|r below to copy the invite link.\n\n|cffffcc00If you enjoy this addon and want to support development:|r\n\n|cff00ff00Buy me a coffee at:|r\n|cff88ccffhttps://buymeacoffee.com/relyk22|r",
+    button1 = "Join Community",
+    button2 = "Close",
+    OnAccept = function()
+        StaticPopup_Show("CFC_COMMUNITY_LINK")
+        return true  -- keep About open behind the copy box
+    end,
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
@@ -4064,9 +4143,21 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.11"] = {
+        features = {
+            "Fishing food on the HUD: the fishing skill from food like Bristle Whisker Catfish now shows as its own badge with the food icon, instead of being added to your gear bonus",
+            "A Food line under your lure shows the bonus and how long it has left",
+            "Warning when your fishing food wears off (Settings > Announcements > Warn When Fishing Food Wears Off)",
+            "Join the in-game CFC Community from About or this window: the Join Community button posts a clickable invite in chat that opens it in Guild & Communities (J), and gives you the link to copy for the Battle.net app",
+        },
+        changes = {
+            "Captain Rumsey's Lager isn't in WoW: Forever, so Easy Cast and the Cast & Loot Key no longer check for it",
+        },
+        tip = "Eat a fish that gives fishing skill, like Bristle Whisker Catfish, and watch the Food line on your HUD.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.10"] = {
         features = {
-            "Cast & Loot Key for Easy Cast: one key casts your line (drinking Rumsey's or applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",
+            "Cast & Loot Key for Easy Cast: one key casts your line (applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",
             "The key can be a keyboard key, a middle or side mouse button, or Shift/Ctrl/Alt + right-click",
         },
         changes = {
@@ -4081,7 +4172,7 @@ local whatsNewContent = {
     },
     ["1.2.9"] = {
         features = {
-            "Cast & Loot Key for Easy Cast: one key casts your line (drinking Rumsey's or applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",
+            "Cast & Loot Key for Easy Cast: one key casts your line (applying your lure first when needed). While your line is out, the same key loots the bobber under your cursor",
             "The key can be a keyboard key, a middle or side mouse button, or Shift/Ctrl/Alt + right-click",
         },
         changes = {
@@ -4521,6 +4612,10 @@ local function GetWhatsNewText(version)
 
     local text = "|cff00ff00What's New in v" .. version .. "|r\n\n"
 
+    -- Community callout at the top of every version's notes for now
+    text = text .. "|cffffcc00Join our in-game CFC Community:|r\n|cff88ccff" .. COMMUNITY_INVITE_URL
+        .. "|r\nClick |cffffcc00Join Community|r below to copy the link.\n\n"
+
     -- Add features
     if content.features and #content.features > 0 then
         text = text .. "|cffffcc00New Features:|r\n"
@@ -4561,6 +4656,11 @@ StaticPopupDialogs["CFC_WHATS_NEW"] = {
     text = GetWhatsNewText(CFC.VERSION or "1.0.8"),
     button1 = "Got it!",
     button2 = "Don't show again",
+    button3 = "Join Community",
+    noCloseOnAlt = true,  -- keep What's New open behind the copy box
+    OnAlt = function()
+        StaticPopup_Show("CFC_COMMUNITY_LINK")
+    end,
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,

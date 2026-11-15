@@ -6,6 +6,12 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.11
+- **Forever: fishing food on the HUD** - The fishing skill from food like Bristle Whisker Catfish shows as its own badge with the food icon, plus a Food line with the time left
+- **Forever:** warning when your fishing food wears off (Settings > Announcements)
+- **Forever: CFC Community** - Join Community in About and What's New posts a clickable invite in chat that opens Guild & Communities (J), and gives you the link to copy for the Battle.net app
+- **Forever:** Captain Rumsey's Lager support removed; the item isn't in WoW: Forever
+
 ### v1.2.10
 - **Forever:** milestone and max skill announcements set to Say errored and ones set to Emote never posted. WoW: Forever blocks addons from posting to either automatically, so both are gone from the list and anyone who had them now uses Guild
 

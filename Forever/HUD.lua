@@ -167,6 +167,12 @@ function CFC:InitializeHUD()
     end
     HUDModule:SetLureBar(nil)
 
+    -- Fishing food line (Forever's Well Fed +Fishing buff), shown only while it's up.
+    -- Anchored in Update, under whichever lure line is showing.
+    hudFrame.foodText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hudFrame.foodText:SetJustifyH("LEFT")
+    hudFrame.foodText:Hide()
+
     -- Goals display (up to 3 goals on HUD)
     hudFrame.goalsTitle = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hudFrame.goalsTitle:SetPoint("TOPLEFT", hudFrame.buffTimerText, "BOTTOMLEFT", 0, -4)
@@ -473,7 +479,7 @@ function HUDModule:GetBuffLineExtraHeight()
 end
 
 -- The skill line has no width cap and can exceed the 200px default -- e.g. when the
--- Captain Rumsey +10 badge is appended -- spilling past the right border. Return a width
+-- pole, lure, food and gear badges are appended -- spilling past the right border. Return a width
 -- that fits the widest unwrapped line (never below the 200px default). Inline icon
 -- textures are included in GetStringWidth, so the badges are accounted for.
 function HUDModule:GetRequiredWidth()
@@ -504,6 +510,7 @@ function HUDModule:Update()
 
     -- Get current fishing buff once for both skill and buff displays
     local currentBuff = HUDModule:GetCurrentFishingBuff()
+    local foodBuff = HUDModule:GetFishingFoodBuff()
 
     -- Fishing skill (with pole and lure bonuses displayed separately with icons)
     if CFC.db.profile.statistics.currentSkill and CFC.db.profile.statistics.currentSkill > 0 then
@@ -546,10 +553,18 @@ function HUDModule:Update()
             end
         end
 
+        -- Fishing food (Forever: Bristle Whisker Catfish and friends give a
+        -- 15 minute fishing skill buff). Shown with the buff's own icon.
+        local foodAmount = 0
+        if foodBuff then
+            foodAmount = foodBuff.amount
+            skillText = skillText .. " |cff00ff00+" .. foodAmount .. "|r |T" .. foodBuff.icon .. ":14|t"
+        end
+
         -- Other fishing gear (hat, boots, glove enchant): the game's total bonus
-        -- minus what the pole and lure badges already show
+        -- minus what the pole, lure and food badges already show
         local _, _, _, skillModifier = CFCCompat.GetFishingSkill()
-        local gearBonus = (skillModifier or 0) - (poleBonus or 0) - lureAmount
+        local gearBonus = (skillModifier or 0) - (poleBonus or 0) - lureAmount - foodAmount
         if gearBonus > 0 then
             skillText = skillText .. " |cff00ff00+" .. gearBonus .. "|r |T" .. GEAR_BONUS_ICON .. ":14|t"
         end
@@ -593,9 +608,31 @@ function HUDModule:Update()
         HUDModule:SetLureBar(nil)
     end
 
-    -- Goals sit under the Time Left line, or under the Lure line when there's no lure
+    -- Fishing food line sits under the Time Left line, or under the Lure line when there's no lure
+    local lureBottom = currentBuff and hudFrame.buffTimerText or hudFrame.buffText
+    if foodBuff and hudFrame.notificationKind == "nofood" then
+        hudFrame.releaseText:Hide()
+        hudFrame.notificationKind = nil
+    end
+    if foodBuff then
+        local foodColor = "|cff00ff00"
+        if foodBuff.expirationSeconds < 60 then
+            foodColor = "|cffff0000"
+        elseif foodBuff.expirationSeconds < 120 then
+            foodColor = "|cffffff00"
+        end
+        hudFrame.foodText:ClearAllPoints()
+        hudFrame.foodText:SetPoint("TOPLEFT", lureBottom, "BOTTOMLEFT", 0, currentBuff and -5 or -3)
+        hudFrame.foodText:SetText("Food: |T" .. foodBuff.icon .. ":12|t |cff00ff00+" .. foodBuff.amount
+            .. "|r  " .. foodColor .. HUDModule:FormatTime(foodBuff.expirationSeconds) .. "|r")
+        hudFrame.foodText:Show()
+    else
+        hudFrame.foodText:Hide()
+    end
+
+    -- Goals sit under the food line, the Time Left line, or the Lure line, whichever is lowest
     hudFrame.goalsTitle:ClearAllPoints()
-    hudFrame.goalsTitle:SetPoint("TOPLEFT", currentBuff and hudFrame.buffTimerText or hudFrame.buffText, "BOTTOMLEFT", 0, -4)
+    hudFrame.goalsTitle:SetPoint("TOPLEFT", foodBuff and hudFrame.foodText or lureBottom, "BOTTOMLEFT", 0, -4)
 
     -- Update goals display
     local goalCount = 0
@@ -653,6 +690,9 @@ function HUDModule:Update()
     -- The base height includes the Time Left line, which only shows with a lure
     if not currentBuff then
         baseHeight = baseHeight - ((hudFrame.buffSingleLineHeight or 12) + 3)
+    end
+    if foodBuff then
+        baseHeight = baseHeight + (hudFrame.buffSingleLineHeight or 12) + (currentBuff and 5 or 3)
     end
 
     local goalHeight = 0
@@ -852,6 +892,71 @@ function HUDModule:GetCurrentFishingBuff()
         end
     end
 
+    return nil
+end
+
+-- Fishing skill from food. Forever added a fishing bonus to some cooked fish
+-- (+3 Loch Frenzy Delight up to +18 Filet of Redgill / Spinefin Halibut).
+-- Confirmed in game 2026-11-14: it's part of the Well Fed buff (spell 1249521,
+-- cheese icon) and its spell description is empty, but the buff tooltip reads
+-- "Your Fishing Skill is increased by 8. Experience gained from kills increased by 5%."
+-- Plain food gives the same Well Fed without the fishing line, so read the
+-- tooltip. Answers are cached per aura instance (a new meal is a new instance).
+local foodAuraCache = {}
+
+local function ParseFishingBonus(text)
+    local lower = string.lower(text)
+    -- Require "skill" too, so the Fishing Rack's uncommon-fish buff
+    -- ("...for 60 min") isn't read as a +60
+    if string.find(lower, "fishing") and string.find(lower, "skill") then
+        return tonumber(string.match(lower, "fishing skill[^%d]*(%d+)")
+            or string.match(lower, "(%d+)%s+fishing"))
+    end
+    return nil
+end
+
+-- How long a "no fishing bonus" answer is trusted before reading the tooltip
+-- again. The first read can come back with only the title line before the
+-- game has the buff text, so a miss must not be cached for good.
+local FOOD_MISS_RECHECK = 5
+
+local function GetFoodFishingAmount(auraInstanceID)
+    local cached = foodAuraCache[auraInstanceID]
+    if cached then
+        if cached.amount then
+            return cached.amount
+        end
+        if GetTime() - cached.checked < FOOD_MISS_RECHECK then
+            return nil
+        end
+    end
+    local lines = CFCCompat.GetBuffTooltipLines("player", auraInstanceID)
+    if not lines or #lines == 0 then
+        return nil  -- tooltip not ready (or auras locked); try again next update
+    end
+    local amount
+    for _, text in ipairs(lines) do
+        amount = ParseFishingBonus(text)
+        if amount then break end
+    end
+    foodAuraCache[auraInstanceID] = { amount = amount, checked = GetTime() }
+    return amount
+end
+
+-- Returns { amount, icon, expirationSeconds } or nil
+function HUDModule:GetFishingFoodBuff()
+    for i = 1, 40 do
+        local aura = CFCCompat.GetBuffAuraData("player", i)
+        if not aura then break end
+        local amount = GetFoodFishingAmount(aura.auraInstanceID)
+        if amount and amount > 0 then
+            local remaining = 0
+            if aura.expirationTime and aura.expirationTime > 0 then
+                remaining = math.floor(aura.expirationTime - GetTime())
+            end
+            return { amount = amount, icon = aura.icon or 133943, expirationSeconds = remaining }
+        end
+    end
     return nil
 end
 

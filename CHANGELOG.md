@@ -2,6 +2,20 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.11] - 2026-11-14
+
+### Added
+- **Forever: fishing food on the HUD.** Forever's fishing foods (Loch Frenzy Delight +3 up to Filet of Redgill and Spinefin Halibut +18) add their bonus through the Well Fed buff (spell 1249521). The bonus is only in the buff's tooltip, so the HUD reads the tooltip. The bonus gets its own skill badge with the food icon; before, it was added into the gear bonus and shown with the helmet icon
+- **Forever:** a Food line under the lure shows the bonus and time left, turning yellow under 2 minutes and red under 1
+- **Forever:** on-screen warning when fishing food wears off while you're in fishing gear, once per meal. Cancelling the buff early doesn't warn. Toggle: Settings > Announcements > Warn When Fishing Food Wears Off (on by default)
+- **Forever: CFC Community.** About has a Community section, and What's New opens with a Community callout. Their Join Community button posts a clickable invite link in chat that opens the community in Guild & Communities (J), and opens a box with the `https://blizzard.com/invite/zejV2yLfvvG` link selected for copying into the Battle.net app. Addons can't join a community for the player (`C_Club.RedeemTicket` is restricted), so the player clicks Join
+
+### Removed
+- **Forever:** Captain Rumsey's Lager support (auto-drink, its Easy Cast button and Cast & Loot key step). The item doesn't exist in WoW: Forever. Mr. Pinchy is also gone from Forever's rare fish list
+
+### Changed
+- README no longer calls Forever support a beta; WoW: Forever is live
+
 ## [1.2.10] - 2026-11-11
 
 ### Fixed

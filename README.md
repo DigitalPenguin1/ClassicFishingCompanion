@@ -2,11 +2,9 @@
 
 A comprehensive fishing companion addon for World of Warcraft Classic Era, TBC, and WoW: Forever.
 
-> **WoW: Forever:** support is for testing on the Forever beta. Expect rough edges; fixes will come as the beta changes.
-
 ## Features
 
-- **Easy Cast** - Double right-click to cast; automatically applies lure and drinks Captain Rumsey's Lager when needed
+- **Easy Cast** - Double right-click to cast; automatically applies lure and drinks Captain Rumsey's Lager when needed (TBC only)
 - **Auto-Swap Combat Weapons** - Swaps to combat gear when attacked, back to fishing when combat ends
 - **Stats HUD** - Draggable display with session/total catches, fish/hour, skill, and lure timer (Default, Minimal, or Text Only appearance)
 - **Zones Tab** - Collapsible zone-based view of all fish caught with icons, counts, and tooltips

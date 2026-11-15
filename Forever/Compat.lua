@@ -55,6 +55,37 @@ Compat.UnitBuff = _G.UnitBuff or function(unit, index, filter)
         aura.expirationTime, aura.sourceUnit, aura.isStealable, aura.nameplateShowPersonal, aura.spellId
 end
 
+-- Returns the raw aura table for a player buff, or nil while auras are
+-- locked or when its fields are secret. Forever only (needs C_UnitAuras).
+function Compat.GetBuffAuraData(unit, index)
+    if not (C_UnitAuras and C_UnitAuras.GetBuffDataByIndex) or AurasLocked() then
+        return nil
+    end
+    local ok, aura = pcall(C_UnitAuras.GetBuffDataByIndex, unit, index)
+    if not ok or not aura or IsSecret(aura.auraInstanceID) or IsSecret(aura.expirationTime) then
+        return nil
+    end
+    return aura
+end
+
+-- Returns the left-hand text lines of a buff's tooltip, or nil
+function Compat.GetBuffTooltipLines(unit, auraInstanceID)
+    if not (C_TooltipInfo and C_TooltipInfo.GetUnitBuffByAuraInstanceID) or AurasLocked() then
+        return nil
+    end
+    local ok, data = pcall(C_TooltipInfo.GetUnitBuffByAuraInstanceID, unit, auraInstanceID)
+    if not ok or not data or not data.lines then
+        return nil
+    end
+    local lines = {}
+    for _, line in ipairs(data.lines) do
+        if type(line.leftText) == "string" and not IsSecret(line.leftText) then
+            lines[#lines + 1] = line.leftText
+        end
+    end
+    return lines
+end
+
 -- Returns name, skillLevel, maxSkillLevel, skillModifier for Fishing, or nil
 -- if not learned. skillModifier is the game's total bonus on top of the base
 -- skill (pole, lure, gear); on Forever it includes the lure (confirmed in beta).

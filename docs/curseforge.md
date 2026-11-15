@@ -40,6 +40,7 @@ Fishing addon for WoW Classic Era, TBC and Forever. Double right-click to cast w
 ## Stats HUD
 
 - Session and total catches, fish per hour, and your skill with pole and lure bonuses
+- **Fishing food (Forever)**: the skill bonus from foods like Bristle Whisker Catfish gets its own badge and a Food line with time left, plus a warning when it wears off
 - **Lure timer** with time left. On Forever it's the game's cast bar, turning yellow under 2 minutes and red in the last one
 - **Apply Lure** and **Swap** buttons right on the HUD
 - Up to 3 **Goals** with progress
@@ -75,6 +76,12 @@ Save your fishing gear once and swap to it from the HUD, the minimap button, a k
 - **Minimap button**: left-click for the window, right-click for the HUD, hover for a quick stats summary
 - **Keybindings** for the window, the HUD and Release Fish under ESC > Options > Keybindings
 - `/cfc` opens the window. `/cfc hud`, `/cfc swap` and `/cfc stats` work too, and the [wiki](https://github.com/DigitalPenguin1/ClassicFishingCompanion/wiki) lists the rest
+
+## Community
+
+Join the in-game **CFC Community**: [https://blizzard.com/invite/zejV2yLfvvG](https://blizzard.com/invite/zejV2yLfvvG)
+
+Open the link in the Battle.net app, or in game on Forever, click **Join Community** in the addon's About window. It posts a clickable invite in chat that opens Guild & Communities (J).
 
 ## Feedback
 

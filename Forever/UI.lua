@@ -39,7 +39,7 @@ local miscKeywords = {
     "dagger", "staff", "wand", "bow", "gun", "buckler", "shield",
     "gem", "pearl", "note", "letter", "ore", "crystal",
     "essence", "shard", "gloves", "leggings", "bracers",
-    "nutriment", "glowcap"
+    "nutriment", "glowcap", "rumsey"
 }
 
 -- Check if an item name is a fish (used by dropdowns)
@@ -4078,7 +4078,7 @@ StaticPopupDialogs["CFC_PERCHAR_DISABLE"] = {
 
 -- In-game CFC Community invite. Popup text can't hold a clickable link, so
 -- the About and What's New dialogs get a button that opens a copy box.
-local COMMUNITY_TICKET_ID = "zejV2yLfvvG"
+local COMMUNITY_TICKET_ID = CFC.COMMUNITY_TICKET_ID
 local COMMUNITY_INVITE_URL = "https://blizzard.com/invite/" .. COMMUNITY_TICKET_ID
 
 -- Joining a community (C_Club.RedeemTicket) is restricted, so an addon can't
@@ -4143,6 +4143,15 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.12"] = {
+        features = {
+            "The load message in chat now has a clickable [Join the CFC Community] link",
+        },
+        fixes = {
+            "Rumsey Rum Dark, Rumsey Rum Light and Rumsey Rum Black Label now show under Miscellaneous instead of in your fish list",
+        },
+        tip = "Rum you already caught moves to Miscellaneous on its own. Your catch counts are unchanged.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.11"] = {
         features = {
             "Fishing food on the HUD: the fishing skill from food like Bristle Whisker Catfish now shows as its own badge with the food icon, instead of being added to your gear bonus",

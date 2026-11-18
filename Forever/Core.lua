@@ -23,7 +23,8 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.11"
+CFC.VERSION = "1.2.12"
+CFC.COMMUNITY_TICKET_ID = "zejV2yLfvvG"  -- in-game CFC Community invite (clubTicket link)
 
 -- Centralized color codes for consistent styling
 CFC.COLORS = {
@@ -340,6 +341,9 @@ function CFC:OnInitialize()
     C_Timer.After(3, function()
         CFC:Print(CFC.COLORS.SUCCESS .. "Classic Fishing Companion" .. CFC.COLORS.RESET .. " loaded! v" .. CFC.VERSION .. " by Relyk Rageroot RP-PVP NA. Type " .. CFC.COLORS.DEBUG .. "/cfc" .. CFC.COLORS.RESET .. " to open or use the minimap button.")
         CFC:Print(CFC.COLORS.TIP .. "Tip:" .. CFC.COLORS.RESET .. " Always export your fishing data from Settings for backup!")
+        -- Clicking a clubTicket link runs Blizzard's own handler, which opens
+        -- the Communities window (J) on the invite. Safe from addon code.
+        CFC:Print(CFC.COLORS.TIP .. "Community:" .. CFC.COLORS.RESET .. " Fish with other players in the in-game CFC Community. Click |cff66bbff|HclubTicket:" .. CFC.COMMUNITY_TICKET_ID .. "|h[Join the CFC Community]|h|r to open the invite.")
     end)
 end
 

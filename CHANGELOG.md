@@ -2,6 +2,14 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.12] - 2026-11-18
+
+### Added
+- **Forever:** the load message in chat has a clickable [Join the CFC Community] link that opens the invite in Guild & Communities (J). Hidden in Quiet Mode, like the rest of the load message
+
+### Fixed
+- Rumsey Rum Dark, Light and Black Label no longer show up as fish. The game lists them as Food & Drink, which the fish check counts as fish, so `rumsey` is now a Miscellaneous keyword. Applies to the Catch List, Zones tab and dropdowns on Classic, TBC and Forever
+
 ## [1.2.11] - 2026-11-14
 
 ### Added

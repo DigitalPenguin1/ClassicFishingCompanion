@@ -6,6 +6,10 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.12
+- **Forever:** the load message has a clickable link to join the CFC Community
+- **Fish sorting fix** - Rumsey Rum Dark, Light and Black Label show under Miscellaneous instead of with your fish
+
 ### v1.2.11
 - **Forever: fishing food on the HUD** - The fishing skill from food like Bristle Whisker Catfish shows as its own badge with the food icon, plus a Food line with the time left
 - **Forever:** warning when your fishing food wears off (Settings > Announcements)

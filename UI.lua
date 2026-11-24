@@ -3882,6 +3882,12 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.13"] = {
+        fixes = {
+            "Rumsey Rum Dark, Rumsey Rum Light and Rumsey Rum Black Label now show under Miscellaneous instead of in your fish list",
+        },
+        tip = "Rum you already caught moves to Miscellaneous on its own. Your catch counts are unchanged.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.12"] = {
         fixes = {
             "Rumsey Rum Dark, Rumsey Rum Light and Rumsey Rum Black Label now show under Miscellaneous instead of in your fish list",

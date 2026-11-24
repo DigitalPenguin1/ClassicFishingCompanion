@@ -6,6 +6,9 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.13
+- **Forever: Fishing Guide** - Zones > Fishing Guide shows where every fish is caught: each zone's fish, pools and special catches, and the skill needed to fish there. Search by fish, zone or pool, and click a fish to see everywhere it's caught
+
 ### v1.2.12
 - **Forever:** the load message has a clickable link to join the CFC Community
 - **Fish sorting fix** - Rumsey Rum Dark, Light and Black Label show under Miscellaneous instead of with your fish

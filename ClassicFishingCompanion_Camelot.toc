@@ -2,7 +2,7 @@
 ## Title: |cff33ccffClassic|r |cffffd100Fishing Companion|r |cffff8000- Forever|r
 ## Notes: Track your fishing catches, fish per hour, locations, and statistics
 ## Author: Relyk
-## Version: 1.2.12
+## Version: 1.2.13
 ## SavedVariables: ClassicFishingCompanionDB
 ## SavedVariablesPerCharacter: ClassicFishingCompanionCharDB
 ## IconTexture: Interface\AddOns\ClassicFishingCompanion\Textures\icon
@@ -25,6 +25,7 @@ Forever/Compat.lua
 Forever/Theme.lua
 Forever/Core.lua
 Forever/Database.lua
+Forever/FishingGuide.lua
 Forever/Minimap.lua
 Forever/UI.lua
 Forever/HUD.lua

@@ -2,6 +2,16 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.13] - 2026-11-23
+
+### Added
+- **Forever: Fishing Guide.** The Zones tab has two views, My Catches (the old Zones list) and Fishing Guide. The guide covers 52 zones, 11 fishing pools and the special catches (Nat Pagle's quest fish, the Stranglethorn Fishing Extravaganza, night/day and summer/winter fish). Each zone shows the skill needed to fish there and the skill where nothing gets away, and lists its fish by water (lakes and rivers, coast, named sub-zones) with approximate catch chance, any time or season condition, and how many you've caught. Zone names are colored against your current skill including pole and lure bonuses
+- **Forever:** search box for the guide. It matches fish, zone, sub-zone, pool and continent names and expands every match. Clicking a fish searches for it, and hovering shows the item tooltip even for fish you've never caught
+- Guide data is in `Forever/FishingGuide.lua`. Zone loot comes from the Classic 1.12 database, which Forever kept. Item IDs were checked against Wowhead Classic. Whimsyfin (new in Forever, Redridge) has no confirmed item ID yet, so it shows a question-mark icon
+
+### Changed
+- **Forever:** the Community callout at the top of What's New is one line instead of two
+
 ## [1.2.12] - 2026-11-18
 
 ### Added

@@ -18,6 +18,9 @@ local RECENT_ROW_HEIGHT = 22
 local mainFrame = nil
 local currentTab = "overview"
 local historyExpandedZones = {}
+local historyView = "catches"   -- Zones tab: "catches" or "guide"
+local guideExpanded = {}        -- Fishing Guide entries the player opened
+local guideSearch = ""          -- lowercased Fishing Guide search text
 
 -- Fish detection keywords (shared by Catch List, Goals, and Release tabs)
 local fishKeywords = {
@@ -1147,14 +1150,61 @@ function UI:CreateHistoryTab()
     frame:SetAllPoints()
     frame:Hide()
 
+    -- View toggle: your own catches, or the guide of where every fish lives
+    local function CreateViewButton(label, view)
+        local button = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        Theme.SkinButton(button)
+        button:SetSize(110, 24)
+        button:SetText(label)
+        button:SetScript("OnClick", function()
+            if historyView ~= view then
+                historyView = view
+                frame.scrollFrame:SetVerticalScroll(0)
+                UI:UpdateHistory()
+            end
+        end)
+        return button
+    end
+    frame.catchesButton = CreateViewButton("My Catches", "catches")
+    frame.catchesButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -6)
+    frame.guideButton = CreateViewButton("Fishing Guide", "guide")
+    frame.guideButton:SetPoint("LEFT", frame.catchesButton, "RIGHT", 6, 0)
+
+    -- Guide search (fish, zone, sub-zone or pool name)
+    local ok, searchBox = pcall(CreateFrame, "EditBox", "CFCGuideSearchBox", frame, "SearchBoxTemplate")
+    if not ok or not searchBox then
+        searchBox = CreateFrame("EditBox", "CFCGuideSearchBoxLegacy", frame, "InputBoxTemplate")
+        searchBox:SetScript("OnEscapePressed", searchBox.ClearFocus)
+    end
+    searchBox:SetSize(240, 22)
+    searchBox:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -30, -7)
+    searchBox:SetAutoFocus(false)
+    searchBox:SetMaxLetters(40)
+    if searchBox.Instructions then
+        searchBox.Instructions:SetText("Search fish, zone or pool")
+    end
+    searchBox:HookScript("OnTextChanged", function(self)
+        local text = strtrim(self:GetText() or ""):lower()
+        if text ~= guideSearch then
+            guideSearch = text
+            frame.scrollFrame:SetVerticalScroll(0)
+            UI:UpdateFishingGuide()
+        end
+    end)
+    searchBox:SetScript("OnEnterPressed", searchBox.ClearFocus)
+    frame.searchBox = searchBox
+
     -- Scroll frame
     frame.scrollFrame = Theme.CreateScrollFrame(frame)
-    frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
+    frame.scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -38)
     frame.scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -25, 5)
 
     frame.scrollChild = CreateFrame("Frame", nil, frame.scrollFrame)
     frame.scrollChild:SetSize(550, 1)
     frame.scrollFrame:SetScrollChild(frame.scrollChild)
+
+    -- Fishing Guide rows (reused between redraws)
+    frame.guideRows = {}
 
     -- Empty state text
     frame.emptyText = frame.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -1418,6 +1468,19 @@ end
 -- Update Zones Tab (formerly History)
 function UI:UpdateHistory()
     local frame = mainFrame.historyFrame
+
+    Theme.SetSelected(frame.catchesButton, historyView == "catches")
+    Theme.SetSelected(frame.guideButton, historyView == "guide")
+    frame.searchBox:SetShown(historyView == "guide")
+
+    if historyView == "guide" then
+        UI:UpdateFishingGuide()
+        return
+    end
+    for _, row in ipairs(frame.guideRows) do
+        row:Hide()
+    end
+
     local zones = CFC.Database:GetZoneFishSummary()
 
     -- Hide all existing elements
@@ -1497,6 +1560,375 @@ function UI:UpdateHistory()
                 yOffset = yOffset - 30
             end
         end
+    end
+
+    frame.scrollChild:SetHeight(math.abs(yOffset) + 10)
+end
+
+-- ============================================================
+-- Fishing Guide (Zones tab, second view): where every fish lives
+-- ============================================================
+
+local GUIDE_SECTIONS = {
+    { kind = "zone", title = "Zones" },
+    { kind = "pool", title = "Fishing Pools" },
+    { kind = "special", title = "Special Catches" },
+}
+
+local function GuideMatch(text, query)
+    return text ~= nil and text:lower():find(query, 1, true) ~= nil
+end
+
+-- Player's fishing skill including pole/lure bonuses, or nil if unknown
+local function GetGuideSkill()
+    local name, level, _, modifier = CFCCompat.GetFishingSkill()
+    if not name or not level then
+        return nil
+    end
+    return level + (modifier or 0), level, modifier or 0
+end
+
+-- Red below the skill to fish, yellow while fish can still get away, green after
+local function GuideSkillColor(skill, clean, playerSkill)
+    if not playerSkill or not skill then
+        return "|cffffd700"
+    elseif playerSkill >= (clean or skill) then
+        return "|cff40ff40"
+    elseif playerSkill >= skill then
+        return "|cffffff00"
+    end
+    return "|cffff5050"
+end
+
+local function GuideSkillText(skill, clean)
+    if not skill then
+        return ""
+    end
+    return "Skill " .. skill .. " |cff888888/|r " .. clean .. " no escapes"
+end
+
+-- Which parts of a guide entry to show for the current search.
+-- Returns groups, notes, or nil when nothing in the entry matches.
+local function FilterGuideEntry(entry, query)
+    if query == "" or GuideMatch(entry.name, query) or GuideMatch(entry.where, query)
+        or GuideMatch(entry.continent, query) then
+        return entry.groups or {}, entry.notes or {}
+    end
+
+    local groups, notes = {}, {}
+    for _, group in ipairs(entry.groups or {}) do
+        if GuideMatch(group.label, query) then
+            table.insert(groups, group)
+        else
+            local fish = {}
+            for _, f in ipairs(group.fish) do
+                if GuideMatch(f[1], query) then
+                    table.insert(fish, f)
+                end
+            end
+            if #fish > 0 then
+                table.insert(groups, { label = group.label, fish = fish, skill = group.skill, clean = group.clean })
+            end
+        end
+    end
+    for _, note in ipairs(entry.notes or {}) do
+        if GuideMatch(note, query) then
+            table.insert(notes, note)
+        end
+    end
+    if #groups == 0 and #notes == 0 then
+        return nil
+    end
+    return groups, notes
+end
+
+-- One reusable row: section title, entry header, water label, fish, or note
+function UI:GetGuideRow(parent, index)
+    local row = parent.guideRows[index]
+    if row then return row end
+
+    row = CreateFrame("Button", nil, parent.scrollChild)
+    row:SetWidth(540)
+
+    row.bg = row:CreateTexture(nil, "BACKGROUND")
+    row.bg:SetAllPoints()
+
+    row.indicator = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.indicator:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.indicator:SetWidth(16)
+
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    Theme.StyleIcon(row, row.icon)
+    row.icon:SetSize(20, 20)
+
+    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(true)
+
+    row.right = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.right:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    row.right:SetJustifyH("RIGHT")
+
+    row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    row.highlight:SetAllPoints()
+    row.highlight:SetColorTexture(Theme.Color(Theme.GOLD_LIGHT, 0.12))
+
+    row:SetScript("OnClick", function(self)
+        if self.onClick then self.onClick(self) end
+    end)
+    row:SetScript("OnEnter", function(self)
+        if self.onEnter then self.onEnter(self) end
+    end)
+    row:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    parent.guideRows[index] = row
+    return row
+end
+
+-- Reset a row to a given style. Returns the row for chaining.
+local function SetupGuideRow(row, style, height)
+    row.style = style
+    row.onClick, row.onEnter = nil, nil
+    row:SetHeight(height)
+    row.indicator:SetText("")
+    row.indicator:SetShown(style == "header")
+    row.icon:SetShown(style == "fish")
+    row.icon.cfcBorder:SetShown(style == "fish")
+    row.right:SetText("")
+    row.highlight:SetShown(style == "header" or style == "fish")
+
+    row.text:ClearAllPoints()
+    row.text:SetFontObject(style == "note" and "GameFontHighlightSmall" or "GameFontNormal")
+    if style == "header" then
+        row.bg:SetColorTexture(Theme.Color(Theme.BRONZE, 0.6))
+        row.text:SetPoint("LEFT", row.indicator, "RIGHT", 6, 0)
+        row.text:SetWidth(250)
+    elseif style == "section" then
+        row.bg:SetColorTexture(0, 0, 0, 0)
+        row.text:SetPoint("LEFT", row, "LEFT", 4, 0)
+        row.text:SetWidth(500)
+    elseif style == "label" then
+        row.bg:SetColorTexture(0, 0, 0, 0)
+        row.text:SetPoint("LEFT", row, "LEFT", 24, 0)
+        row.text:SetWidth(500)
+    elseif style == "fish" then
+        row.bg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.4))
+        row.icon:SetPoint("LEFT", row, "LEFT", 32, 0)
+        row.text:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+        row.text:SetWidth(260)
+    else -- note
+        row.bg:SetColorTexture(0, 0, 0, 0)
+        row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
+        row.text:SetWidth(490)
+    end
+    return row
+end
+
+-- Set the guide search text (fills the box, which redraws the guide)
+function UI:SetGuideSearch(text)
+    local frame = mainFrame and mainFrame.historyFrame
+    if not frame then return end
+    historyView = "guide"
+    frame.searchBox:SetText(text or "")
+    UI:UpdateHistory()
+end
+
+function UI:UpdateFishingGuide()
+    local frame = mainFrame.historyFrame
+    local guide = CFC.FishingGuide
+    local query = guideSearch
+    local playerSkill, baseSkill, skillBonus = GetGuideSkill()
+    local fishData = CFC.db.profile.fishData
+
+    -- The catches view shares the scroll child
+    for _, header in ipairs(frame.zoneHeaders) do header:Hide() end
+    for _, entry in ipairs(frame.fishEntries) do entry:Hide() end
+    frame.emptyText:Hide()
+
+    local rowIndex = 0
+    local yOffset = -5
+    local function AddRow(style, height)
+        rowIndex = rowIndex + 1
+        local row = SetupGuideRow(self:GetGuideRow(frame, rowIndex), style, height)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", frame.scrollChild, "TOPLEFT", 5, yOffset)
+        row:Show()
+        yOffset = yOffset - height - 2
+        return row
+    end
+    -- Wrapped text row that grows to fit
+    local function AddNote(text)
+        local row = AddRow("note", 16)
+        row.text:SetText(text)
+        local height = math.max(16, math.ceil(row.text:GetStringHeight()) + 4)
+        if height > 16 then
+            row:SetHeight(height)
+            yOffset = yOffset - (height - 16)
+        end
+        return row
+    end
+
+    -- Collect matches per section first, so empty sections are skipped
+    local matchCount = 0
+    local sections = {}
+    for _, section in ipairs(GUIDE_SECTIONS) do
+        local list = {}
+        for _, entry in ipairs(guide.entries) do
+            if entry.kind == section.kind then
+                local groups, notes = FilterGuideEntry(entry, query)
+                if groups then
+                    table.insert(list, { entry = entry, groups = groups, notes = notes })
+                end
+            end
+        end
+        if #list > 0 then
+            matchCount = matchCount + #list
+            table.insert(sections, { title = section.title, list = list })
+        end
+    end
+
+    -- Summary line
+    local summaryText
+    if query ~= "" then
+        if matchCount == 0 then
+            summaryText = ("|cffff8080No zone, pool or fish matches \"" .. query .. "\".|r")
+        else
+            summaryText = ("|cffaaaaaa" .. matchCount .. (matchCount == 1 and " place" or " places")
+                .. " match \"" .. query .. "\". Click a fish to see everywhere it's caught.|r")
+        end
+    elseif playerSkill then
+        local bonus = skillBonus > 0 and (" (" .. baseSkill .. " +" .. skillBonus .. ")") or ""
+        summaryText = ("|cffaaaaaaYour fishing skill: |cffffffff" .. playerSkill .. bonus
+            .. "|r.  |cff40ff40Green|r: nothing escapes.  |cffffff00Yellow|r: some get away.  |cffff5050Red|r: too low.|r")
+    else
+        summaryText = ("|cffaaaaaaClick a zone to see its fish. Click a fish to see everywhere it's caught.|r")
+    end
+    AddNote(summaryText)
+
+    for _, section in ipairs(sections) do
+        local title = AddRow("section", 24)
+        title.text:SetText("|cffffd700" .. section.title .. "|r")
+
+        for _, match in ipairs(section.list) do
+            local entry = match.entry
+            local expanded = query ~= "" or guideExpanded[entry.name]
+
+            -- Header
+            local header = AddRow("header", 26)
+            header.indicator:SetText(expanded and "|cffffff00-|r" or "|cffffff00+|r")
+            header.text:SetText(GuideSkillColor(entry.skill, entry.clean, playerSkill) .. entry.name .. "|r")
+            if entry.kind == "zone" then
+                header.right:SetText("|cffaaaaaa" .. GuideSkillText(entry.skill, entry.clean) .. "|r")
+            end
+            header.onClick = function()
+                if query == "" then
+                    guideExpanded[entry.name] = not guideExpanded[entry.name]
+                    UI:UpdateFishingGuide()
+                end
+            end
+            header.onEnter = function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(entry.name, 1, 0.82, 0)
+                if entry.continent then
+                    GameTooltip:AddLine(entry.continent, 0.7, 0.7, 0.7)
+                end
+                if entry.where then
+                    GameTooltip:AddLine(entry.where, 1, 1, 1, true)
+                end
+                if entry.skill then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddDoubleLine("Skill to fish:", entry.skill, 1, 1, 1, 1, 1, 1)
+                    GameTooltip:AddDoubleLine("Nothing escapes at:", entry.clean, 1, 1, 1, 1, 1, 1)
+                    if playerSkill then
+                        GameTooltip:AddDoubleLine("Your skill:", playerSkill, 1, 1, 1, 1, 1, 1)
+                    end
+                end
+                GameTooltip:Show()
+            end
+
+            if expanded then
+                if entry.where and entry.kind == "pool" then
+                    local where = AddRow("label", 18)
+                    where.text:SetText("|cffaaaaaaFound in: |r|cffffffff" .. entry.where .. "|r")
+                elseif entry.where then
+                    local where = AddRow("label", 18)
+                    where.text:SetText("|cffaaaaaa" .. entry.where .. "|r")
+                end
+
+                for _, group in ipairs(match.groups) do
+                    local label = AddRow("label", 18)
+                    local text = "|cffe0c070" .. group.label .. "|r"
+                    if group.skill then
+                        text = text .. "  " .. GuideSkillColor(group.skill, group.clean, playerSkill)
+                            .. "(skill " .. group.skill .. " / " .. group.clean .. ")|r"
+                    end
+                    label.text:SetText(text)
+
+                    for _, f in ipairs(group.fish) do
+                        local fishName, chance = f[1], f[2]
+                        local itemID = guide:GetItemID(fishName)
+                        local row = AddRow("fish", 24)
+
+                        local icon = itemID and CFCCompat.GetItemIcon(itemID)
+                        row.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                        local quality = itemID and C_Item and C_Item.GetItemQualityByID
+                            and C_Item.GetItemQualityByID(itemID)
+                        Theme.SetIconQuality(row.icon, quality)
+                        local color = CFC.COLORS.QUALITY[quality or 1] or CFC.COLORS.QUALITY[1]
+                        row.text:SetText(color .. fishName .. CFC.COLORS.RESET)
+
+                        local parts = {}
+                        local condition = guide.fishNotes[fishName]
+                        if condition then
+                            table.insert(parts, "|cff88bbff" .. condition .. "|r")
+                        end
+                        if chance then
+                            table.insert(parts, "|cffaaaaaa~" .. chance .. "%|r")
+                        end
+                        local caught = fishData[fishName] and fishData[fishName].count
+                        if caught and caught > 0 then
+                            table.insert(parts, "|cff00ff00" .. caught .. " caught|r")
+                        end
+                        row.right:SetText(table.concat(parts, "  "))
+
+                        row.onClick = function()
+                            UI:SetGuideSearch(fishName)
+                        end
+                        row.onEnter = function(self)
+                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                            if itemID then
+                                GameTooltip:SetItemByID(itemID)
+                            else
+                                GameTooltip:SetText(fishName, 1, 1, 1)
+                            end
+                            GameTooltip:AddLine(" ")
+                            if chance then
+                                GameTooltip:AddLine("About " .. chance .. "% of catches here", 0.8, 0.8, 0.8)
+                            end
+                            if condition then
+                                GameTooltip:AddLine(condition, 0.53, 0.73, 1)
+                            end
+                            if caught and caught > 0 then
+                                GameTooltip:AddLine("You've caught " .. caught, 0, 1, 0)
+                            end
+                            GameTooltip:AddLine("Click to see everywhere it's caught", 1, 0.82, 0)
+                            GameTooltip:Show()
+                        end
+                    end
+                end
+
+                for _, note in ipairs(match.notes) do
+                    AddNote("|cffcccccc- " .. note .. "|r")
+                end
+            end
+        end
+    end
+
+    -- Hide leftover rows from a longer previous list
+    for i = rowIndex + 1, #frame.guideRows do
+        frame.guideRows[i]:Hide()
     end
 
     frame.scrollChild:SetHeight(math.abs(yOffset) + 10)
@@ -4143,6 +4575,14 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.13"] = {
+        features = {
+            "Fishing Guide: open the Zones tab and click Fishing Guide to see where every fish is caught. It lists each zone's fish, pools and special catches, and the skill you need to fish there",
+            "Search the guide by fish, zone or pool. Click any fish to see everywhere it's caught",
+            "Zone names are colored by your fishing skill: green means nothing gets away, yellow means some fish escape, red means your skill is too low",
+        },
+        tip = "Try searching for Stonescale Eel or Deviate Fish in Zones > Fishing Guide.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.12"] = {
         features = {
             "The load message in chat now has a clickable [Join the CFC Community] link",
@@ -4622,8 +5062,7 @@ local function GetWhatsNewText(version)
     local text = "|cff00ff00What's New in v" .. version .. "|r\n\n"
 
     -- Community callout at the top of every version's notes for now
-    text = text .. "|cffffcc00Join our in-game CFC Community:|r\n|cff88ccff" .. COMMUNITY_INVITE_URL
-        .. "|r\nClick |cffffcc00Join Community|r below to copy the link.\n\n"
+    text = text .. "|cffffcc00Join our in-game CFC Community:|r |cff88ccff" .. COMMUNITY_INVITE_URL .. "|r\n\n"
 
     -- Add features
     if content.features and #content.features > 0 then

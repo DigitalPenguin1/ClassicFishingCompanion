@@ -4575,6 +4575,21 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.14"] = {
+        features = {
+            "Fishing Guide: open the Zones tab and click Fishing Guide to see where every fish is caught. It lists each zone's fish, pools and special catches, and the skill you need to fish there",
+            "Search the guide by fish, zone or pool. Click any fish to see everywhere it's caught",
+            "Zone names are colored by your fishing skill: green means nothing gets away, yellow means some fish escape, red means your skill is too low",
+        },
+        fixes = {
+            "The HUD now sizes itself to fit what's on it, so there's no empty space on the right",
+            "Less empty space at the bottom of the HUD and above the Apply Lure and Swap buttons",
+            "With only the Swap button turned on, it no longer hangs off the side of the HUD",
+            "The Time Left bar lines up with the Lure line, has rounded corners, and the time sits centered in it",
+            "Fish/Hour shows -- for the first 5 minutes of a session instead of a wild number from your first catch",
+        },
+        tip = "Try searching for Stonescale Eel or Deviate Fish in Zones > Fishing Guide.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.13"] = {
         features = {
             "Fishing Guide: open the Zones tab and click Fishing Guide to see where every fish is caught. It lists each zone's fish, pools and special catches, and the skill you need to fish there",

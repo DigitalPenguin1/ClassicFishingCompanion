@@ -3956,6 +3956,16 @@ StaticPopupDialogs["CFC_ABOUT_DIALOG"] = {
 
 -- Version-specific What's New content
 local whatsNewContent = {
+    ["1.2.14"] = {
+        fixes = {
+            "The HUD now sizes itself to fit what's on it, so there's no empty space on the right",
+            "Less empty space at the bottom of the HUD and above the Apply Lure and Swap buttons",
+            "With only the Swap button turned on, it no longer hangs off the side of the HUD",
+            "Fish/Hour shows -- for the first 5 minutes of a session instead of a wild number from your first catch",
+            "Rumsey Rum Dark, Rumsey Rum Light and Rumsey Rum Black Label now show under Miscellaneous instead of in your fish list",
+        },
+        tip = "Rum you already caught moves to Miscellaneous on its own. Your catch counts are unchanged.\n\nTIP: Tight lines and happy fishing!\n- Relyk"
+    },
     ["1.2.13"] = {
         fixes = {
             "Rumsey Rum Dark, Rumsey Rum Light and Rumsey Rum Black Label now show under Miscellaneous instead of in your fish list",

@@ -2,6 +2,15 @@
 
 All notable changes to Classic Fishing Companion will be documented in this file.
 
+## [1.2.14] - 2026-11-25
+
+### Fixed
+- **HUD width:** the HUD was never narrower than 200, so with a short Skill line there was empty space on the right. It now sizes to its widest visible line, the title, the lure bar and the enabled buttons (120 to 260). The Lure line and goals wrap at that width instead of a fixed 180. The Skill line's width is measured with inline icons stripped and each icon's size added, since `GetStringWidth` overcounts `|T` icons. Classic, TBC and Forever
+- **HUD height:** fixed base heights left about 16 extra at the bottom, and about 18 above the buttons. Now 100/127 on Forever and 98/125 on Classic and TBC (no buttons/buttons)
+- **HUD buttons:** with only Swap turned on, it stayed anchored right of the hidden Apply Lure button and hung off the side of the narrower HUD. It now takes Apply Lure's spot. Classic, TBC and Forever
+- **Forever: Time Left bar** starts at the same left edge as the Lure line, sits 2 lower, is raised 1 against its text so the time looks centered, and has rounded corners (`Textures/roundbar.tga` mask, with a rounded dark edge in place of the square border)
+- **Fish/Hour** on the HUD shows `--` for the first 5 minutes of a session; one early catch used to read as 100+ an hour. Classic, TBC and Forever
+
 ## [1.2.13] - 2026-11-23
 
 ### Added

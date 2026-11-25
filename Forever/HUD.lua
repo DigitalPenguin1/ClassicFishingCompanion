@@ -15,7 +15,10 @@ CFC.HUD = {}
 local HUDModule = CFC.HUD
 
 local hudFrame = nil
+local FPH_WARMUP_SECONDS = 300  -- show Fish/Hour as "--" for the first 5 minutes
 local LURE_BAR_WIDTH = 130
+local LURE_BAR_GAP = 2  -- extra space above the Time Left bar so it clears the Lure line
+local ROUND_BAR_MASK = "Interface\\AddOns\\ClassicFishingCompanion\\Textures\\roundbar"
 local LURE_BAR_HEIGHT = 11
 local GEAR_BONUS_ICON = "Interface\\Icons\\INV_Helmet_31"  -- Fishing bonus from gear other than the pole
 
@@ -125,7 +128,7 @@ function CFC:InitializeHUD()
     hudFrame.buffText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hudFrame.buffText:SetPoint("TOPLEFT", hudFrame.skillText, "BOTTOMLEFT", 0, -3)
     hudFrame.buffText:SetJustifyH("LEFT")
-    hudFrame.buffText:SetWidth(180)
+    hudFrame.buffText:SetWidth(180)  -- resized to the HUD by ApplyWidth
     hudFrame.buffText:SetWordWrap(true)
     -- Seed the single-line baseline used by GetBuffLineExtraHeight (measured on a short,
     -- guaranteed one-line string; recalibrated later from real single-line renders).
@@ -135,14 +138,17 @@ function CFC:InitializeHUD()
 
     -- Buff timer
     hudFrame.buffTimerText = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hudFrame.buffTimerText:SetPoint("TOPLEFT", hudFrame.buffText, "BOTTOMLEFT", 0, -3)
+    -- Text sits 3px in from the bar, so the bar's left edge lines up with the Lure line
+    hudFrame.buffTimerText:SetPoint("TOPLEFT", hudFrame.buffText, "BOTTOMLEFT", 3, -3 - LURE_BAR_GAP)
     hudFrame.buffTimerText:SetJustifyH("LEFT")
 
     -- Lure countdown bar behind the Time Left line, drawn with the game's own
     -- cast bar art. Textures on the HUD itself: a StatusBar child frame would
     -- render on top of the text.
     hudFrame.lureBarBg = hudFrame:CreateTexture(nil, "ARTWORK", nil, 0)
-    hudFrame.lureBarBg:SetPoint("LEFT", hudFrame.buffTimerText, "LEFT", -3, 0)
+    -- 1px up: the text box reserves descender room, so centering on it leaves the
+    -- letters riding high in the bar
+    hudFrame.lureBarBg:SetPoint("LEFT", hudFrame.buffTimerText, "LEFT", -3, 1)
     hudFrame.lureBarBg:SetSize(LURE_BAR_WIDTH, LURE_BAR_HEIGHT)
     hudFrame.lureBarFill = hudFrame:CreateTexture(nil, "ARTWORK", nil, 1)
     hudFrame.lureBarFill:SetPoint("TOPLEFT", hudFrame.lureBarBg, "TOPLEFT")
@@ -153,13 +159,34 @@ function CFC:InitializeHUD()
     hudFrame.useCastBarArt = Theme.HasCastBarArt()
     if hudFrame.useCastBarArt then
         hudFrame.lureBarBg:SetAtlas(CAST_BAR.background)
-        -- The cast bar's own frame art is drawn for a much larger bar and
-        -- looks heavy at HUD size; a thin dark edge reads closer to the game's
-        hudFrame.lureBarBorder = Theme.AddBorder(hudFrame, hudFrame.lureBarBg, { 0, 0, 0 }, 0.8)
         if Theme.HasAtlas(CAST_BAR.spark) then
             hudFrame.lureBarSpark:SetAtlas(CAST_BAR.spark)
             hudFrame.lureBarSpark:SetSize(3, LURE_BAR_HEIGHT + 2)
             hudFrame.lureBarSpark:SetAlpha(0.8)
+        end
+        -- The cast bar's own frame art is drawn for a much larger bar and
+        -- looks heavy at HUD size; a thin dark edge reads closer to the game's
+        if hudFrame.CreateMaskTexture then
+            -- Rounded corners: clip the bar to a rounded mask, and draw the edge as
+            -- a dark rounded rect 1px larger behind it (a square edge would poke out)
+            local barMask = hudFrame:CreateMaskTexture()
+            barMask:SetTexture(ROUND_BAR_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            barMask:SetAllPoints(hudFrame.lureBarBg)
+            hudFrame.lureBarBg:AddMaskTexture(barMask)
+            hudFrame.lureBarFill:AddMaskTexture(barMask)
+            hudFrame.lureBarSpark:AddMaskTexture(barMask)
+
+            local edge = hudFrame:CreateTexture(nil, "ARTWORK", nil, -1)
+            edge:SetPoint("TOPLEFT", hudFrame.lureBarBg, "TOPLEFT", -1, 1)
+            edge:SetPoint("BOTTOMRIGHT", hudFrame.lureBarBg, "BOTTOMRIGHT", 1, -1)
+            edge:SetColorTexture(0, 0, 0, 0.8)
+            local edgeMask = hudFrame:CreateMaskTexture()
+            edgeMask:SetTexture(ROUND_BAR_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            edgeMask:SetAllPoints(edge)
+            edge:AddMaskTexture(edgeMask)
+            hudFrame.lureBarBorder = edge
+        else
+            hudFrame.lureBarBorder = Theme.AddBorder(hudFrame, hudFrame.lureBarBg, { 0, 0, 0 }, 0.8)
         end
     else
         hudFrame.lureBarBg:SetColorTexture(Theme.Color(Theme.BRONZE_DARK, 0.6))
@@ -175,7 +202,7 @@ function CFC:InitializeHUD()
 
     -- Goals display (up to 3 goals on HUD)
     hudFrame.goalsTitle = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hudFrame.goalsTitle:SetPoint("TOPLEFT", hudFrame.buffTimerText, "BOTTOMLEFT", 0, -4)
+    hudFrame.goalsTitle:SetPoint("TOPLEFT", hudFrame.buffTimerText, "BOTTOMLEFT", -3, -4)
     hudFrame.goalsTitle:SetJustifyH("LEFT")
     hudFrame.goalsTitle:SetText("|cffffd700Goals:|r")
     hudFrame.goalsTitle:Hide()
@@ -478,16 +505,87 @@ function HUDModule:GetBuffLineExtraHeight()
     return math.max(extraFromLines, extraFromHeight)
 end
 
--- The skill line has no width cap and can exceed the 200px default -- e.g. when the
--- pole, lure, food and gear badges are appended -- spilling past the right border. Return a width
--- that fits the widest unwrapped line (never below the 200px default). Inline icon
--- textures are included in GetStringWidth, so the badges are accounted for.
+-- The HUD's width follows its content: the widest visible line, the title with its
+-- corner icons, the lure bar and the button row, plus a 10px margin each side.
+-- The Lure line and goals wrap inside that width, and only once the HUD hits MAX.
+local HUD_MIN_WIDTH = 120
+local HUD_MAX_WIDTH = 260
+
+-- Unwrapped width of a font string's text. GetStringWidth overcounts inline |T icons,
+-- and on the Lure and goal lines it reports the wrapped width, so measure a hidden copy
+-- with the icons stripped and add each icon's declared size.
+local function MeasureText(fs)
+    if not fs or not fs:IsShown() then return 0 end
+    local text = fs:GetText()
+    if not text or text == "" then return 0 end
+    local measure = hudFrame.measureText
+    if not measure then
+        measure = hudFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        measure:Hide()
+        hudFrame.measureText = measure
+    end
+    local font, fontSize, flags = fs:GetFont()
+    if font then measure:SetFont(font, fontSize, flags) end
+    local iconWidth = 0
+    local plain = text:gsub("|T(.-)|t", function(spec)
+        -- |Tpath:height[:width...]|t; height 0 means "match the font"
+        local h, w = spec:match("^[^:]*:(%d*):?(%d*)")
+        w = tonumber(w)
+        if not w or w == 0 then w = tonumber(h) end
+        if not w or w == 0 then w = fontSize or 12 end
+        iconWidth = iconWidth + w
+        return ""
+    end)
+    measure:SetText(plain)
+    return (measure:GetStringWidth() or 0) + iconWidth
+end
+
 function HUDModule:GetRequiredWidth()
-    local minWidth = 200
-    if not hudFrame or not hudFrame.skillText then return minWidth end
-    local skillWidth = hudFrame.skillText:GetStringWidth() or 0
-    -- content is inset 10px from the left; leave a matching right margin
-    return math.max(minWidth, math.ceil(skillWidth) + 20)
+    if not hudFrame then return HUD_MIN_WIDTH end
+    local content = 0
+    for _, fs in ipairs({ hudFrame.sessionText, hudFrame.totalText, hudFrame.fphText,
+            hudFrame.skillText, hudFrame.buffText, hudFrame.buffTimerText, hudFrame.foodText,
+            hudFrame.goalsTitle }) do
+        content = math.max(content, MeasureText(fs))
+    end
+    for _, fs in ipairs(hudFrame.goalTexts or {}) do
+        content = math.max(content, MeasureText(fs) + 2)  -- goals are indented 2px
+    end
+    -- Lure bar starts at the left content edge
+    if hudFrame.lureBarBg and hudFrame.lureBarBg:IsShown() then
+        content = math.max(content, hudFrame.lureBarBg:GetWidth())
+    end
+    -- Buttons go by the settings, not IsShown: text-only mode hides them until hover
+    local settings = CFC.db and CFC.db.profile.settings or {}
+    local buttons = 0
+    if settings.hudShowLureButton and hudFrame.applyLureButton then
+        buttons = hudFrame.applyLureButton:GetWidth()
+    end
+    if settings.hudShowSwapButton and hudFrame.gearSwapButton then
+        buttons = buttons + (buttons > 0 and 4 or 0) + hudFrame.gearSwapButton:GetWidth()
+    end
+    content = math.max(content, buttons)
+
+    local width = math.ceil(content) + 20
+    -- Centered title must clear the lock (and Rumsey) icons in the top-right corner
+    if hudFrame.title then
+        local corner = 5 + 16 + (hudFrame.rumseyIcon and 20 or 0) + 4
+        width = math.max(width, math.ceil(hudFrame.title:GetStringWidth() or 0) + 2 * corner)
+    end
+    return math.min(HUD_MAX_WIDTH, math.max(HUD_MIN_WIDTH, width))
+end
+
+-- Size the HUD to its content. Call before measuring the wrapped Lure line's height.
+function HUDModule:ApplyWidth()
+    if not hudFrame then return end
+    -- Resizing the HUD is blocked in combat (it holds the secure Apply Lure button)
+    if InCombatLockdown() then return end
+    local width = HUDModule:GetRequiredWidth()
+    hudFrame.buffText:SetWidth(width - 20)
+    for _, fs in ipairs(hudFrame.goalTexts or {}) do
+        fs:SetWidth(width - 22)
+    end
+    hudFrame:SetWidth(width)
 end
 
 -- Update HUD display
@@ -505,8 +603,15 @@ function HUDModule:Update()
     hudFrame.totalText:SetText("Total: |cff00ff00" .. totalCatches .. "|r fish")
 
     -- Fish per hour
-    local fph = CFC:GetFishPerHour()
-    hudFrame.fphText:SetText("Fish/Hour: |cff00ff00" .. string.format("%.1f", fph) .. "|r")
+    -- A rate from the first few minutes is mostly noise (1 fish in 20s reads as 180/hr),
+    -- so hold it back until the session has run FPH_WARMUP_SECONDS
+    local sessionStart = CFC.db.profile.statistics.sessionStartTime or time()
+    if time() - sessionStart < FPH_WARMUP_SECONDS then
+        hudFrame.fphText:SetText("Fish/Hour: |cffaaaaaa--|r")
+    else
+        local fph = CFC:GetFishPerHour()
+        hudFrame.fphText:SetText("Fish/Hour: |cff00ff00" .. string.format("%.1f", fph) .. "|r")
+    end
 
     -- Get current fishing buff once for both skill and buff displays
     local currentBuff = HUDModule:GetCurrentFishingBuff()
@@ -622,7 +727,7 @@ function HUDModule:Update()
             foodColor = "|cffffff00"
         end
         hudFrame.foodText:ClearAllPoints()
-        hudFrame.foodText:SetPoint("TOPLEFT", lureBottom, "BOTTOMLEFT", 0, currentBuff and -5 or -3)
+        hudFrame.foodText:SetPoint("TOPLEFT", lureBottom, "BOTTOMLEFT", currentBuff and -3 or 0, currentBuff and -5 or -3)
         hudFrame.foodText:SetText("Food: |T" .. foodBuff.icon .. ":12|t |cff00ff00+" .. foodBuff.amount
             .. "|r  " .. foodColor .. HUDModule:FormatTime(foodBuff.expirationSeconds) .. "|r")
         hudFrame.foodText:Show()
@@ -632,7 +737,9 @@ function HUDModule:Update()
 
     -- Goals sit under the food line, the Time Left line, or the Lure line, whichever is lowest
     hudFrame.goalsTitle:ClearAllPoints()
-    hudFrame.goalsTitle:SetPoint("TOPLEFT", foodBuff and hudFrame.foodText or lureBottom, "BOTTOMLEFT", 0, -4)
+    -- Undo the Time Left line's 3px indent so goals line up with the rest
+    local goalsX = (not foodBuff and currentBuff) and -3 or 0
+    hudFrame.goalsTitle:SetPoint("TOPLEFT", foodBuff and hudFrame.foodText or lureBottom, "BOTTOMLEFT", goalsX, -4)
 
     -- Update goals display
     local goalCount = 0
@@ -685,10 +792,14 @@ function HUDModule:Update()
     local showLure = CFC.db.profile.settings.hudShowLureButton
     local showSwap = CFC.db.profile.settings.hudShowSwapButton
     local anyButtons = showLure or showSwap
-    local baseHeight = anyButtons and 140 or 110
+    -- No buttons: ~5px margin under the last line. Buttons: the 22px button row
+    -- (5px off the bottom) slots in under that same margin.
+    local baseHeight = anyButtons and (100 + 22 + 5) or 100
 
     -- The base height includes the Time Left line, which only shows with a lure
-    if not currentBuff then
+    if currentBuff then
+        baseHeight = baseHeight + LURE_BAR_GAP
+    else
         baseHeight = baseHeight - ((hudFrame.buffSingleLineHeight or 12) + 3)
     end
     if foodBuff then
@@ -700,6 +811,7 @@ function HUDModule:Update()
         goalHeight = 14 + (goalCount * 13)
     end
 
+    HUDModule:ApplyWidth()
     HUDModule:SetHUDSize(baseHeight + goalHeight + HUDModule:GetBuffLineExtraHeight())
 end
 
@@ -711,7 +823,6 @@ function HUDModule:SetHUDSize(height)
         return
     end
     hudFrame:SetHeight(height)
-    hudFrame:SetWidth(HUDModule:GetRequiredWidth())
 end
 
 -- Format time in seconds to readable string (MM:SS)
@@ -1148,6 +1259,13 @@ function HUDModule:ApplyButtonVisibility()
     end
 
     if hudFrame.gearSwapButton then
+        -- Swap normally sits right of Apply Lure; on its own it takes Apply Lure's spot
+        hudFrame.gearSwapButton:ClearAllPoints()
+        if showLure and hudFrame.applyLureButton then
+            hudFrame.gearSwapButton:SetPoint("LEFT", hudFrame.applyLureButton, "RIGHT", 4, 0)
+        else
+            hudFrame.gearSwapButton:SetPoint("BOTTOMLEFT", hudFrame, "BOTTOMLEFT", 10, 5)
+        end
         if showSwap then
             hudFrame.gearSwapButton:Show()
         else

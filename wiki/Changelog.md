@@ -6,6 +6,10 @@ For the full detailed changelog, see [CHANGELOG.md](https://github.com/DigitalPe
 
 ## Recent Versions
 
+### v1.2.14
+- **HUD fixes** - The HUD sizes itself to fit what's on it, with less empty space on the right, at the bottom and above the buttons. The Swap button no longer hangs off the side when it's the only button. Fish/Hour shows -- for the first 5 minutes of a session
+- **Forever:** the Time Left bar lines up with the Lure line and has rounded corners
+
 ### v1.2.13
 - **Forever: Fishing Guide** - Zones > Fishing Guide shows where every fish is caught: each zone's fish, pools and special catches, and the skill needed to fish there. Search by fish, zone or pool, and click a fish to see everywhere it's caught
 

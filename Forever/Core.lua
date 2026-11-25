@@ -23,7 +23,7 @@ local UnitBuff = CFCCompat.UnitBuff
 local GetItemInfoInstant = CFCCompat.GetItemInfoInstant
 
 -- Version constant (single source of truth)
-CFC.VERSION = "1.2.13"
+CFC.VERSION = "1.2.14"
 CFC.COMMUNITY_TICKET_ID = "zejV2yLfvvG"  -- in-game CFC Community invite (clubTicket link)
 
 -- Centralized color codes for consistent styling
